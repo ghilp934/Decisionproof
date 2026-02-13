@@ -3,7 +3,7 @@
 from datetime import date, datetime, timezone
 from typing import Optional
 
-from sqlalchemy import BIGINT, DATE, FLOAT, JSON, TEXT, TIMESTAMP, UUID, Index, Integer
+from sqlalchemy import BIGINT, DATE, FLOAT, JSON, TEXT, TIMESTAMP, UUID, Index, Integer, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -136,6 +136,8 @@ class Run(Base):
         Index("idx_runs_tenant_created", "tenant_id", "created_at"),
         Index("idx_runs_status_lease", "status", "lease_expires_at"),
         Index("idx_runs_idem", "tenant_id", "idempotency_key"),
+        # P0-B: Prevent duplicate idempotency_key per tenant (INT-01, DEC-4201)
+        UniqueConstraint("tenant_id", "idempotency_key", name="uq_runs_tenant_idempotency"),
     )
 
 
