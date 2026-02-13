@@ -1,12 +1,15 @@
 """Repository for Run entity with DEC-4210 optimistic locking."""
 
+import logging
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from dpp_api.db.models import Run
+
+logger = logging.getLogger(__name__)
 
 
 class RunRepository:
@@ -191,3 +194,72 @@ class RunRepository:
             .limit(limit)
         )
         return list(self.db.execute(stmt).scalars().all())
+
+    def force_update_claimed_only(
+        self,
+        run_id: str,
+        updates: dict[str, Any],
+    ) -> bool:
+        """Force update ONLY runs in CLAIMED limbo state (MS-6 Safety Guard #3).
+
+        CRITICAL SAFETY: This bypasses version check but has strict conditions:
+        - run_id must match exactly
+        - finalize_stage must be 'CLAIMED'
+        - money_state must be 'RESERVED'
+
+        This prevents accidental force updates on:
+        - Already COMMITTED runs
+        - Runs in other states
+        - Wrong run IDs
+
+        Args:
+            run_id: Run ID (exact match required)
+            updates: Fields to update
+
+        Returns:
+            True if updated, False if conditions not met
+
+        Raises:
+            ValueError: If attempting to update critical fields incorrectly
+            RuntimeError: If multiple rows updated (data corruption)
+        """
+        # Validation: money_state must transition to SETTLED
+        if updates.get("money_state") != "SETTLED":
+            raise ValueError("force_update_claimed_only: money_state must be SETTLED")
+
+        # Validation: finalize_stage must transition to COMMITTED
+        if updates.get("finalize_stage") != "COMMITTED":
+            raise ValueError("force_update_claimed_only: finalize_stage must be COMMITTED")
+
+        # Add updated_at timestamp
+        updates["updated_at"] = datetime.now(timezone.utc)
+
+        # SQL with STRICT WHERE conditions
+        stmt = (
+            update(Run)
+            .where(
+                Run.run_id == run_id,
+                Run.finalize_stage == "CLAIMED",  # ← 필수: CLAIMED 상태만
+                Run.money_state == "RESERVED",     # ← 필수: RESERVED 상태만
+            )
+            .values(**updates)
+        )
+
+        result = self.db.execute(stmt)
+        self.db.commit()
+
+        # Check if any rows were actually updated
+        if result.rowcount == 0:
+            logger.warning(
+                f"force_update_claimed_only failed: Run {run_id} not in CLAIMED+RESERVED state"
+            )
+            return False
+
+        if result.rowcount > 1:
+            # Should NEVER happen (run_id is primary key)
+            raise RuntimeError(
+                f"force_update_claimed_only updated {result.rowcount} rows - data corruption!"
+            )
+
+        logger.info(f"force_update_claimed_only succeeded for run {run_id}")
+        return True

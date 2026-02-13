@@ -229,13 +229,20 @@ class WorkerLoop:
             )
 
             try:
+                # MS-6: Include actual_cost in S3 metadata for idempotent reconciliation
                 self.s3.put_object(
                     Bucket=self.result_bucket,
                     Key=s3_key,
                     Body=envelope_json.encode("utf-8"),
                     ContentType="application/json; charset=utf-8",
+                    Metadata={
+                        "actual-cost-usd-micros": str(actual_cost_usd_micros),
+                    },
                 )
-                logger.info(f"Uploaded result to s3://{self.result_bucket}/{s3_key}")
+                logger.info(
+                    f"Uploaded result to s3://{self.result_bucket}/{s3_key} "
+                    f"(actual_cost={actual_cost_usd_micros})"
+                )
 
             except Exception as e:
                 logger.error(f"S3 upload failed after claim: {e}", exc_info=True)

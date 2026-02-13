@@ -274,19 +274,11 @@ def test_chaos_race_condition_worker_vs_reaper(tmp_path, redis_client):
     print(f"\n[PASS] Race handled: {r_worker=} {r_reaper=} | settle_calls=1")
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "Known hardening gap: if Redis settle succeeds but DB commit fails, "
-        "reservation is already consumed. Requires MS-6 reconcile path "
-        "(idempotent finalize reconciliation) to pass."
-    ),
-)
 def test_chaos_crash_after_settle_before_db_commit_requires_reconcile(db_session, budget_manager):
     """
     Scenario: We crash AFTER Redis settle succeeds, but BEFORE the DB commit succeeds.
-    Desired goal (MS-6): system should be able to reconcile this to a consistent
-    COMMITTED+SETTLED state (or restore reservation), without double-charging.
+    MS-6: System should be able to reconcile this to a consistent COMMITTED+SETTLED state
+    using idempotent finalize reconciliation, without double-charging.
     """
     run = _create_processing_run(db_session, budget_manager)
 
@@ -321,9 +313,40 @@ def test_chaos_crash_after_settle_before_db_commit_requires_reconcile(db_session
     # At this point: Redis reservation is consumed...
     assert budget_manager.scripts.get_reservation(run.run_id) is None
 
-    # ...but DB is likely still CLAIMED+RESERVED (inconsistent).
+    # ...but DB is still CLAIMED+RESERVED (inconsistent).
     db_session.refresh(run)
     assert run.finalize_stage == "CLAIMED"
+    assert run.money_state == "RESERVED"
 
-    # Desired MS-6 behavior: reconcile should have advanced DB money_state to SETTLED.
+    # Setup S3 result info (simulating Worker had uploaded before crash)
+    run.result_bucket = "test-bucket"
+    run.result_key = "test-results/test-key"
+    run.finalize_claimed_at = _utcnow() - timedelta(minutes=10)  # Stuck >5min
+    db_session.commit()
+    db_session.refresh(run)
+
+    # MS-6: Simulate Reconcile Loop detecting and fixing the stuck run
+    # Import reconcile function from reaper (need to add reaper path)
+    import os
+    import sys
+    REAPER_PATH = os.path.abspath(os.path.join(THIS_DIR, "..", "..", "reaper"))
+    if REAPER_PATH not in sys.path:
+        sys.path.insert(0, REAPER_PATH)
+
+    from dpp_reaper.loops.reconcile_loop import reconcile_stuck_claimed_run
+
+    # Mock S3 API to simulate successful S3 upload with actual_cost metadata
+    with patch("dpp_reaper.loops.reconcile_loop.check_s3_result_exists", return_value=True):
+        with patch("dpp_api.storage.s3_client.S3Client.estimate_actual_cost_from_s3", return_value=500_000):
+            # Run MS-6 idempotent reconcile
+            success = reconcile_stuck_claimed_run(run, db_session, budget_manager)
+            assert success, "MS-6 reconcile should succeed"
+
+    # VERIFY: DB should now be consistent (COMMITTED+SETTLED)
+    db_session.refresh(run)
+    assert run.finalize_stage == "COMMITTED"
     assert run.money_state == "SETTLED"
+    assert run.status == "COMPLETED"
+    assert run.actual_cost_usd_micros == 500_000  # Should preserve the original charge
+
+    print("\n[PASS] MS-6: Idempotent reconcile recovered stuck CLAIMED run after settle succeeded.")
