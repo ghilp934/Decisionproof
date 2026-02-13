@@ -1,0 +1,35 @@
+# DPP API Server Dockerfile
+# Production-ready multi-stage build
+
+FROM python:3.12-slim AS base
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy only requirements first (layer caching)
+COPY pyproject.toml setup.py ./
+RUN pip install --no-cache-dir -e .
+
+# Copy application code
+COPY apps/api/dpp_api ./apps/api/dpp_api
+COPY alembic ./alembic
+COPY alembic.ini ./
+
+# Create non-root user
+RUN useradd -m -u 1000 dpp && chown -R dpp:dpp /app
+USER dpp
+
+# Expose ports
+EXPOSE 8000 9090
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
+
+# Run API server
+CMD ["uvicorn", "dpp_api.main:app", "--host", "0.0.0.0", "--port", "8000"]

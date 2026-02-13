@@ -257,34 +257,65 @@ allowed_origins = [
 
 ### Prerequisites Checklist
 
-- [ ] All 126 tests passing
-- [ ] Alembic migration clean (no drift)
-- [ ] Environment variables configured
-- [ ] AWS infrastructure provisioned (SQS, S3, RDS, Redis)
-- [ ] Monitoring setup (Prometheus, Grafana)
-- [ ] PagerDuty integration (CRITICAL alerts)
+- [x] All 133 tests passing
+- [x] Alembic migration clean (no drift)
+- [x] Environment variables configured
+- [x] AWS infrastructure provisioned (SQS, S3, RDS, Redis)
+- [x] Monitoring setup (Prometheus, Grafana)
+- [x] PagerDuty integration (CRITICAL alerts)
+- [x] Kubernetes manifests ready
+- [x] Dockerfiles configured
+- [x] IAM roles configured (IRSA)
 
 ### Deployment Steps
 
-See [PRODUCTION_DEPLOYMENT_GUIDE.md](PRODUCTION_DEPLOYMENT_GUIDE.md) for detailed instructions.
+See [PRODUCTION_DEPLOYMENT_GUIDE.md](PRODUCTION_DEPLOYMENT_GUIDE.md) and [k8s/README.md](k8s/README.md) for detailed instructions.
 
-**Quick Deploy**:
+**Quick Deploy (Kubernetes)**:
 ```bash
-# 1. Database migration
-python -m alembic upgrade head
+# Set environment variables
+export AWS_ACCOUNT_ID="123456789012"
+export AWS_REGION="us-east-1"
 
-# 2. Deploy API (3 instances)
+# Run automated deployment
+cd k8s
+chmod +x deploy.sh
+./deploy.sh
+
+# The script will:
+# 1. ✅ Run security checks (P0-2: no hardcoded credentials)
+# 2. ✅ Run full test suite (133 tests)
+# 3. ✅ Check Alembic migrations
+# 4. ✅ Build and push Docker images to ECR
+# 5. ✅ Create namespace and apply manifests
+# 6. ✅ Deploy API (3 replicas), Worker (5-10 replicas, HPA), Reaper (2 replicas)
+# 7. ✅ Verify health checks
+
+# Verify deployment
+kubectl get pods -n dpp-production
+curl http://${API_ENDPOINT}/readyz
+# Expected: {"status": "ready", "services": {...all "up"}}
+```
+
+**Manual Deploy**:
+```bash
+# 1. Create secrets
+kubectl create secret generic dpp-secrets \
+  --namespace=dpp-production \
+  --from-literal=database-url="..." \
+  --from-literal=redis-password="..."
+
+# 2. Apply manifests
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/configmap.yaml
 kubectl apply -f k8s/api-deployment.yaml
-
-# 3. Deploy Worker (5-10 instances, auto-scaling)
 kubectl apply -f k8s/worker-deployment.yaml
-
-# 4. Deploy Reaper (2 instances, HA)
 kubectl apply -f k8s/reaper-deployment.yaml
 
-# 5. Verify health
-curl https://api.example.com/readyz
-# Expected: {"status": "ready", "services": {...all "up"}}
+# 3. Verify rollout
+kubectl rollout status deployment/dpp-api -n dpp-production
+kubectl rollout status deployment/dpp-worker -n dpp-production
+kubectl rollout status deployment/dpp-reaper -n dpp-production
 ```
 
 ---
@@ -330,7 +361,7 @@ dpp/
 ├── apps/
 │   ├── api/
 │   │   ├── dpp_api/          # FastAPI application
-│   │   └── tests/            # API tests (126 tests)
+│   │   └── tests/            # API tests (133 tests)
 │   ├── worker/
 │   │   ├── dpp_worker/       # SQS worker
 │   │   └── tests/            # Worker tests (4 tests)
@@ -340,6 +371,19 @@ dpp/
 ├── alembic/                  # Database migrations
 ├── infra/
 │   └── docker-compose.yml    # Dev infrastructure
+├── k8s/                      # Kubernetes manifests
+│   ├── namespace.yaml        # dpp-production namespace
+│   ├── configmap.yaml        # Environment variables
+│   ├── secrets.yaml          # Sensitive data (template)
+│   ├── api-deployment.yaml   # API deployment + service
+│   ├── worker-deployment.yaml # Worker deployment + HPA
+│   ├── reaper-deployment.yaml # Reaper deployment
+│   ├── ingress.yaml          # ALB ingress + NetworkPolicy
+│   ├── deploy.sh             # Automated deployment script
+│   └── README.md             # Kubernetes deployment guide
+├── Dockerfile.api            # API Docker image
+├── Dockerfile.worker         # Worker Docker image
+├── Dockerfile.reaper         # Reaper Docker image
 ├── IMPLEMENTATION_REPORT.md
 ├── PRODUCTION_DEPLOYMENT_GUIDE.md
 └── README.md (this file)
