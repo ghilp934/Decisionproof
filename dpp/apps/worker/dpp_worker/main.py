@@ -13,13 +13,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../api"))
 
 from dpp_api.budget import BudgetManager
 from dpp_api.db.redis_client import RedisClient
+from dpp_api.utils import configure_json_logging
 from dpp_worker.loops.sqs_loop import WorkerLoop
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+# P1-H: Configure structured JSON logging (same as API)
+configure_json_logging(log_level=os.getenv("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
 
 

@@ -30,12 +30,24 @@ def test_health_endpoint() -> None:
 
 
 def test_readyz_endpoint() -> None:
-    """Test readiness check endpoint."""
+    """Test readiness check endpoint (P1-J).
+
+    May return 200 (ready) or 503 (not ready) depending on dependencies.
+    """
     response = client.get("/readyz")
-    assert response.status_code == 200
+    # P1-J: Accept both 200 (ready) and 503 (dependencies down)
+    assert response.status_code in [200, 503]
     data = response.json()
-    assert data["status"] == "ready"
+
+    # If 200, should be "ready"
+    if response.status_code == 200:
+        assert data["status"] == "ready"
+    # If 503, should be "not_ready"
+    else:
+        assert data["status"] == "not_ready"
+
     assert data["version"] == "0.4.2.2"
+    assert "services" in data
 
 
 def test_openapi_docs_available() -> None:

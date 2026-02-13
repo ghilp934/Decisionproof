@@ -220,7 +220,8 @@ async def create_run(
     # P0-5: Transaction Script pattern - if enqueue fails, rollback DB and refund
     try:
         sqs_client = get_sqs_client()
-        message_id = sqs_client.enqueue_run(run_id, tenant_id, request.pack_type)
+        # Observability: Pass trace_id to Worker for end-to-end tracing
+        message_id = sqs_client.enqueue_run(run_id, tenant_id, request.pack_type, trace_id=run.trace_id)
         # P1-9: Include trace_id in logs
         logger.info(
             f"Enqueued run {run_id} to SQS (message_id={message_id})",

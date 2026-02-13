@@ -24,7 +24,7 @@ class SQSClient:
             aws_secret_access_key="test",
         )
 
-    def enqueue_run(self, run_id: str, tenant_id: str, pack_type: str) -> str:
+    def enqueue_run(self, run_id: str, tenant_id: str, pack_type: str, trace_id: str | None = None) -> str:
         """
         Enqueue a run for processing.
 
@@ -32,6 +32,7 @@ class SQSClient:
             run_id: Run ID (UUID)
             tenant_id: Tenant ID
             pack_type: Pack type
+            trace_id: Trace ID for observability (optional)
 
         Returns:
             SQS Message ID
@@ -45,6 +46,7 @@ class SQSClient:
             "pack_type": pack_type,
             "enqueued_at": datetime.now(timezone.utc).isoformat(),
             "schema_version": "1",
+            "trace_id": trace_id,  # Observability: trace across API → Worker → Reaper
         }
 
         response = self.client.send_message(

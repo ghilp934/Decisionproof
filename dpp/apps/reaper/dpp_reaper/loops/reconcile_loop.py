@@ -152,8 +152,52 @@ def roll_forward_stuck_run(
     try:
         repo = RunRepository(db)
 
-        # Calculate charge (actual_cost should already be in run record, but defensive)
-        charge_usd_micros = run.actual_cost_usd_micros or run.reservation_max_cost_usd_micros
+        # MS-6: Calculate charge with S3 metadata fallback (Data Traceability)
+        charge_usd_micros = run.actual_cost_usd_micros
+
+        # If actual_cost not in DB, read from S3 metadata (Worker crashed before commit)
+        if charge_usd_micros is None and run.result_bucket and run.result_key:
+            try:
+                from dpp_api.storage.s3_client import get_s3_client
+                s3_client = get_s3_client()
+
+                # Read S3 object metadata (settlement receipt)
+                response = s3_client.client.head_object(
+                    Bucket=run.result_bucket,
+                    Key=run.result_key,
+                )
+
+                metadata = response.get("Metadata", {})
+                actual_cost_str = metadata.get("actual-cost-usd-micros")
+
+                if actual_cost_str:
+                    charge_usd_micros = int(actual_cost_str)
+                    logger.info(
+                        f"Reconcile: Read actual_cost from S3 metadata for run {run_id}: ${charge_usd_micros/1_000_000:.4f}",
+                        extra={"run_id": run_id, "actual_cost_usd_micros": charge_usd_micros, "source": "s3_metadata"},
+                    )
+                else:
+                    logger.warning(
+                        f"Reconcile: S3 metadata missing actual-cost for run {run_id}, using reservation max",
+                        extra={"run_id": run_id, "fallback": "reservation_max"},
+                    )
+                    charge_usd_micros = run.reservation_max_cost_usd_micros
+
+            except Exception as e:
+                logger.error(
+                    f"Reconcile: Failed to read S3 metadata for run {run_id}: {e}",
+                    exc_info=True,
+                    extra={"run_id": run_id},
+                )
+                charge_usd_micros = run.reservation_max_cost_usd_micros
+
+        # Final fallback
+        if charge_usd_micros is None:
+            charge_usd_micros = run.reservation_max_cost_usd_micros
+            logger.warning(
+                f"Reconcile: No actual_cost available for run {run_id}, using reservation max",
+                extra={"run_id": run_id, "charge_usd_micros": charge_usd_micros},
+            )
 
         # STEP 1: Settle budget
         # NOTE: settle() is NOT idempotent (deletes reservation on first call)
@@ -401,11 +445,16 @@ def reconcile_stuck_claimed_run(
     if not receipt:
         # NO RECEIPT = NO PROOF of settlement
         # MUST NOT auto-settle (violates "proof-only" principle)
-        logger.warning(
-            f"MS-6: Run {run_id} has no reservation AND no receipt, marking AUDIT_REQUIRED",
+        # CRITICAL: This indicates potential money leak or data inconsistency
+        logger.error(
+            f"🚨 AUDIT_REQUIRED: Run {run_id} has no reservation AND no settlement receipt! "
+            f"Manual reconciliation needed. tenant_id={tenant_id}",
             extra={
                 "run_id": run_id,
+                "tenant_id": tenant_id,
                 "reconcile_type": "no_receipt_audit",
+                "severity": "CRITICAL",  # For monitoring alerts
+                "alert_channel": "ops_urgent",  # PagerDuty/Slack escalation
             },
         )
 

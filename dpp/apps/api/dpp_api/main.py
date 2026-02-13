@@ -31,13 +31,28 @@ if os.getenv("DPP_JSON_LOGS", "true").lower() != "false":
     logger = logging.getLogger(__name__)
     logger.info("Structured JSON logging enabled")
 
-# CORS middleware (adjust for production)
+# P1-G: CORS middleware with browser-compatible security
+# MDN: credentials mode CANNOT use wildcard origins
+cors_origins_env = os.getenv("CORS_ALLOWED_ORIGINS", "")
+if cors_origins_env:
+    # Production: explicit allowlist (comma-separated)
+    allowed_origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+else:
+    # Dev fallback: localhost variants (safe default)
+    allowed_origins = [
+        "http://localhost:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8000",
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # TODO: restrict in production
+    allow_origins=allowed_origins,  # P1-G: Never "*" with credentials
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Explicit methods
+    allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],  # Explicit headers
+    expose_headers=["X-DPP-Cost-Reserved", "X-DPP-Cost-Actual", "X-DPP-Cost-Minimum-Fee"],  # P1-6
 )
 
 
