@@ -21,6 +21,7 @@ from dpp_worker.finalize.optimistic_commit import (
     finalize_failure,
     finalize_success,
 )
+from dpp_worker.heartbeat import HeartbeatThread
 from dpp_worker.pack_envelope import compute_envelope_sha256, create_pack_envelope
 
 logger = logging.getLogger(__name__)
@@ -97,7 +98,7 @@ class WorkerLoop:
             body = json.loads(message["Body"])
 
             try:
-                self._process_message(body)
+                self._process_message(body, receipt_handle)
                 # Success - delete message
                 self.sqs.delete_message(
                     QueueUrl=self.queue_url, ReceiptHandle=receipt_handle
@@ -109,7 +110,7 @@ class WorkerLoop:
                 # Message will become visible again after visibility timeout
                 # or go to DLQ after max receives
 
-    def _process_message(self, message: dict[str, Any]) -> None:
+    def _process_message(self, message: dict[str, Any], receipt_handle: str) -> None:
         """Process a single SQS message.
 
         Args:
@@ -121,6 +122,7 @@ class WorkerLoop:
                     "enqueued_at": "2026-02-13T00:00:00Z",
                     "schema_version": "1"
                 }
+            receipt_handle: SQS message receipt handle for heartbeat
         """
         run_id = message["run_id"]
         tenant_id = message["tenant_id"]
@@ -171,6 +173,23 @@ class WorkerLoop:
 
         logger.info(f"Run {run_id} transitioned to PROCESSING with lease {lease_token}")
 
+        # P0-D: Start heartbeat thread to prevent zombie detection
+        # Version after PROCESSING transition is current_version + 1
+        processing_version = current_version + 1
+        heartbeat = HeartbeatThread(
+            run_id=run_id,
+            tenant_id=tenant_id,
+            lease_token=lease_token,
+            current_version=processing_version,
+            db_session=self.db,
+            sqs_client=self.sqs,
+            queue_url=self.queue_url,
+            receipt_handle=receipt_handle,
+            heartbeat_interval_sec=30,  # Send heartbeat every 30s
+            lease_extension_sec=self.lease_ttl_sec,  # Extend by 120s each time
+        )
+        heartbeat.start()
+
         # 3. Execute pack
         try:
             executor = self.executors.get(pack_type)
@@ -216,6 +235,8 @@ class WorkerLoop:
 
             except ClaimError as e:
                 logger.warning(f"Run {run_id} claim failed (LOSER): {e}")
+                # P0-D: Stop heartbeat on claim failure
+                heartbeat.stop()
                 # Another worker or reaper already finalized - this is OK
                 # Do NOT upload to S3 since we lost the race
                 return
@@ -273,8 +294,13 @@ class WorkerLoop:
                 else:
                     logger.warning(f"Run {run_id} finalize commit returned unexpected result")
 
+                # P0-D: Stop heartbeat on success
+                heartbeat.stop()
+
             except FinalizeError as e:
                 logger.error(f"Run {run_id} commit failed after claim and S3 upload: {e}")
+                # P0-D: Stop heartbeat on error
+                heartbeat.stop()
                 # This is a problem - claim succeeded, S3 uploaded, but commit failed
                 # Reconciliation job will handle this
                 raise
@@ -300,12 +326,19 @@ class WorkerLoop:
                 else:
                     logger.warning(f"Run {run_id} failure finalize lost race (LOSER)")
 
+                # P0-D: Stop heartbeat after failure finalize
+                heartbeat.stop()
+
             except ClaimError as e:
                 logger.warning(f"Run {run_id} failure claim failed (LOSER): {e}")
+                # P0-D: Stop heartbeat on claim error
+                heartbeat.stop()
                 return
 
             except FinalizeError as e:
                 logger.error(f"Run {run_id} failure finalize failed after claim: {e}")
+                # P0-D: Stop heartbeat on finalize error
+                heartbeat.stop()
                 raise
 
     def run_forever(self) -> None:
