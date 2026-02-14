@@ -1,4 +1,4 @@
-# DPP API Platform v0.4.2.2
+# Decisionproof API Platform v0.4.2.2
 ## Decision Pack Platform - Agent-Centric API Platform
 
 [![Production Ready](https://img.shields.io/badge/Production-Ready-brightgreen)](PRODUCTION_DEPLOYMENT_GUIDE.md)
@@ -8,7 +8,7 @@
 
 **Payment-based API platform for AI agents**
 
-DPP is a distributed system designed to help AI agents perform complex decision-making tasks. Built under a **zero-tolerance money leak** principle, it ensures 100% accurate cost settlement through 2-phase commit, optimistic locking, and chaos testing.
+Decisionproof is a distributed system designed to help AI agents perform complex decision-making tasks. Built under a **zero-tolerance money leak** principle, it ensures 100% accurate cost settlement through 2-phase commit, optimistic locking, and chaos testing.
 
 ---
 
