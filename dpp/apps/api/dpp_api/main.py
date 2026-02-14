@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from dpp_api.context import request_id_var
+from dpp_api.context import budget_decision_var, plan_key_var, request_id_var, run_id_var
 from dpp_api.enforce import PlanViolationError
 from dpp_api.rate_limiter import NoOpRateLimiter, RateLimiter
 from dpp_api.routers import health, runs, usage
@@ -202,9 +202,19 @@ async def http_completion_logging_middleware(request: Request, call_next):
     - Additional fields from context: tenant_id, run_id, plan_key, budget_decision
     - Logs even on exceptions (status_code=500)
 
+    RC-6 Hardening:
+    - Clears per-request contextvars at start and end to prevent leakage
+    - Ensures contextvars don't leak across requests in async task reuse scenarios
+
     IMPORTANT: This MUST be the LAST middleware to ensure it wraps all other middlewares
     and logs are emitted even when inner middlewares return early (e.g., 429 responses).
     """
+    # RC-6 Hardening: Clear per-request contextvars at start
+    # This prevents context leakage if async tasks are reused across requests
+    run_id_var.set("")
+    plan_key_var.set("")
+    budget_decision_var.set("")
+
     start_time = time.perf_counter()
     status_code = 500  # Default to 500 in case of unhandled exception
 
@@ -233,6 +243,12 @@ async def http_completion_logging_middleware(request: Request, call_next):
                 "duration_ms": round(duration_ms, 2),
             },
         )
+
+        # RC-6 Hardening: Clear per-request contextvars after logging
+        # Ensures clean state for next request (defense in depth)
+        run_id_var.set("")
+        plan_key_var.set("")
+        budget_decision_var.set("")
 
 
 # ============================================================================
