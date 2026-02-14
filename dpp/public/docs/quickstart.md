@@ -14,13 +14,15 @@ Decisionproof API is available at the following endpoints:
 
 ## Authentication
 
-Include your API key in the `X-API-Key` header:
+Include your API key in the `Authorization` header with `Bearer` scheme:
 
 ```bash
-X-API-Key: dw_live_abc123...
+Authorization: Bearer sk_live_abc123_xyz789...
 ```
 
-Sandbox keys use `dw_test_` prefix.
+API Key Format: `sk_{environment}_{key_id}_{secret}`
+- Live keys: `sk_live_*`
+- Test keys: `sk_test_*`
 
 ## Example Requests
 
@@ -31,7 +33,7 @@ Sandbox keys use `dw_test_` prefix.
 
 ```bash
 curl -X POST https://api.decisionproof.ai/v1/runs \
-  -H "X-API-Key: dw_live_abc123..." \
+  -H "Authorization: Bearer sk_live_abc123_xyz789..." \
   -H "Content-Type: application/json" \
   -d '{
     "workspace_id": "ws_123",
@@ -51,7 +53,7 @@ import requests
 response = requests.post(
     "https://api.decisionproof.ai/v1/runs",
     headers={
-        "X-API-Key": "dw_live_abc123...",
+        "Authorization": "Bearer sk_live_abc123_xyz789...",
         "Content-Type": "application/json"
     },
     json={
@@ -74,7 +76,7 @@ print(f"Result: {response.json()}")
 const response = await fetch("https://api.decisionproof.ai/v1/runs", {
   method: "POST",
   headers: {
-    "X-API-Key": "dw_live_abc123...",
+    "Authorization": "Bearer sk_live_abc123_xyz789...",
     "Content-Type": "application/json"
   },
   body: JSON.stringify({
@@ -102,7 +104,7 @@ console.log(`Result:`, data);
 
 ```bash
 curl -X POST https://api.decisionproof.ai/v1/runs \
-  -H "X-API-Key: dw_live_abc123..." \
+  -H "Authorization: Bearer sk_live_abc123_xyz789..." \
   -H "Content-Type: application/json" \
   -d '{
     "workspace_id": "ws_123",
@@ -122,7 +124,7 @@ import requests
 response = requests.post(
     "https://api.decisionproof.ai/v1/runs",
     headers={
-        "X-API-Key": "dw_live_abc123...",
+        "Authorization": "Bearer sk_live_abc123_xyz789...",
         "Content-Type": "application/json"
     },
     json={
@@ -149,7 +151,7 @@ if response.status_code == 422:
 const response = await fetch("https://api.decisionproof.ai/v1/runs", {
   method: "POST",
   headers: {
-    "X-API-Key": "dw_live_abc123...",
+    "Authorization": "Bearer sk_live_abc123_xyz789...",
     "Content-Type": "application/json"
   },
   body: JSON.stringify({
@@ -181,7 +183,7 @@ if (response.status === 422) {
 ```bash
 # After exceeding 600 requests/minute (STARTER tier)
 curl -X POST https://api.decisionproof.ai/v1/runs \
-  -H "X-API-Key: dw_live_abc123..." \
+  -H "Authorization: Bearer sk_live_abc123_xyz789..." \
   -H "Content-Type: application/json" \
   -d '{
     "workspace_id": "ws_123",
@@ -202,7 +204,7 @@ import time
 response = requests.post(
     "https://api.decisionproof.ai/v1/runs",
     headers={
-        "X-API-Key": "dw_live_abc123...",
+        "Authorization": "Bearer sk_live_abc123_xyz789...",
         "Content-Type": "application/json"
     },
     json={
@@ -233,7 +235,7 @@ if response.status_code == 429:
 const response = await fetch("https://api.decisionproof.ai/v1/runs", {
   method: "POST",
   headers: {
-    "X-API-Key": "dw_live_abc123...",
+    "Authorization": "Bearer sk_live_abc123_xyz789...",
     "Content-Type": "application/json"
   },
   body: JSON.stringify({

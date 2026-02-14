@@ -6,6 +6,7 @@ import os
 import boto3
 from fastapi import APIRouter, Response, status
 from pydantic import BaseModel
+from sqlalchemy import text
 
 from dpp_api.db.redis_client import RedisClient
 from dpp_api.db.session import engine
@@ -30,8 +31,9 @@ def check_database() -> str:
     """
     try:
         # P1-J: Execute simple query to verify DB connection
+        # P0 Hotfix: Use text() for SQLAlchemy 2.0 compatibility
         with engine.connect() as conn:
-            conn.execute("SELECT 1")
+            conn.execute(text("SELECT 1"))
         return "up"
     except Exception as e:
         logger.error(f"Database health check failed: {e}")

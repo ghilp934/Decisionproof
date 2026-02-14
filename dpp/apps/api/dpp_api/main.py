@@ -174,6 +174,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException) 
     No {"detail": ...} wrapper.
 
     P0-1: Preserves dict detail fields for structured error responses (RFC 9457 compliant).
+    P0 Hotfix: Adds Retry-After header for 429 responses.
     """
     # P0-1: Don't force-cast detail to str - preserve dict if provided
     detail_value = exc.detail if exc.detail is not None else _get_title_for_status(exc.status_code)
@@ -186,10 +187,16 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException) 
         instance=request.url.path,
     )
 
+    headers = {}
+    # P0 Hotfix: Add Retry-After header for 429 (default to 60 seconds)
+    if exc.status_code == 429:
+        headers["Retry-After"] = "60"
+
     return JSONResponse(
         status_code=exc.status_code,
         content=problem.model_dump(exclude_none=True),
         media_type="application/problem+json",
+        headers=headers,
     )
 
 
@@ -394,6 +401,22 @@ def custom_openapi():
             },
         }
 
+    # Add security scheme (Bearer auth)
+    if "components" not in openapi_schema:
+        openapi_schema["components"] = {}
+    if "securitySchemes" not in openapi_schema["components"]:
+        openapi_schema["components"]["securitySchemes"] = {}
+
+    openapi_schema["components"]["securitySchemes"]["BearerAuth"] = {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "API Key",
+        "description": "API Key in format: sk_{environment}_{key_id}_{secret} (e.g., sk_live_abc123_xyz789...)",
+    }
+
+    # Apply security globally
+    openapi_schema["security"] = [{"BearerAuth": []}]
+
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 
@@ -478,9 +501,10 @@ async def function_calling_specs():
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "base_url": base_url,
         "auth": {
-            "type": "api_key",
-            "header": "X-API-Key",
-            "format": "dw_live_* or dw_test_*",
+            "type": "http",
+            "scheme": "bearer",
+            "bearer_format": "API Key",
+            "format": "sk_{environment}_{key_id}_{secret} (e.g., sk_live_*, sk_test_*)",
             "docs": f"{base_url}/docs/auth.md",
         },
         "tools": [

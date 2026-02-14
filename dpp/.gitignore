@@ -67,3 +67,5 @@ alembic.ini.bak
 output/
 tmp/
 temp/
+*.backup
+*.bak

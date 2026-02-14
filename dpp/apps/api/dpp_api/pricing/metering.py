@@ -4,7 +4,7 @@ Key: (workspace_id, run_id)
 Retention: 45 days
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Literal, Optional
 from redis import Redis
@@ -20,7 +20,7 @@ class MeteringEvent(BaseModel):
     occurred_at: datetime
     http_status: int
     billable: bool
-    metadata: dict = {}
+    metadata: dict = Field(default_factory=dict)  # P0 Hotfix: mutable default fix
 
 
 class MeteringResult(BaseModel):
@@ -118,18 +118,20 @@ class MeteringService:
     def _is_billable(self, http_status: int) -> bool:
         """
         Check if HTTP status is billable
-        
+
         Billable: 2xx, 422
         Non-billable: 400/401/403/404/409/412/413/415/429, 5xx
+
+        P0 Hotfix: Safe defaults - 2xx and 422 default to billable (True) to prevent revenue loss
         """
 
-        # Success (2xx)
+        # Success (2xx) - P0 Hotfix: default True (billable if config missing)
         if 200 <= http_status < 300:
-            return self.ssot.billing_rules.billable.get("success", False)
+            return self.ssot.billing_rules.billable.get("success", True)
 
-        # 422 Unprocessable Entity
+        # 422 Unprocessable Entity - P0 Hotfix: default True (billable if config missing)
         if http_status == 422:
-            return self.ssot.billing_rules.billable.get("http_422", False)
+            return self.ssot.billing_rules.billable.get("http_422", True)
 
         # Non-billable statuses
         non_billable_map = {
