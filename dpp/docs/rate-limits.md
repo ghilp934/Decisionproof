@@ -1,82 +1,134 @@
 # Rate Limits
 
-Decisionproof implements IETF draft-ietf-httpapi-ratelimit-headers compliant rate limiting.
+Decisionproof API uses **IETF RateLimit header fields** for standardized rate limiting.
 
-## RateLimit Headers
+## SSOT (Single Source of Truth) - Header Specification
 
-All responses include RateLimit headers:
+All `/v1/*` API endpoints include the following headers:
 
-### RateLimit-Policy
-
-Describes the rate limit policy applied to this request.
-
-```http
-RateLimit-Policy: "post_runs";w=60;q=600
+### Successful Responses (2xx)
+```
+RateLimit-Policy: "default"; q=60; w=60
+RateLimit: "default"; r=<int>; t=<int>
 ```
 
-- `post_runs`: Policy name (e.g., "post_runs", "poll_runs")
-- `w=60`: Window size in seconds
-- `q=600`: Quota (maximum requests allowed in the window)
-
-### RateLimit
-
-Current rate limit status.
-
-```http
-RateLimit: "post_runs";r=599;t=42
+### Rate Limit Exceeded (429)
+```
+RateLimit-Policy: "default"; q=60; w=60
+RateLimit: "default"; r=0; t=<int>
+Retry-After: 60
 ```
 
-- `post_runs`: Policy name (matches RateLimit-Policy)
-- `r=599`: Remaining requests in current window
-- `t=42`: TTL in seconds until window resets
+## Header Field Definitions
 
-## 429 Too Many Requests
+### `RateLimit-Policy`
+Describes the rate limit policy applied to the request.
 
-When you exceed the rate limit, you receive a 429 response:
+- **Format**: `"<policy_id>"; q=<quota>; w=<window>`
+- **Parameters**:
+  - `policy_id`: Policy identifier (always `"default"`)
+  - `q`: Quota (maximum requests allowed per window)
+  - `w`: Window size in seconds
 
-```http
-HTTP/1.1 429 Too Many Requests
-Content-Type: application/problem+json
-RateLimit-Policy: "post_runs";w=60;q=600
-RateLimit: "post_runs";r=0;t=30
-Retry-After: 30
+**Example**:
+```
+RateLimit-Policy: "default"; q=60; w=60
+```
+This means: 60 requests per 60-second window.
+
+### `RateLimit`
+Provides current rate limit state for the request.
+
+- **Format**: `"<policy_id>"; r=<remaining>; t=<reset>`
+- **Parameters**:
+  - `policy_id`: Policy identifier (matches `RateLimit-Policy`)
+  - `r`: Remaining quota in current window
+  - `t`: Seconds until quota resets
+
+**Example**:
+```
+RateLimit: "default"; r=45; t=30
+```
+This means: 45 requests remaining, resets in 30 seconds.
+
+### `Retry-After`
+Indicates when the client should retry after a 429 response.
+
+- **Format**: Integer (seconds)
+- **Present on**: 429 responses only
+
+**Example**:
+```
+Retry-After: 60
+```
+This means: Retry after 60 seconds.
+
+## Client Implementation Guide
+
+### Handling Rate Limits
+
+Clients should monitor `RateLimit` headers and implement backoff before hitting 429:
+
+```python
+import time
+import requests
+
+def call_api(url, headers):
+    response = requests.get(url, headers=headers)
+
+    # Check rate limit headers
+    rate_limit = response.headers.get("RateLimit")
+    if rate_limit:
+        # Parse: "default"; r=<remaining>; t=<reset>
+        parts = {p.split("=")[0].strip(): p.split("=")[1].strip()
+                 for p in rate_limit.split(";")[1:]}
+        remaining = int(parts.get("r", 999))
+        reset = int(parts.get("t", 60))
+
+        # Proactive backoff when quota is low
+        if remaining < 5:
+            print(f"Low quota ({remaining}), waiting {reset}s")
+            time.sleep(reset)
+
+    # Handle 429
+    if response.status_code == 429:
+        retry_after = int(response.headers.get("Retry-After", 60))
+        print(f"Rate limited, retrying after {retry_after}s")
+        time.sleep(retry_after)
+        return call_api(url, headers)  # Retry
+
+    return response
 ```
 
-```json
-{
-  "type": "https://iana.org/assignments/http-problem-types#quota-exceeded",
-  "title": "Request cannot be satisfied as assigned quota has been exceeded",
-  "status": 429,
-  "detail": "RPM limit of 600 requests per minute exceeded",
-  "violated-policies": [
-    {
-      "policy": "rpm",
-      "limit": 600,
-      "current": 601,
-      "window_seconds": 60
-    }
-  ]
-}
-```
+### Key Points
 
-## Retry-After Header
+1. **Monitor `r` (remaining)**: When `r` drops below a threshold (e.g., 5), consider delaying requests.
+2. **Use `t` (reset)**: Wait `t` seconds before the quota replenishes.
+3. **Always respect `Retry-After`**: On 429, wait the exact duration specified.
+4. **Implement exponential backoff**: If multiple 429s occur, increase wait time.
 
-The `Retry-After` header indicates how many seconds to wait before retrying.
+## Standard Compliance
 
-**IMPORTANT**: `Retry-After` takes precedence over `RateLimit: reset`.
+Decisionproof follows the **IETF draft specification** for RateLimit headers:
+- Draft: [draft-ietf-httpapi-ratelimit-headers](https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/)
+- Format: Structured Fields (RFC 8941)
 
-## Client Handling
+### Migration Notes
 
-1. **Parse RateLimit headers** on every response
-2. **Track remaining requests** to avoid hitting limits
-3. **On 429**: Read `Retry-After`, wait, then retry
-4. **Exponential backoff**: Recommended for repeated 429s
+**Deprecated Headers** (not used):
+- `X-RateLimit-*` (GitHub style)
+- `X-Rate-Limit-*` (Twitter style)
 
-## Tier-Specific Limits
+All rate limit information is provided via standard `RateLimit-Policy` and `RateLimit` headers only.
 
-See [Pricing SSoT](/pricing/ssot.json) for tier-specific RPM limits:
+## Current Limits
 
-- SANDBOX: 60 RPM
-- STARTER: 600 RPM
-- GROWTH: 3000 RPM
-- ENTERPRISE: Unlimited (0 = unlimited)
+| Policy    | Quota | Window  | Scope          |
+|-----------|-------|---------|----------------|
+| `default` | 60    | 60s     | Per API key    |
+
+**Note**: Limits may vary based on plan tier in the future. Always parse headers dynamically.
+
+## Support
+
+If you encounter rate limiting issues or need higher limits, contact support at support@decisionproof.ai.

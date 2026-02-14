@@ -6,7 +6,7 @@ import os
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
@@ -15,6 +15,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from dpp_api.context import request_id_var
 from dpp_api.enforce import PlanViolationError
+from dpp_api.rate_limiter import NoOpRateLimiter, RateLimiter
 from dpp_api.routers import health, runs, usage
 from dpp_api.schemas import ProblemDetail
 from dpp_api.utils import configure_json_logging
@@ -132,6 +133,85 @@ async def static_cache_middleware(request: Request, call_next):
     elif path.startswith("/docs/") or path.startswith("/public/"):
         # Default cache for other static files (1 hour)
         response.headers["Cache-Control"] = "public, max-age=3600"
+
+    return response
+
+
+# ============================================================================
+# RC-3: IETF RateLimit Headers Middleware
+# ============================================================================
+
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    """Add IETF RateLimit headers to /v1/* API responses.
+
+    RC-3: Contract Gate - RateLimit Headers
+    - Applies to: /v1/* endpoints only
+    - 2xx responses: RateLimit-Policy + RateLimit
+    - 429 responses: RateLimit-Policy + RateLimit + Retry-After (handled by exception handler)
+    - Format: Structured Fields style
+      - RateLimit-Policy: "default"; q=60; w=60
+      - RateLimit: "default"; r=<int>; t=<int>
+    """
+    # Only apply to /v1/* API endpoints
+    if not request.url.path.startswith("/v1/"):
+        return await call_next(request)
+
+    # Get rate limiter from app.state (can be overridden in tests)
+    rate_limiter: RateLimiter = getattr(app.state, "rate_limiter", None)
+    if not rate_limiter:
+        # Fallback if not initialized
+        rate_limiter = NoOpRateLimiter()
+
+    # Extract identifier from request (use Authorization header or IP)
+    auth_header = request.headers.get("authorization", "")
+    if auth_header.startswith("Bearer "):
+        key = auth_header[7:]  # Extract token
+    else:
+        key = request.client.host if request.client else "anonymous"
+
+    # Check rate limit
+    result = rate_limiter.check_rate_limit(key, request.url.path)
+
+    # If rate limited, return 429 with Problem Details
+    if not result.allowed:
+        request_id = request_id_var.get()
+        instance = f"urn:decisionproof:trace:{request_id}" if request_id else f"urn:decisionproof:trace:{uuid.uuid4()}"
+
+        problem = ProblemDetail(
+            type="https://api.decisionproof.ai/problems/http-429",
+            title="Too Many Requests",
+            status=429,
+            detail="Rate limit exceeded. Please retry after the specified time.",
+            instance=instance,
+        )
+
+        # Build RateLimit headers
+        rate_limit_policy = f'"{result.policy_id}"; q={result.quota}; w={result.window}'
+        rate_limit = f'"{result.policy_id}"; r={result.remaining}; t={result.reset}'
+
+        return JSONResponse(
+            status_code=429,
+            content=problem.model_dump(exclude_none=True),
+            media_type="application/problem+json",
+            headers={
+                "RateLimit-Policy": rate_limit_policy,
+                "RateLimit": rate_limit,
+                "Retry-After": str(result.reset),
+            },
+        )
+
+    # Process request normally
+    response = await call_next(request)
+
+    # Add RateLimit headers to successful responses
+    if 200 <= response.status_code < 300:
+        rate_limit_policy = f'"{result.policy_id}"; q={result.quota}; w={result.window}'
+        rate_limit = f'"{result.policy_id}"; r={result.remaining}; t={result.reset}'
+
+        response.headers["RateLimit-Policy"] = rate_limit_policy
+        response.headers["RateLimit"] = rate_limit
 
     return response
 
@@ -667,6 +747,54 @@ async def root() -> dict[str, str]:
         "status": "running",
         "docs": "/llms.txt",
     }
+
+
+# ============================================================================
+# RC-2: Test Endpoint (Temporary - for verification only)
+# ============================================================================
+
+@app.get("/test/rate-limit-429")
+async def test_rate_limit_429():
+    """
+    Test endpoint that always returns 429 with Retry-After.
+
+    RC-2 Verification: Real-world smoke test for:
+    - 429 status code
+    - Retry-After header presence
+    - Problem Details JSON format
+    - Opaque instance identifier
+
+    TEMPORARY: Remove after RC-2 verification complete.
+    """
+    raise HTTPException(status_code=429, detail="Test rate limit exceeded for RC-2 verification")
+
+
+@app.get("/v1/test-ratelimit")
+async def test_ratelimit():
+    """
+    Test endpoint for RC-3 RateLimit headers verification.
+
+    RC-3 Verification: Tests RateLimit headers on /v1/* endpoints.
+    Returns simple JSON response without auth requirements.
+
+    TEMPORARY: Remove after RC-3 verification complete.
+    """
+    return {"status": "ok", "test": "ratelimit"}
+
+
+# ============================================================================
+# RC-3: Application Lifecycle (Rate Limiter Initialization)
+# ============================================================================
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize application state on startup.
+
+    RC-3: Initialize rate limiter with default configuration.
+    - Production: NoOpRateLimiter (q=60, w=60)
+    - Tests can override app.state.rate_limiter with DeterministicTestLimiter
+    """
+    app.state.rate_limiter = NoOpRateLimiter(quota=60, window=60)
 
 
 # ============================================================================
