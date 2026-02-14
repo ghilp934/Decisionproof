@@ -5,10 +5,13 @@
 ## Primary Resources
 
 - OpenAPI Spec: /.well-known/openapi.json
-- Quickstart: /docs/quickstart.md
+- Function Calling Specs: /docs/function-calling-specs.json
+- Quickstart (cURL/Python/Node): /docs/quickstart.md
 - Authentication: /docs/auth.md
+- Delegated Authentication (OAuth 2.0, Device Flow): /docs/auth-delegated.md
 - Rate Limits: /docs/rate-limits.md
 - Problem Types (RFC 9457): /docs/problem-types.md
 - Metering & Billing: /docs/metering-billing.md
 - Pricing SSoT: /docs/pricing-ssot.md | /pricing/ssot.json
+- Human Escalation Templates: /docs/human-escalation-template.md
 - Changelog: /docs/changelog.md

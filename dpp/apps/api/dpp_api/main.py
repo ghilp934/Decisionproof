@@ -460,6 +460,157 @@ async def pricing_ssot():
         )
 
 
+@app.get("/docs/function-calling-specs.json")
+async def function_calling_specs():
+    """
+    Function Calling Specifications for AI/Agent integration.
+
+    MTS-3.0-DOC v0.2: Machine-readable tool specifications with examples.
+    Returns: Function calling specs JSON with tools, parameters, and examples.
+    """
+    from datetime import datetime, timezone
+
+    # Derive base URL from environment or default
+    base_url = os.getenv("API_BASE_URL", "https://api.decisionwise.ai")
+
+    spec = {
+        "spec_version": "2026-02-14.v0.2.0",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "base_url": base_url,
+        "auth": {
+            "type": "api_key",
+            "header": "X-API-Key",
+            "format": "dw_live_* or dw_test_*",
+            "docs": f"{base_url}/docs/auth.md",
+        },
+        "tools": [
+            {
+                "name": "create_decision_run",
+                "description": "Submit a decision run for asynchronous execution",
+                "endpoint": "/v1/runs",
+                "method": "POST",
+                "parameters": {
+                    "type": "object",
+                    "required": ["workspace_id", "run_id", "plan_id", "input"],
+                    "properties": {
+                        "workspace_id": {
+                            "type": "string",
+                            "description": "Workspace identifier",
+                            "pattern": "^ws_[a-zA-Z0-9]+$",
+                        },
+                        "run_id": {
+                            "type": "string",
+                            "description": "Unique idempotency key (45-day retention)",
+                            "pattern": "^run_[a-zA-Z0-9_-]+$",
+                        },
+                        "plan_id": {
+                            "type": "string",
+                            "description": "Decision plan identifier",
+                            "pattern": "^plan_[a-zA-Z0-9]+$",
+                        },
+                        "input": {
+                            "type": "object",
+                            "description": "Input data for decision execution",
+                        },
+                    },
+                },
+                "examples": [
+                    {
+                        "description": "Simple decision request",
+                        "request": {
+                            "workspace_id": "ws_abc123",
+                            "run_id": "run_unique_001",
+                            "plan_id": "plan_xyz789",
+                            "input": {"question": "What is the capital of France?"},
+                        },
+                        "response": {
+                            "status": 202,
+                            "body": {
+                                "run_id": "run_unique_001",
+                                "status": "queued",
+                                "poll_url": "/v1/runs/run_unique_001",
+                            },
+                        },
+                    },
+                    {
+                        "description": "Complex decision with structured input",
+                        "request": {
+                            "workspace_id": "ws_abc123",
+                            "run_id": "run_unique_002",
+                            "plan_id": "plan_analysis",
+                            "input": {
+                                "data": [1, 2, 3, 4, 5],
+                                "operation": "statistical_summary",
+                            },
+                        },
+                        "response": {
+                            "status": 202,
+                            "body": {
+                                "run_id": "run_unique_002",
+                                "status": "queued",
+                                "poll_url": "/v1/runs/run_unique_002",
+                            },
+                        },
+                    },
+                ],
+            },
+            {
+                "name": "get_run_status",
+                "description": "Poll run execution status",
+                "endpoint": "/v1/runs/{run_id}",
+                "method": "GET",
+                "parameters": {
+                    "type": "object",
+                    "required": ["run_id"],
+                    "properties": {
+                        "run_id": {
+                            "type": "string",
+                            "description": "Run identifier to poll",
+                            "pattern": "^run_[a-zA-Z0-9_-]+$",
+                        }
+                    },
+                },
+                "examples": [
+                    {
+                        "description": "Poll completed run",
+                        "request": {"run_id": "run_unique_001"},
+                        "response": {
+                            "status": 200,
+                            "body": {
+                                "run_id": "run_unique_001",
+                                "status": "completed",
+                                "result": {"answer": "Paris"},
+                            },
+                        },
+                    },
+                    {
+                        "description": "Poll pending run",
+                        "request": {"run_id": "run_unique_002"},
+                        "response": {
+                            "status": 200,
+                            "body": {
+                                "run_id": "run_unique_002",
+                                "status": "running",
+                                "poll_after_seconds": 2,
+                            },
+                        },
+                    },
+                ],
+            },
+        ],
+        "links": {
+            "openapi": f"{base_url}/.well-known/openapi.json",
+            "quickstart": f"{base_url}/docs/quickstart.md",
+            "auth": f"{base_url}/docs/auth.md",
+            "rate_limits": f"{base_url}/docs/rate-limits.md",
+            "problem_types": f"{base_url}/docs/problem-types.md",
+            "pricing_ssot": f"{base_url}/pricing/ssot.json",
+        },
+    }
+
+    return JSONResponse(content=spec)
+
+
 @app.get("/")
 async def root() -> dict[str, str]:
     """Root endpoint."""

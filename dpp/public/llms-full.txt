@@ -7,11 +7,17 @@
 - **OpenAPI Spec**: /.well-known/openapi.json
   OpenAPI 3.1.0 machine-readable API specification with JSON Schema 2020-12 support.
 
+- **Function Calling Specs**: /docs/function-calling-specs.json
+  Machine-readable function calling specifications for AI agents. Includes tool parameters (JSON Schema), examples, and authentication requirements.
+
 - **Quickstart**: /docs/quickstart.md
-  curl examples for 200/422/429 responses, authentication headers, and idempotency rules.
+  cURL/Python/Node.js examples for 200/422/429 responses, authentication headers, and idempotency rules. Runnable code snippets.
 
 - **Authentication**: /docs/auth.md
   API Key authentication (X-API-Key header). 401/403 responses are non-billable.
+
+- **Delegated Authentication**: /docs/auth-delegated.md
+  OAuth 2.0 (RFC 6749) flows: Authorization Code, Client Credentials. Device Authorization Grant (RFC 8628) for headless agents and CLI tools. Roadmap: Q2-Q3 2026.
 
 - **Rate Limits**: /docs/rate-limits.md
   IETF draft-ietf-httpapi-ratelimit-headers compliant. RateLimit-Policy and RateLimit headers on all responses. Retry-After on 429.
@@ -24,6 +30,9 @@
 
 - **Pricing SSoT**: /docs/pricing-ssot.md | /pricing/ssot.json
   Canonical pricing configuration (v0.2.1). Tier limits, DC quotas, overage caps, RPM limits. Machine-readable JSON.
+
+- **Human Escalation Templates**: /docs/human-escalation-template.md
+  Pre-formatted templates for AI agents to request human approval. Template A: API key/workspace access. Template B: Monthly budget cap increase. Template C: Rate limit tier upgrade.
 
 - **Changelog**: /docs/changelog.md
   Document version history with breaking change markers.

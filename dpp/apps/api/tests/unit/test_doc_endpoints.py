@@ -187,6 +187,72 @@ class Test429ProblemDetailsRegression:
         assert data["violated-policies"][0]["limit"] == 600
 
 
+class TestFunctionCallingSpecs:
+    """Test function calling specifications endpoint (MTS-3.0-DOC v0.2)."""
+
+    def test_function_calling_specs_endpoint_exists(self, client):
+        """GET /docs/function-calling-specs.json should return 200."""
+        response = client.get("/docs/function-calling-specs.json")
+        assert response.status_code == 200
+
+    def test_function_calling_specs_json_parseable(self, client):
+        """Function calling specs must be valid JSON."""
+        response = client.get("/docs/function-calling-specs.json")
+        assert response.status_code == 200
+
+        # Should not raise JSONDecodeError
+        data = response.json()
+        assert isinstance(data, dict)
+
+    def test_function_calling_specs_has_required_fields(self, client):
+        """Function calling specs must have required fields."""
+        response = client.get("/docs/function-calling-specs.json")
+        data = response.json()
+
+        # Required fields
+        assert "spec_version" in data
+        assert "generated_at" in data
+        assert "base_url" in data
+        assert "auth" in data
+        assert "tools" in data
+
+    def test_function_calling_specs_tools_array(self, client):
+        """Tools array must exist and contain at least one tool."""
+        response = client.get("/docs/function-calling-specs.json")
+        data = response.json()
+
+        tools = data["tools"]
+        assert isinstance(tools, list)
+        assert len(tools) > 0
+
+    def test_function_calling_specs_tool_structure(self, client):
+        """Each tool must have required fields."""
+        response = client.get("/docs/function-calling-specs.json")
+        data = response.json()
+
+        for tool in data["tools"]:
+            # Required fields per tool
+            assert "name" in tool
+            assert "description" in tool
+            assert "parameters" in tool
+            assert "examples" in tool
+
+            # Parameters must be JSON Schema
+            params = tool["parameters"]
+            assert "type" in params
+            assert params["type"] == "object"
+
+            # Examples must be an array with at least 2 examples
+            examples = tool["examples"]
+            assert isinstance(examples, list)
+            assert len(examples) >= 2
+
+    def test_function_calling_specs_content_type(self, client):
+        """Content-Type must be application/json."""
+        response = client.get("/docs/function-calling-specs.json")
+        assert response.headers["Content-Type"] == "application/json"
+
+
 class TestDocumentationEndpoints:
     """Test documentation endpoints."""
 
@@ -201,7 +267,22 @@ class TestDocumentationEndpoints:
         response = client.get("/docs/auth.md")
         assert response.status_code in [200, 404]
 
+    def test_docs_auth_delegated_accessible(self, client):
+        """GET /docs/auth-delegated.md should return 200 or 404."""
+        response = client.get("/docs/auth-delegated.md")
+        assert response.status_code in [200, 404]
+
     def test_docs_rate_limits_accessible(self, client):
         """GET /docs/rate-limits.md should return 200 or 404."""
         response = client.get("/docs/rate-limits.md")
+        assert response.status_code in [200, 404]
+
+    def test_docs_human_escalation_template_accessible(self, client):
+        """GET /docs/human-escalation-template.md should return 200 or 404."""
+        response = client.get("/docs/human-escalation-template.md")
+        assert response.status_code in [200, 404]
+
+    def test_docs_pilot_pack_v0_2_accessible(self, client):
+        """GET /docs/pilot-pack-v0.2.md should return 200 or 404."""
+        response = client.get("/docs/pilot-pack-v0.2.md")
         assert response.status_code in [200, 404]
