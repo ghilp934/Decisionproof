@@ -8,6 +8,7 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from dpp_api.context import tenant_id_var
 from dpp_api.db.repo_api_keys import APIKeyRepository
 from dpp_api.db.repo_tenants import TenantRepository
 from dpp_api.db.session import get_db
@@ -140,6 +141,9 @@ async def get_auth_context(
     except Exception:
         # Log error but don't fail the request
         pass
+
+    # RC-6: Set tenant_id for observability logging
+    tenant_id_var.set(db_api_key.tenant_id)
 
     return AuthContext(tenant_id=db_api_key.tenant_id, key_id=key_id)
 

@@ -11,7 +11,13 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from dpp_api.context import request_id_var, run_id_var, tenant_id_var
+from dpp_api.context import (
+    budget_decision_var,
+    plan_key_var,
+    request_id_var,
+    run_id_var,
+    tenant_id_var,
+)
 
 
 class JSONFormatter(logging.Formatter):
@@ -67,6 +73,22 @@ class JSONFormatter(logging.Formatter):
             tenant_id = tenant_id_var.get()
             if tenant_id:
                 log_data["tenant_id"] = tenant_id
+        except LookupError:
+            pass
+
+        # RC-6: Add plan_key from context variable
+        try:
+            plan_key = plan_key_var.get()
+            if plan_key:
+                log_data["plan_key"] = plan_key
+        except LookupError:
+            pass
+
+        # RC-6: Add budget_decision from context variable
+        try:
+            budget_decision = budget_decision_var.get()
+            if budget_decision:
+                log_data["budget_decision"] = budget_decision
         except LookupError:
             pass
 

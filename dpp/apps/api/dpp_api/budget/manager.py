@@ -17,6 +17,7 @@ import redis
 from sqlalchemy.orm import Session
 
 from dpp_api.budget.redis_scripts import BudgetScripts
+from dpp_api.context import budget_decision_var
 from dpp_api.db.repo_runs import RunRepository
 from dpp_api.utils.money import validate_usd_micros
 
@@ -119,6 +120,8 @@ class BudgetManager:
         )
 
         if status == "ERR_INSUFFICIENT":
+            # RC-6: Set budget_decision for observability
+            budget_decision_var.set("reserve.deny")
             raise InsufficientBudgetError(
                 f"Insufficient budget: requested {max_cost_usd_micros}, "
                 f"available {balance_or_error}"
@@ -141,6 +144,9 @@ class BudgetManager:
             # Version mismatch - rollback Redis reservation
             self.scripts.refund_full(tenant_id, run_id)
             return False
+
+        # RC-6: Set budget_decision for observability
+        budget_decision_var.set("reserve.ok")
 
         return True
 

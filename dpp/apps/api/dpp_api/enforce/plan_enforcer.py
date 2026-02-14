@@ -13,6 +13,7 @@ from typing import Optional
 import redis
 from sqlalchemy.orm import Session
 
+from dpp_api.context import plan_key_var
 from dpp_api.db.models import Plan
 from dpp_api.db.repo_plans import TenantPlanRepository
 
@@ -351,6 +352,10 @@ class PlanEnforcer:
         """
         # 1. Get active plan
         plan = self.get_active_plan(tenant_id)
+
+        # RC-6: Set plan_key for observability logging
+        plan_key = f"{plan.plan_id}:{plan.default_profile_version}"
+        plan_key_var.set(plan_key)
 
         # 2. Check allowed pack types
         self.check_allowed_pack_type(plan, pack_type)

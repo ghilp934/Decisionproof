@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import time
 import uuid
 from pathlib import Path
 
@@ -214,6 +215,54 @@ async def rate_limit_middleware(request: Request, call_next):
         response.headers["RateLimit"] = rate_limit
 
     return response
+
+
+# ============================================================================
+# RC-6: HTTP Request Completion Logging Middleware (MUST BE LAST)
+# ============================================================================
+
+
+@app.middleware("http")
+async def http_completion_logging_middleware(request: Request, call_next):
+    """Log every HTTP request completion with observability fields.
+
+    RC-6: Observability Contract
+    - Every HTTP request emits "http.request.completed" log
+    - Fields: request_id, method, path, status_code, duration_ms
+    - Additional fields from context: tenant_id, run_id, plan_key, budget_decision
+    - Logs even on exceptions (status_code=500)
+
+    IMPORTANT: This MUST be the LAST middleware to ensure it wraps all other middlewares
+    and logs are emitted even when inner middlewares return early (e.g., 429 responses).
+    """
+    start_time = time.perf_counter()
+    status_code = 500  # Default to 500 in case of unhandled exception
+
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+        return response
+    finally:
+        # Calculate duration
+        duration_ms = (time.perf_counter() - start_time) * 1000
+
+        # Get logger (use module logger if available)
+        log = logging.getLogger(__name__)
+
+        # RC-6: Log completion with observability fields
+        # Context variables (request_id, tenant_id, run_id, plan_key, budget_decision)
+        # are automatically included by JSONFormatter in production environments.
+        # Note: TestClient's BlockingPortal may create a separate async context,
+        # preventing contextvar propagation in tests. Use response headers in tests.
+        log.info(
+            "http.request.completed",
+            extra={
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": status_code,
+                "duration_ms": round(duration_ms, 2),
+            },
+        )
 
 
 # ============================================================================
