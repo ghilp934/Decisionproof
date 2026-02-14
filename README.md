@@ -1,14 +1,14 @@
-# Decisionproof
-## Decision Pack Platform (DPP), Decisionproof - Agent-Centric API Platform
+# DPP API Platform v0.4.2.2
+## Decision Pack Platform - Agent-Centric API Platform
 
 [![Production Ready](https://img.shields.io/badge/Production-Ready-brightgreen)](PRODUCTION_DEPLOYMENT_GUIDE.md)
 [![Tests](https://img.shields.io/badge/Tests-133%20Passing-success)](IMPLEMENTATION_REPORT.md)
 [![Money Leak](https://img.shields.io/badge/Money%20Leak-Zero%20Tolerance-critical)](IMPLEMENTATION_REPORT.md#chaos-testing)
 [![License](https://img.shields.io/badge/License-Proprietary-blue)]()
 
-**AI Agent를 위한 결제 기반 API 플랫폼**
+**Payment-based API platform for AI agents**
 
-Decisionproof는 AI Agent가 복잡한 의사결정 작업을 수행할 수 있도록 설계된 분산 시스템입니다. **Zero-tolerance Money Leak** 원칙 하에 구축되었으며, 2-phase commit, optimistic locking, chaos testing을 통해 100% 정확한 비용 정산을 보장합니다.
+DPP is a distributed system designed to help AI agents perform complex decision-making tasks. Built under a **zero-tolerance money leak** principle, it ensures 100% accurate cost settlement through 2-phase commit, optimistic locking, and chaos testing.
 
 ---
 
@@ -522,9 +522,9 @@ Proprietary - All Rights Reserved
 
 ---
 
-**Built with ❤️ by the Decisionproof Team**
+**Built with ❤️ by the DPP Team**
 **Powered by Claude Sonnet 4.5**
 
-**Last Updated**: 2026-02-14
+**Last Updated**: 2026-02-13
 **Version**: 0.4.2.2
 **Deployment**: Production Ready ✅
