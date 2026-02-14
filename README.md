@@ -1,5 +1,5 @@
-# DPP API Platform v0.4.2.2
-## Decision Pack Platform - Agent-Centric API Platform
+# Decisionwise
+## Decision Pack Platform (DPP), Decisionwise - Agent-Centric API Platform
 
 [![Production Ready](https://img.shields.io/badge/Production-Ready-brightgreen)](PRODUCTION_DEPLOYMENT_GUIDE.md)
 [![Tests](https://img.shields.io/badge/Tests-133%20Passing-success)](IMPLEMENTATION_REPORT.md)
@@ -8,7 +8,7 @@
 
 **AI Agent를 위한 결제 기반 API 플랫폼**
 
-DPP는 AI Agent가 복잡한 의사결정 작업을 수행할 수 있도록 설계된 분산 시스템입니다. **Zero-tolerance Money Leak** 원칙 하에 구축되었으며, 2-phase commit, optimistic locking, chaos testing을 통해 100% 정확한 비용 정산을 보장합니다.
+Decisionwise는 AI Agent가 복잡한 의사결정 작업을 수행할 수 있도록 설계된 분산 시스템입니다. **Zero-tolerance Money Leak** 원칙 하에 구축되었으며, 2-phase commit, optimistic locking, chaos testing을 통해 100% 정확한 비용 정산을 보장합니다.
 
 ---
 
@@ -522,7 +522,7 @@ Proprietary - All Rights Reserved
 
 ---
 
-**Built with ❤️ by the DPP Team**
+**Built with ❤️ by the Decisionwise Team**
 **Powered by Claude Sonnet 4.5**
 
 **Last Updated**: 2026-02-13
