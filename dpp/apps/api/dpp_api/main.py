@@ -75,36 +75,6 @@ app.add_middleware(
 
 
 # ============================================================================
-# P1-9: Request ID Middleware
-# ============================================================================
-
-
-@app.middleware("http")
-async def request_id_middleware(request: Request, call_next):
-    """Generate and propagate request_id for observability.
-
-    P1-9: Each request gets a unique request_id (UUID v4).
-    - Accepts X-Request-ID header from client (optional)
-    - Generates new UUID if not provided
-    - Sets context variable for logging
-    - Returns X-Request-ID in response headers
-    """
-    # Get or generate request_id
-    request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
-
-    # Set context variable for logging
-    request_id_var.set(request_id)
-
-    # Process request
-    response = await call_next(request)
-
-    # Add request_id to response headers
-    response.headers["X-Request-ID"] = request_id
-
-    return response
-
-
-# ============================================================================
 # MTS-3.3: Static File Caching Middleware
 # ============================================================================
 
@@ -263,6 +233,40 @@ async def http_completion_logging_middleware(request: Request, call_next):
                 "duration_ms": round(duration_ms, 2),
             },
         )
+
+
+# ============================================================================
+# P1-9: Request ID Middleware (MUST BE OUTERMOST)
+# ============================================================================
+
+
+@app.middleware("http")
+async def request_id_middleware(request: Request, call_next):
+    """Generate and propagate request_id for observability.
+
+    P1-9: Each request gets a unique request_id (UUID v4).
+    - Accepts X-Request-ID header from client (optional)
+    - Generates new UUID if not provided
+    - Sets context variable for logging
+    - Returns X-Request-ID in response headers
+
+    IMPORTANT: This MUST be registered LAST (outermost middleware) to ensure
+    request_id is set in the parent async context before other middlewares execute.
+    This allows contextvars to propagate correctly to inner middlewares.
+    """
+    # Get or generate request_id
+    request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+
+    # Set context variable for logging (in outermost async context)
+    request_id_var.set(request_id)
+
+    # Process request
+    response = await call_next(request)
+
+    # Add request_id to response headers
+    response.headers["X-Request-ID"] = request_id
+
+    return response
 
 
 # ============================================================================

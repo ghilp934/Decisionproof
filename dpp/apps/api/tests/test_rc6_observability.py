@@ -14,6 +14,7 @@ import sys
 from io import StringIO
 
 import pytest
+from httpx import ASGITransport, AsyncClient
 
 from dpp_api.main import app
 from dpp_api.rate_limiter import DeterministicTestLimiter
@@ -172,6 +173,59 @@ class TestRC6Observability:
             assert log_429["path"] == "/v1/test-ratelimit", f"Expected path=/v1/test-ratelimit, got {log_429.get('path')}"
             assert log_429["method"] == "GET", f"Expected method=GET, got {log_429.get('method')}"
             assert "duration_ms" in log_429, "Missing duration_ms"
+        finally:
+            self._cleanup_log_capture()
+
+    @pytest.mark.asyncio
+    async def test_t4_async_contextvar_propagation(self):
+        """T4: Async test to verify contextvar propagation without TestClient.
+
+        This test uses httpx.AsyncClient to directly call the ASGI app,
+        bypassing TestClient's BlockingPortal which creates a separate async context.
+        This allows us to verify that contextvars actually propagate correctly
+        in a real async environment.
+        """
+        from dpp_api.rate_limiter import NoOpRateLimiter
+
+        app.state.rate_limiter = NoOpRateLimiter(quota=60, window=60)
+
+        # Setup log capture
+        self._setup_log_capture()
+
+        try:
+            # Use AsyncClient with ASGITransport to call ASGI app directly
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                response = await client.get("/v1/test-ratelimit")
+
+            assert response.status_code == 200
+
+            # Get captured JSON logs
+            logs = self.get_captured_logs()
+
+            # Find completion log
+            completion_logs = [log for log in logs if log.get("message") == "http.request.completed"]
+            assert len(completion_logs) > 0, "No http.request.completed log found"
+
+            log = next(
+                (l for l in completion_logs if l.get("path") == "/v1/test-ratelimit"), None
+            )
+            assert log is not None, "No completion log for /v1/test-ratelimit"
+
+            # NOW we can verify request_id because contextvars propagate correctly!
+            assert "request_id" in log, "Missing request_id (contextvar should propagate in async context)"
+            assert log["request_id"], "request_id should not be empty"
+
+            # Verify it matches the response header
+            assert "x-request-id" in response.headers, "Missing X-Request-ID header"
+            assert log["request_id"] == response.headers["x-request-id"], \
+                f"request_id in log ({log['request_id']}) should match X-Request-ID header ({response.headers['x-request-id']})"
+
+            # Verify other fields
+            assert log["method"] == "GET"
+            assert log["path"] == "/v1/test-ratelimit"
+            assert log["status_code"] == 200
+            assert "duration_ms" in log
         finally:
             self._cleanup_log_capture()
 
