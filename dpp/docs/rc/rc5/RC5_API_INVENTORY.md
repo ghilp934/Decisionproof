@@ -1,7 +1,7 @@
 # RC-5 API Inventory Report
 
-**Generated At:** 2026-02-14T21:53:42.592788+00:00  
-**Commit:** `a39a3e1b`  
+**Generated At:** 2026-02-14T22:26:41.139160+00:00  
+**Commit:** `e482c909`  
 **App Entrypoint:** `dpp_api.main:app`  
 
 ---
