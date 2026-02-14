@@ -105,17 +105,46 @@ class TestRC2ErrorFormat:
     def test_402_payment_required(self, client):
         """
         402: Insufficient funds or max_cost exceeds plan limit.
-        This may be difficult to trigger without valid auth.
-        Skip if not implementable with current fixtures.
+        Use test-only mini app to verify handler behavior.
         """
-        pytest.skip("402 requires valid tenant + plan setup, skipping for now")
+        # Create test app with same exception handler
+        from dpp_api.main import http_exception_handler
+        from starlette.exceptions import HTTPException as StarletteHTTPException
+
+        test_app = FastAPI()
+        test_app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+
+        @test_app.get("/payment_required")
+        async def payment_required_endpoint():
+            raise HTTPException(status_code=402, detail="Maximum cost exceeded")
+
+        test_client = TestClient(test_app)
+        response = test_client.get("/payment_required")
+
+        assert response.status_code == 402
+        assert_problem_details(response, 402)
 
     def test_409_conflict(self, client):
         """
         409: Idempotency conflict or resource conflict.
-        Skip if difficult to trigger deterministically.
+        Use test-only mini app to verify handler behavior.
         """
-        pytest.skip("409 requires specific idempotency setup, skipping for now")
+        # Create test app with same exception handler
+        from dpp_api.main import http_exception_handler
+        from starlette.exceptions import HTTPException as StarletteHTTPException
+
+        test_app = FastAPI()
+        test_app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+
+        @test_app.get("/conflict")
+        async def conflict_endpoint():
+            raise HTTPException(status_code=409, detail="Idempotency key conflict")
+
+        test_client = TestClient(test_app)
+        response = test_client.get("/conflict")
+
+        assert response.status_code == 409
+        assert_problem_details(response, 409)
 
     def test_422_validation_error(self, client):
         """
@@ -151,18 +180,61 @@ class TestRC2ErrorFormat:
         """
         429: Rate limit exceeded.
         Must include Retry-After header.
-
-        Strategy: This test may be flaky without proper rate limit setup.
-        Skip if not deterministically reproducible.
+        Use test-only mini app to verify handler behavior.
         """
-        pytest.skip("429 requires rate limit configuration, skipping for now")
+        # Create test app with same exception handler
+        from dpp_api.main import http_exception_handler
+        from starlette.exceptions import HTTPException as StarletteHTTPException
+
+        test_app = FastAPI()
+        test_app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+
+        @test_app.get("/rate_limited")
+        async def rate_limited_endpoint():
+            raise HTTPException(status_code=429, detail="Rate limit exceeded")
+
+        test_client = TestClient(test_app)
+        response = test_client.get("/rate_limited")
+
+        assert response.status_code == 429
+        assert_problem_details(response, 429)
+
+        # RC-2: 429 MUST include Retry-After header
+        assert "Retry-After" in response.headers, "429 response missing Retry-After header"
+        retry_after = response.headers["Retry-After"]
+        assert retry_after.isdigit(), f"Retry-After must be numeric, got: {retry_after}"
+        assert int(retry_after) > 0, f"Retry-After must be positive, got: {retry_after}"
 
     def test_429_retry_after_header(self, client):
         """
         429 must include Retry-After header with positive integer.
-        Skip if 429 cannot be triggered deterministically.
+        Verify Retry-After header format and value.
         """
-        pytest.skip("429 Retry-After test requires rate limit setup, skipping for now")
+        # Create test app with same exception handler
+        from dpp_api.main import http_exception_handler
+        from starlette.exceptions import HTTPException as StarletteHTTPException
+
+        test_app = FastAPI()
+        test_app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+
+        @test_app.get("/rate_limit_retry")
+        async def rate_limit_retry_endpoint():
+            raise HTTPException(status_code=429, detail="Too many requests")
+
+        test_client = TestClient(test_app)
+        response = test_client.get("/rate_limit_retry")
+
+        # Verify Retry-After header exists and is valid
+        assert "Retry-After" in response.headers, "429 must include Retry-After header"
+        retry_after = response.headers["Retry-After"]
+
+        # Retry-After must be a positive integer (seconds)
+        assert retry_after.isdigit(), f"Retry-After must be numeric seconds, got: {retry_after}"
+        retry_seconds = int(retry_after)
+        assert retry_seconds > 0, f"Retry-After must be positive, got: {retry_seconds}"
+
+        # Verify it's the expected default value (60 seconds per main.py)
+        assert retry_seconds == 60, f"Expected Retry-After: 60, got: {retry_seconds}"
 
 
 class TestRC2InstanceFormat:

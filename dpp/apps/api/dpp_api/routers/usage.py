@@ -55,29 +55,18 @@ async def get_tenant_usage(
         from_date_obj = date.fromisoformat(from_date)
         to_date_obj = date.fromisoformat(to_date)
     except ValueError as e:
-        # DEC-4213: RFC 9457 Problem Detail for validation error
+        # RC-2: Let global handler format Problem Details with opaque instance
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ProblemDetail(
-                type="https://api.decisionproof.ai/problems/invalid-date-format",
-                title="Invalid Date Format",
-                status=400,
-                detail=f"Date must be in YYYY-MM-DD format: {e}",
-                instance=f"/v1/tenants/{tenant_id}/usage",
-            ).model_dump(),
+            detail=f"Invalid date format: Date must be in YYYY-MM-DD format: {e}",
         )
 
     # Validate date range
     if from_date_obj > to_date_obj:
+        # RC-2: Let global handler format Problem Details with opaque instance
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ProblemDetail(
-                type="https://api.decisionproof.ai/problems/invalid-date-range",
-                title="Invalid Date Range",
-                status=400,
-                detail=f"from_date ({from_date}) must be <= to_date ({to_date})",
-                instance=f"/v1/tenants/{tenant_id}/usage",
-            ).model_dump(),
+            detail=f"Invalid date range: from_date ({from_date}) must be <= to_date ({to_date})",
         )
 
     # Query tenant_usage_daily for date range
