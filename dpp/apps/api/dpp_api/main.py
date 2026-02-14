@@ -65,7 +65,10 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Explicit methods
     allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],  # Explicit headers
-    expose_headers=["X-DPP-Cost-Reserved", "X-DPP-Cost-Actual", "X-DPP-Cost-Minimum-Fee"],  # P1-6
+    expose_headers=[
+        "X-DPP-Cost-Reserved", "X-DPP-Cost-Actual", "X-DPP-Cost-Minimum-Fee",  # P1-6
+        "RateLimit-Policy", "RateLimit", "Retry-After"  # P0 Hotfix: IETF rate limit headers
+    ],
 )
 
 

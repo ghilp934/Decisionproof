@@ -11,23 +11,24 @@ All responses include RateLimit headers:
 Describes the rate limit policy applied to this request.
 
 ```http
-RateLimit-Policy: rpm;w=60
+RateLimit-Policy: "post_runs";w=60;q=600
 ```
 
-- `rpm`: Policy name (requests per minute)
+- `post_runs`: Policy name (e.g., "post_runs", "poll_runs")
 - `w=60`: Window size in seconds
+- `q=600`: Quota (maximum requests allowed in the window)
 
 ### RateLimit
 
 Current rate limit status.
 
 ```http
-RateLimit: limit=600, remaining=599, reset=42
+RateLimit: "post_runs";r=599;t=42
 ```
 
-- `limit`: Maximum requests allowed in the window
-- `remaining`: Requests remaining in current window
-- `reset`: Seconds until window resets
+- `post_runs`: Policy name (matches RateLimit-Policy)
+- `r=599`: Remaining requests in current window
+- `t=42`: TTL in seconds until window resets
 
 ## 429 Too Many Requests
 
@@ -36,8 +37,8 @@ When you exceed the rate limit, you receive a 429 response:
 ```http
 HTTP/1.1 429 Too Many Requests
 Content-Type: application/problem+json
-RateLimit-Policy: rpm;w=60
-RateLimit: limit=600, remaining=0, reset=30
+RateLimit-Policy: "post_runs";w=60;q=600
+RateLimit: "post_runs";r=0;t=30
 Retry-After: 30
 ```
 

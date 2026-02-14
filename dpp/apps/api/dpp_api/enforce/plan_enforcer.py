@@ -242,13 +242,14 @@ class PlanEnforcer:
         """Get rate limit headers for POST /runs endpoint.
 
         P1-2: Standardized rate limit headers for all responses.
+        P0 Hotfix: Use IETF draft-ietf-httpapi-ratelimit-headers format.
 
         Args:
             plan: Active Plan object
             tenant_id: Tenant ID
 
         Returns:
-            Dict of rate limit headers (X-RateLimit-*)
+            Dict of rate limit headers (RateLimit-Policy, RateLimit)
         """
         limits = plan.limits_json or {}
         rate_limit = limits.get("rate_limit_post_per_min", 0)
@@ -268,28 +269,32 @@ class PlanEnforcer:
         used = int(current_count) if current_count else 0
         remaining = max(0, rate_limit - used)
 
-        # Calculate reset time (current time + TTL)
-        from datetime import datetime, timezone
-        now = datetime.now(timezone.utc)
-        reset_time = int(now.timestamp()) + (ttl if ttl > 0 else 60)
+        # TTL in seconds (default to 60 if not set)
+        ttl_seconds = ttl if ttl > 0 else 60
+
+        # P0 Hotfix: IETF draft-ietf-httpapi-ratelimit-headers format
+        # RateLimit-Policy: "policy_name";w=window_seconds;q=quota
+        # RateLimit: "policy_name";r=remaining;t=ttl_seconds
+        policy_name = "post_runs"
+        window_seconds = 60
 
         return {
-            "X-RateLimit-Limit": str(rate_limit),
-            "X-RateLimit-Remaining": str(remaining),
-            "X-RateLimit-Reset": str(reset_time),
+            "RateLimit-Policy": f'"{policy_name}";w={window_seconds};q={rate_limit}',
+            "RateLimit": f'"{policy_name}";r={remaining};t={ttl_seconds}',
         }
 
     def get_rate_limit_headers_poll(self, plan: Plan, tenant_id: str) -> dict[str, str]:
         """Get rate limit headers for GET /runs/{id} endpoint.
 
         P1-2: Standardized rate limit headers for all responses.
+        P0 Hotfix: Use IETF draft-ietf-httpapi-ratelimit-headers format.
 
         Args:
             plan: Active Plan object
             tenant_id: Tenant ID
 
         Returns:
-            Dict of rate limit headers (X-RateLimit-*)
+            Dict of rate limit headers (RateLimit-Policy, RateLimit)
         """
         limits = plan.limits_json or {}
         rate_limit = limits.get("rate_limit_poll_per_min", 0)
@@ -309,15 +314,18 @@ class PlanEnforcer:
         used = int(current_count) if current_count else 0
         remaining = max(0, rate_limit - used)
 
-        # Calculate reset time (current time + TTL)
-        from datetime import datetime, timezone
-        now = datetime.now(timezone.utc)
-        reset_time = int(now.timestamp()) + (ttl if ttl > 0 else 60)
+        # TTL in seconds (default to 60 if not set)
+        ttl_seconds = ttl if ttl > 0 else 60
+
+        # P0 Hotfix: IETF draft-ietf-httpapi-ratelimit-headers format
+        # RateLimit-Policy: "policy_name";w=window_seconds;q=quota
+        # RateLimit: "policy_name";r=remaining;t=ttl_seconds
+        policy_name = "poll_runs"
+        window_seconds = 60
 
         return {
-            "X-RateLimit-Limit": str(rate_limit),
-            "X-RateLimit-Remaining": str(remaining),
-            "X-RateLimit-Reset": str(reset_time),
+            "RateLimit-Policy": f'"{policy_name}";w={window_seconds};q={rate_limit}',
+            "RateLimit": f'"{policy_name}";r={remaining};t={ttl_seconds}',
         }
 
     def enforce(

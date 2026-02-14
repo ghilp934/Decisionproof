@@ -148,12 +148,12 @@ class MeteringService:
 
         if http_status in non_billable_map:
             return not self.ssot.billing_rules.non_billable.get(
-                non_billable_map[http_status], False
+                non_billable_map[http_status], True  # P0 Hotfix: default True (non-billable if config missing, safe default)
             )
 
         # 5xx
         if 500 <= http_status < 600:
-            return not self.ssot.billing_rules.non_billable.get("http_5xx", False)
+            return not self.ssot.billing_rules.non_billable.get("http_5xx", True)  # P0 Hotfix: default True (non-billable if config missing, safe default)
 
         # Default: non-billable
         return False
