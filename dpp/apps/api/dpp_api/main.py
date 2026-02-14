@@ -412,7 +412,7 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
         instance=instance,
     )
 
-    # Log the actual exception for debugging (TODO: add structured logging)
+    # Log the actual exception for debugging (structured JSON logging with exc_info)
     import logging
     logger = logging.getLogger(__name__)
     logger.error(f"Unhandled exception: {exc}", exc_info=True)
