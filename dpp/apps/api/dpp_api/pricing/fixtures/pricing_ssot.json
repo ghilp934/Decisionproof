@@ -1,0 +1,206 @@
+{
+  "pricing_version": "2026-02-14.v0.2.1",
+  "effective_from": "2026-03-01T00:00:00Z",
+  "effective_to": null,
+  "currency": {
+    "code": "KRW",
+    "symbol": "₩",
+    "tax_behavior": "exclusive"
+  },
+  "unlimited_semantics": {
+    "zero_means": "custom_or_unlimited",
+    "applies_to_fields": [
+      "included_dc_per_month",
+      "monthly_quota_dc",
+      "rate_limit_rpm",
+      "hard_overage_dc_cap"
+    ]
+  },
+  "meter": {
+    "event_name": "decisionwise.dc",
+    "quantity_field": "dc_amount",
+    "idempotency_key_field": "run_id",
+    "aggregation": "sum",
+    "timestamp_source": "occurred_at",
+    "idempotency_scope": "workspace_id",
+    "idempotency_retention_days": 45
+  },
+  "grace_overage": {
+    "enabled": true,
+    "policy": "waive_excess",
+    "resolution": "min_of_percent_or_dc",
+    "max_grace_percent": 1,
+    "max_grace_dc": 100,
+    "applies_to": [
+      "hard_overage_dc_cap"
+    ]
+  },
+  "http": {
+    "problem_details": {
+      "rfc": "9457",
+      "content_type": "application/problem+json",
+      "type_uris": {
+        "quota_exceeded": "https://iana.org/assignments/http-problem-types#quota-exceeded",
+        "temporary_reduced_capacity": "https://iana.org/assignments/http-problem-types#temporary-reduced-capacity",
+        "abnormal_usage_detected": "https://iana.org/assignments/http-problem-types#abnormal-usage-detected"
+      },
+      "extensions": {
+        "violated_policies_field": "violated-policies"
+      }
+    },
+    "ratelimit_headers": {
+      "enabled": true,
+      "policy_header": "RateLimit-Policy",
+      "limit_header": "RateLimit",
+      "retry_after_precedence": true,
+      "policy_name_conventions": {
+        "rpm": "rpm",
+        "monthly_dc": "monthly_dc",
+        "hard_overage_cap": "hard_overage_cap"
+      },
+      "rate_limit_window_seconds_default": 60
+    }
+  },
+  "tiers": [
+    {
+      "tier": "SANDBOX",
+      "monthly_base_price": 0,
+      "included_dc_per_month": 50,
+      "overage_price_per_dc": 0,
+      "features": {
+        "replay": false
+      },
+      "limits": {
+        "rate_limit_rpm": 60,
+        "rate_limit_window_seconds": 60,
+        "monthly_quota_dc": 50,
+        "hard_overage_dc_cap": 0,
+        "overage_behavior": "block_on_breach",
+        "max_execution_seconds": 15,
+        "max_input_tokens": 8000,
+        "max_output_tokens": 2000
+      },
+      "policies": {
+        "rpm_policy_name": "rpm",
+        "monthly_dc_policy_name": "monthly_dc",
+        "hard_overage_cap_policy_name": "hard_overage_cap"
+      },
+      "safety": {
+        "overage_alerts": true,
+        "hard_spending_limit": false
+      }
+    },
+    {
+      "tier": "STARTER",
+      "monthly_base_price": 29000,
+      "included_dc_per_month": 1000,
+      "overage_price_per_dc": 39,
+      "features": {
+        "replay": false
+      },
+      "limits": {
+        "rate_limit_rpm": 600,
+        "rate_limit_window_seconds": 60,
+        "monthly_quota_dc": 2000,
+        "hard_overage_dc_cap": 1000,
+        "overage_behavior": "block_on_breach",
+        "max_execution_seconds": 30,
+        "max_input_tokens": 16000,
+        "max_output_tokens": 4000
+      },
+      "policies": {
+        "rpm_policy_name": "rpm",
+        "monthly_dc_policy_name": "monthly_dc",
+        "hard_overage_cap_policy_name": "hard_overage_cap"
+      },
+      "safety": {
+        "overage_alerts": true,
+        "hard_spending_limit": true
+      }
+    },
+    {
+      "tier": "GROWTH",
+      "monthly_base_price": 149000,
+      "included_dc_per_month": 10000,
+      "overage_price_per_dc": 29,
+      "features": {
+        "replay": true
+      },
+      "limits": {
+        "rate_limit_rpm": 3000,
+        "rate_limit_window_seconds": 60,
+        "monthly_quota_dc": 30000,
+        "hard_overage_dc_cap": 20000,
+        "overage_behavior": "block_on_breach",
+        "max_execution_seconds": 60,
+        "max_input_tokens": 32000,
+        "max_output_tokens": 8000
+      },
+      "policies": {
+        "rpm_policy_name": "rpm",
+        "monthly_dc_policy_name": "monthly_dc",
+        "hard_overage_cap_policy_name": "hard_overage_cap"
+      },
+      "safety": {
+        "overage_alerts": true,
+        "hard_spending_limit": true
+      }
+    },
+    {
+      "tier": "ENTERPRISE",
+      "monthly_base_price": 0,
+      "included_dc_per_month": 0,
+      "overage_price_per_dc": 0,
+      "features": {
+        "replay": true,
+        "sso": true,
+        "audit": true
+      },
+      "limits": {
+        "rate_limit_rpm": 0,
+        "rate_limit_window_seconds": 60,
+        "monthly_quota_dc": 0,
+        "hard_overage_dc_cap": 0,
+        "overage_behavior": "notify_only",
+        "max_execution_seconds": 120,
+        "max_input_tokens": 64000,
+        "max_output_tokens": 16000
+      },
+      "policies": {
+        "rpm_policy_name": "rpm",
+        "monthly_dc_policy_name": "monthly_dc",
+        "hard_overage_cap_policy_name": "hard_overage_cap"
+      },
+      "safety": {
+        "overage_alerts": true,
+        "hard_spending_limit": true
+      }
+    }
+  ],
+  "billing_rules": {
+    "rounding": "ceil_at_month_end_only",
+    "billable": {
+      "success": true,
+      "http_422": true
+    },
+    "non_billable": {
+      "http_400": true,
+      "http_401": true,
+      "http_403": true,
+      "http_404": true,
+      "http_409": true,
+      "http_412": true,
+      "http_413": true,
+      "http_415": true,
+      "http_429": true,
+      "http_5xx": true
+    },
+    "limit_exceeded_http_status": 429,
+    "limit_exceeded_problem": {
+      "type": "https://iana.org/assignments/http-problem-types#quota-exceeded",
+      "title": "Request cannot be satisfied as assigned quota has been exceeded",
+      "violated_policies_field": "violated-policies"
+    },
+    "payment_required_http_status_optional": 402
+  }
+}

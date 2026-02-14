@@ -1,0 +1,52 @@
+{
+  "rpm_headers_sandbox": {
+    "description": "SANDBOX tier RPM rate limit headers",
+    "headers": {
+      "RateLimit-Policy": "\"rpm\";q=60;w=60",
+      "RateLimit": "\"rpm\";r=23;t=17"
+    }
+  },
+  "rpm_headers_starter": {
+    "description": "STARTER tier RPM rate limit headers",
+    "headers": {
+      "RateLimit-Policy": "\"rpm\";q=600;w=60",
+      "RateLimit": "\"rpm\";r=123;t=42"
+    }
+  },
+  "rpm_headers_growth": {
+    "description": "GROWTH tier RPM rate limit headers",
+    "headers": {
+      "RateLimit-Policy": "\"rpm\";q=3000;w=60",
+      "RateLimit": "\"rpm\";r=2450;t=28"
+    }
+  },
+  "rpm_headers_with_retry_after": {
+    "description": "RPM rate limit exceeded with Retry-After",
+    "headers": {
+      "RateLimit-Policy": "\"rpm\";q=600;w=60",
+      "RateLimit": "\"rpm\";r=0;t=15",
+      "Retry-After": "15"
+    }
+  },
+  "monthly_dc_headers_starter": {
+    "description": "STARTER tier monthly DC quota headers",
+    "headers": {
+      "RateLimit-Policy": "\"monthly_dc\";q=2000;w=2592000",
+      "RateLimit": "\"monthly_dc\";r=1234"
+    }
+  },
+  "monthly_dc_headers_growth": {
+    "description": "GROWTH tier monthly DC quota headers",
+    "headers": {
+      "RateLimit-Policy": "\"monthly_dc\";q=30000;w=2592000",
+      "RateLimit": "\"monthly_dc\";r=12345"
+    }
+  },
+  "combined_headers_example": {
+    "description": "Combined RPM + Monthly DC headers (informational)",
+    "headers": {
+      "RateLimit-Policy": "\"rpm\";q=600;w=60, \"monthly_dc\";q=2000;w=2592000",
+      "RateLimit": "\"rpm\";r=123;t=42, \"monthly_dc\";r=1234"
+    }
+  }
+}

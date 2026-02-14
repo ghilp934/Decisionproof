@@ -1,0 +1,64 @@
+{
+  "rpm_exceeded_429": {
+    "type": "https://iana.org/assignments/http-problem-types#quota-exceeded",
+    "title": "Request cannot be satisfied as assigned quota has been exceeded",
+    "status": 429,
+    "detail": "RPM limit of 600 requests per minute exceeded",
+    "violated-policies": [
+      {
+        "policy_name": "rpm",
+        "limit": 600,
+        "current": 601,
+        "window_seconds": 60
+      }
+    ]
+  },
+  "monthly_dc_exceeded_429": {
+    "type": "https://iana.org/assignments/http-problem-types#quota-exceeded",
+    "title": "Request cannot be satisfied as assigned quota has been exceeded",
+    "status": 429,
+    "detail": "Monthly DC quota of 2000 exceeded",
+    "violated-policies": [
+      {
+        "policy_name": "monthly_dc",
+        "limit": 2000,
+        "current": 2001,
+        "window_seconds": null
+      }
+    ]
+  },
+  "hard_overage_cap_exceeded_429": {
+    "type": "https://iana.org/assignments/http-problem-types#quota-exceeded",
+    "title": "Request cannot be satisfied as assigned quota has been exceeded",
+    "status": 429,
+    "detail": "Hard overage cap of 1000 DC exceeded",
+    "violated-policies": [
+      {
+        "policy_name": "hard_overage_cap",
+        "limit": 3000,
+        "current": 3001,
+        "window_seconds": null
+      }
+    ]
+  },
+  "multiple_policies_violated_429": {
+    "type": "https://iana.org/assignments/http-problem-types#quota-exceeded",
+    "title": "Request cannot be satisfied as assigned quota has been exceeded",
+    "status": 429,
+    "detail": "Multiple quota limits exceeded",
+    "violated-policies": [
+      {
+        "policy_name": "rpm",
+        "limit": 600,
+        "current": 601,
+        "window_seconds": 60
+      },
+      {
+        "policy_name": "monthly_dc",
+        "limit": 2000,
+        "current": 2001,
+        "window_seconds": null
+      }
+    ]
+  }
+}
