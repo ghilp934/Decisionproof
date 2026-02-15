@@ -1,0 +1,90 @@
+{
+  "service": "Decisionproof API Platform",
+  "as_of": "2026-02-15",
+  "alerts": [
+    {
+      "id": "ALERT-P0-MONEY-LEAK",
+      "name": "Money leak detection",
+      "severity": "P0",
+      "query": "log_entries{severity=\"CRITICAL\", reconcile_type=\"no_receipt_audit\"}",
+      "threshold": "> 0",
+      "window": "5m",
+      "action": {
+        "type": "ROLLBACK",
+        "notes": "Immediate rollback if money leak signals appear and cannot be explained within 5 minutes."
+      },
+      "runbook_ref": "#money-leak-detection",
+      "runbook_heading": "Money Leak Detection"
+    },
+    {
+      "id": "ALERT-P0-API-DOWN",
+      "name": "API service down",
+      "severity": "P0",
+      "query": "up{job=\"dpp-api\"} == 0",
+      "threshold": "down > 2m",
+      "window": "2m",
+      "action": {
+        "type": "ROLLBACK",
+        "notes": "If outage persists and root cause is not trivial, rollback to last known good."
+      },
+      "runbook_ref": "#api-service-down",
+      "runbook_heading": "API Service Down"
+    },
+    {
+      "id": "ALERT-P1-DB-FAIL",
+      "name": "Database connection failure",
+      "severity": "P1",
+      "query": "dpp_readyz_database_status != 1",
+      "threshold": "failing > 1m",
+      "window": "1m",
+      "action": {
+        "type": "INVESTIGATE",
+        "notes": "Investigate DB health/pool; rollback only if tied to recent deploy and persists."
+      },
+      "runbook_ref": "#database-connection-failure",
+      "runbook_heading": "Database Connection Failure"
+    },
+    {
+      "id": "ALERT-P1-ERR-RATE",
+      "name": "Elevated error rate (5xx)",
+      "severity": "P1",
+      "query": "rate(http_requests_total{status=~\"5..\"}[5m]) / rate(http_requests_total[5m])",
+      "threshold": "> 0.05",
+      "window": "5m",
+      "action": {
+        "type": "KILL_SWITCH",
+        "notes": "If sustained and linked to overload, apply manual stop rules / traffic shaping; rollback if regression."
+      },
+      "runbook_ref": "#elevated-error-rate",
+      "runbook_heading": "Elevated Error Rate"
+    },
+    {
+      "id": "ALERT-P2-QUEUE-DEPTH",
+      "name": "High queue depth",
+      "severity": "P2",
+      "query": "sqs_queue_depth{queue=\"dpp-runs\"}",
+      "threshold": "> 1000",
+      "window": "10m",
+      "action": {
+        "type": "INVESTIGATE",
+        "notes": "Scale workers, inspect processing delays."
+      },
+      "runbook_ref": "#high-queue-depth",
+      "runbook_heading": "High Queue Depth"
+    },
+    {
+      "id": "ALERT-P2-HEARTBEAT",
+      "name": "Worker heartbeat missing",
+      "severity": "P2",
+      "query": "(time() - dpp_worker_last_heartbeat_timestamp) > 120",
+      "threshold": "> 120s",
+      "window": "2m",
+      "action": {
+        "type": "INVESTIGATE",
+        "notes": "Restart worker if stuck; check logs."
+      },
+      "runbook_ref": "#worker-heartbeat-missing",
+      "runbook_heading": "Worker Heartbeat Missing"
+    }
+  ]
+}

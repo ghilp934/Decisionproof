@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Decisionproof Ops Alerts Pack",
+  "type": "object",
+  "required": ["service", "as_of", "alerts"],
+  "properties": {
+    "service": { "type": "string", "minLength": 1 },
+    "as_of": { "type": "string", "minLength": 8 },
+    "alerts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "severity", "query", "threshold", "window", "action", "runbook_ref", "runbook_heading"],
+        "properties": {
+          "id": { "type": "string", "minLength": 6 },
+          "name": { "type": "string", "minLength": 3 },
+          "severity": { "type": "string", "enum": ["P0", "P1", "P2", "P3"] },
+          "query": { "type": "string", "minLength": 3 },
+          "threshold": { "type": "string", "minLength": 1 },
+          "window": { "type": "string", "minLength": 2 },
+          "action": {
+            "type": "object",
+            "required": ["type", "notes"],
+            "properties": {
+              "type": { "type": "string", "enum": ["ROLLBACK", "KILL_SWITCH", "PAGE", "TICKET", "INVESTIGATE"] },
+              "notes": { "type": "string" }
+            },
+            "additionalProperties": true
+          },
+          "runbook_ref": { "type": "string", "pattern": "^#.+$" },
+          "runbook_heading": { "type": "string", "minLength": 3 }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

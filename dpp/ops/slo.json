@@ -1,0 +1,51 @@
+{
+  "service": "Decisionproof API Platform",
+  "as_of": "2026-02-15",
+  "window": "28d",
+  "indicators": [
+    {
+      "id": "SLI-AVAIL-API",
+      "name": "API availability",
+      "type": "availability",
+      "objective": 0.995,
+      "measurement": {
+        "source": "prometheus",
+        "signal": "up{job=\"dpp-api\"}",
+        "notes": "Pilot Ready: API Service Down alert uses up==0. Availability SLI derived from uptime ratio over window."
+      }
+    },
+    {
+      "id": "SLI-ERR-5XX",
+      "name": "API 5xx error rate",
+      "type": "error_rate",
+      "objective": 0.95,
+      "measurement": {
+        "source": "prometheus",
+        "signal": "rate(http_requests_total{status=~\"5..\"}[5m]) / rate(http_requests_total[5m])",
+        "notes": "Pilot Ready: Elevated Error Rate threshold uses 5% over 5m. Objective here is 95% 'non-5xx' success ratio."
+      }
+    },
+    {
+      "id": "SLI-LAT-P95",
+      "name": "API latency p95",
+      "type": "latency",
+      "objective": 0.85,
+      "measurement": {
+        "source": "otel",
+        "signal": "http.server.request.duration (p95 over 5m)",
+        "notes": "Release notes mention HTTP request duration metrics (OTel). Pilot target: p95 < 150ms."
+      }
+    },
+    {
+      "id": "SLI-THROTTLE-429",
+      "name": "API 429 throttling rate",
+      "type": "throttling",
+      "objective": 0.99,
+      "measurement": {
+        "source": "mixed",
+        "signal": "rate(http_requests_total{status=\"429\"}[5m]) / rate(http_requests_total[5m])",
+        "notes": "Rate limiting is RC-3 contract. Track 429 rate even if limiter is no-op in current runtime; alerting policy still defined for pilot."
+      }
+    }
+  ]
+}
