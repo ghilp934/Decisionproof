@@ -2,14 +2,13 @@
 
 import logging
 import os
-import sys
 
 import boto3
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-# Add parent directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../api"))
+# P0-2: Removed sys.path manipulation - PYTHONPATH handles this in Dockerfile
+# Container images include dpp_api via COPY and ENV PYTHONPATH
 
 from dpp_api.budget import BudgetManager
 from dpp_api.db.redis_client import RedisClient
@@ -63,13 +62,25 @@ def main() -> None:
             for marker in ["localhost", "127.0.0.1", "localstack", "host.docker.internal"]
         )
 
+    def is_irsa_environment() -> bool:
+        """P1-1: Detect EKS/IRSA environment (web identity tokens).
+
+        IRSA environments use AWS_ROLE_ARN + AWS_WEB_IDENTITY_TOKEN_FILE.
+        NEVER inject static credentials in IRSA environments.
+        """
+        return bool(os.getenv("AWS_ROLE_ARN") or os.getenv("AWS_WEB_IDENTITY_TOKEN_FILE"))
+
     # SQS client: conditional endpoint_url
     sqs_kwargs = {"region_name": os.getenv("AWS_REGION", "us-east-1")}
 
     if sqs_endpoint:
         sqs_kwargs["endpoint_url"] = sqs_endpoint
-        # P0-A: Inject test credentials ONLY for LocalStack
-        if is_localstack(sqs_endpoint) and not os.getenv("AWS_ACCESS_KEY_ID"):
+        # P1-1: Test credentials ONLY for LocalStack AND NOT in IRSA/production
+        if (
+            is_localstack(sqs_endpoint)
+            and not os.getenv("AWS_ACCESS_KEY_ID")
+            and not is_irsa_environment()
+        ):
             sqs_kwargs["aws_access_key_id"] = "test"
             sqs_kwargs["aws_secret_access_key"] = "test"
             logger.info("Using LocalStack test credentials for SQS")
@@ -81,8 +92,12 @@ def main() -> None:
 
     if s3_endpoint:
         s3_kwargs["endpoint_url"] = s3_endpoint
-        # P0-A: Inject test credentials ONLY for LocalStack
-        if is_localstack(s3_endpoint) and not os.getenv("AWS_ACCESS_KEY_ID"):
+        # P1-1: Test credentials ONLY for LocalStack AND NOT in IRSA/production
+        if (
+            is_localstack(s3_endpoint)
+            and not os.getenv("AWS_ACCESS_KEY_ID")
+            and not is_irsa_environment()
+        ):
             s3_kwargs["aws_access_key_id"] = "test"
             s3_kwargs["aws_secret_access_key"] = "test"
             logger.info("Using LocalStack test credentials for S3")

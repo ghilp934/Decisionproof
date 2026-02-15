@@ -15,14 +15,13 @@ Reaper Service: Two independent loops for run lifecycle management.
 
 import logging
 import os
-import sys
 import threading
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-# Add parent directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../api"))
+# P0-2: Removed sys.path manipulation - PYTHONPATH handles this in Dockerfile
+# Container images include dpp_api via COPY and ENV PYTHONPATH
 
 from dpp_api.budget import BudgetManager
 from dpp_api.db.redis_client import RedisClient

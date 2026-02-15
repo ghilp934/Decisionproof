@@ -65,3 +65,22 @@ def is_localstack_endpoint(endpoint: Optional[str]) -> bool:
     endpoint_lower = endpoint.lower()
     markers = ["localhost", "127.0.0.1", "localstack", "host.docker.internal"]
     return any(marker in endpoint_lower for marker in markers)
+
+
+def is_irsa_environment() -> bool:
+    """Detect if running in EKS with IRSA (IAM Roles for Service Accounts).
+
+    P1-1: EKS/IRSA environments provide web identity token authentication.
+    Static credentials (aws_access_key_id/aws_secret_access_key) should
+    NEVER be injected in IRSA environments, even for LocalStack endpoints.
+
+    IRSA Markers:
+    - AWS_ROLE_ARN: IAM role ARN for the service account
+    - AWS_WEB_IDENTITY_TOKEN_FILE: Token file path for web identity auth
+
+    Returns:
+        True if IRSA markers detected (production EKS), False otherwise
+    """
+    return bool(
+        os.getenv("AWS_ROLE_ARN") or os.getenv("AWS_WEB_IDENTITY_TOKEN_FILE")
+    )

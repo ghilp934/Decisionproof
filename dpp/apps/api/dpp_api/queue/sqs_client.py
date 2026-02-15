@@ -10,7 +10,7 @@ from typing import Any
 
 import boto3
 
-from dpp_api.config.env import get_sqs_queue_url, is_localstack_endpoint
+from dpp_api.config.env import get_sqs_queue_url, is_irsa_environment, is_localstack_endpoint
 
 
 class SQSClient:
@@ -40,8 +40,13 @@ class SQSClient:
         if sqs_endpoint:
             sqs_kwargs["endpoint_url"] = sqs_endpoint
 
-            # Ops Hardening v2: Enhanced LocalStack detection (4 markers)
-            if is_localstack_endpoint(sqs_endpoint) and not os.getenv("AWS_ACCESS_KEY_ID"):
+            # P1-1: Test credentials ONLY for LocalStack AND NOT in IRSA/production
+            # IRSA environments (EKS) use web identity tokens, NEVER static credentials
+            if (
+                is_localstack_endpoint(sqs_endpoint)
+                and not os.getenv("AWS_ACCESS_KEY_ID")
+                and not is_irsa_environment()
+            ):
                 sqs_kwargs["aws_access_key_id"] = "test"
                 sqs_kwargs["aws_secret_access_key"] = "test"
 

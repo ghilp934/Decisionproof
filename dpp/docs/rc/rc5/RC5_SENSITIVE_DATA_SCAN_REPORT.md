@@ -1,16 +1,16 @@
 # RC-5 Sensitive Data Scan Report
 
-**Generated At:** 2026-02-14T23:56:11.536298+00:00  
-**Commit:** `83f97ed8`  
+**Generated At:** 2026-02-15T08:21:12.599020+00:00  
+**Commit:** `6cb033dd`  
 
 ---
 
 ## Forensic Scope Evidence
 
 ### Repository Scan
-- **Scanned Files Count:** 167  
-- **Excluded Files Count (tests/):** 47  
-- **Root Path:** `C:\Users\ghilp\OneDrive\바탕 화면\배성무일반\0_디플런트 D!FFERENT\Decisionwise\decisionwise_api_platform\dpp`  
+- **Scanned Files Count:** 207  
+- **Excluded Files Count (tests/):** 51  
+- **Root Path:** `C:\Users\ghilp\OneDrive\바탕 화면\배성무일반\0_디플런트 DEFFERENT\Decisionwise\decisionwise_api_platform\dpp`  
 
 ### Docker Scan
 - **Docker Available:** True  
@@ -28,14 +28,14 @@
   - Image ID: `sha256:811ae9727c72e486e59b8e9633adccc05c30a0ff483ba4a024699167e745e06d`  
   - Tar Entries: 24  
 - **decisionproof-api:rc5-trap**  
-  - Image ID: `sha256:0d1d9da7cc7f4a9198d86508aec65efde922350c477a1456f32f486cb76e5203`  
+  - Image ID: `sha256:7b5fdfb1be39cb0d961eca17801390ca228e1187c56db42071e2f75747705623`  
   - Tar Entries: 24  
 
 ### Timing
-- **Repo Scan Duration:** 0.10s  
-- **Docker Build Duration:** 0.33s  
+- **Repo Scan Duration:** 0.12s  
+- **Docker Build Duration:** 0.34s  
 - **Docker Scan Duration:** 22.54s  
-- **Total Duration:** 23.06s  
+- **Total Duration:** 23.07s  
 
 ## Summary
 

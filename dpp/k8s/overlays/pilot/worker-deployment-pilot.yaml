@@ -35,10 +35,7 @@ spec:
         component: worker
         environment: pilot
         version: "0.4.2.2"
-      annotations:
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "9090"
-        prometheus.io/path: "/metrics"
+      # P1-2: Removed prometheus.io annotations (no metrics server on 9090)
     spec:
       serviceAccountName: dpp-worker
       containers:

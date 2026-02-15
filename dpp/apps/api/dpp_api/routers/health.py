@@ -11,7 +11,7 @@ from fastapi import APIRouter, Response, status
 from pydantic import BaseModel
 from sqlalchemy import text
 
-from dpp_api.config.env import get_s3_result_bucket, is_localstack_endpoint
+from dpp_api.config.env import get_s3_result_bucket, is_irsa_environment, is_localstack_endpoint
 from dpp_api.db.redis_client import RedisClient
 from dpp_api.db.session import engine
 
@@ -106,8 +106,12 @@ def check_s3() -> str:
 
         if s3_endpoint:
             s3_kwargs["endpoint_url"] = s3_endpoint
-            # Ops Hardening v2: Enhanced LocalStack detection (4 markers)
-            if is_localstack_endpoint(s3_endpoint) and not os.getenv("AWS_ACCESS_KEY_ID"):
+            # P1-1: Test credentials ONLY for LocalStack AND NOT in IRSA/production
+            if (
+                is_localstack_endpoint(s3_endpoint)
+                and not os.getenv("AWS_ACCESS_KEY_ID")
+                and not is_irsa_environment()
+            ):
                 s3_kwargs["aws_access_key_id"] = "test"
                 s3_kwargs["aws_secret_access_key"] = "test"
 

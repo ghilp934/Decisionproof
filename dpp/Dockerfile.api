@@ -11,11 +11,17 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Copy only requirements first (layer caching)
+# P0-1: Fix pip install order - apps/ must exist before editable install
+# Copy dependency definition
 COPY pyproject.toml ./
+
+# Create apps structure (required for editable install with packages=["apps"])
+RUN mkdir -p apps/api apps/worker apps/reaper
+
+# Install dependencies (this layer is cached when pyproject.toml unchanged)
 RUN pip install --no-cache-dir -e .
 
-# Copy application code
+# Copy application code (frequent changes, separate layer)
 COPY apps/api/dpp_api ./apps/api/dpp_api
 COPY alembic ./alembic
 COPY alembic.ini ./
