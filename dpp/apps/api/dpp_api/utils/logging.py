@@ -92,12 +92,16 @@ class JSONFormatter(logging.Formatter):
         except LookupError:
             pass
 
-        # P1-9: Add trace_id and span_id if provided via extra kwargs
-        if hasattr(record, "trace_id") and record.trace_id:
-            log_data["trace_id"] = record.trace_id
+        # P1-9 + RC-7: Add trace_id and span_id
+        # Priority: OTel injected IDs > explicit extra kwargs
+        # OTel LoggingInstrumentor injects otelTraceID/otelSpanID into record
+        trace_id = getattr(record, "otelTraceID", None) or getattr(record, "trace_id", None)
+        span_id = getattr(record, "otelSpanID", None) or getattr(record, "span_id", None)
 
-        if hasattr(record, "span_id") and record.span_id:
-            log_data["span_id"] = record.span_id
+        if trace_id:
+            log_data["trace_id"] = str(trace_id)
+        if span_id:
+            log_data["span_id"] = str(span_id)
 
         # Add exception info if present
         if record.exc_info:

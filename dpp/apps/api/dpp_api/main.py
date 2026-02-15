@@ -875,3 +875,242 @@ async def startup_event():
 public_dir = Path(__file__).parent.parent.parent.parent / "public"
 if public_dir.exists():
     app.mount("/", StaticFiles(directory=str(public_dir), html=True), name="static")
+
+
+# ============================================================================
+# RC-7: Application Factory (OTel Support)
+# ============================================================================
+
+def create_app(
+    *,
+    otel_enabled: bool = False,
+    otel_service_name: str = "decisionproof-api",
+    otel_span_exporter = None,
+    otel_metric_reader = None,
+    otel_log_correlation: bool = True,
+):
+    """Create FastAPI application with optional OpenTelemetry support.
+    
+    RC-7: Factory pattern for test isolation and OTel configuration.
+    
+    Args:
+        otel_enabled: Enable OpenTelemetry tracing/metrics
+        otel_service_name: Service name for OTel resource
+        otel_span_exporter: Custom span exporter (testing)
+        otel_metric_reader: Custom metric reader (testing)
+        otel_log_correlation: Enable trace/span ID injection into logs
+        
+    Returns:
+        Configured FastAPI application instance
+    """
+    # Initialize OTel first (if enabled)
+    if otel_enabled:
+        from dpp_api.otel import init_otel
+        init_otel(
+            service_name=otel_service_name,
+            span_exporter=otel_span_exporter,
+            metric_reader=otel_metric_reader,
+            log_correlation=otel_log_correlation,
+        )
+    
+    # Create FastAPI app
+    base_url_local = os.getenv("API_BASE_URL", "https://api.decisionproof.ai")
+    sandbox_url_local = os.getenv("API_SANDBOX_URL", "https://sandbox-api.decisionproof.ai")
+
+    new_app = FastAPI(
+        title="Decisionproof API",
+        description="Agent-centric decision execution platform with idempotent metering, RFC 9457 error handling, and IETF RateLimit headers.",
+        version="0.4.2.2",
+        docs_url="/api-docs",
+        redoc_url="/redoc",
+        openapi_version="3.1.0",
+        servers=[
+            {"url": base_url_local, "description": "Production"},
+            {"url": sandbox_url_local, "description": "Sandbox"},
+            {"url": "http://localhost:8000", "description": "Local development"},
+        ],
+    )
+    
+    # CORS middleware
+    cors_origins_local = os.getenv("CORS_ALLOWED_ORIGINS", "")
+    if cors_origins_local:
+        allowed_origins_local = [origin.strip() for origin in cors_origins_local.split(",") if origin.strip()]
+    else:
+        allowed_origins_local = [
+            "http://localhost:3000",
+            "http://localhost:8000",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:8000",
+        ]
+    
+    new_app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins_local,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],
+        expose_headers=[
+            "X-DPP-Cost-Reserved", "X-DPP-Cost-Actual", "X-DPP-Cost-Minimum-Fee",
+            "RateLimit-Policy", "RateLimit", "Retry-After"
+        ],
+    )
+    
+    # Include routers
+    new_app.include_router(health.router, tags=["health"])
+    new_app.include_router(runs.router)
+    new_app.include_router(usage.router)
+
+    # Test endpoint for RC-7 gate tests
+    @new_app.get("/v1/test-ratelimit")
+    async def test_ratelimit_rc7():
+        """Test endpoint for RC-7 OTel verification."""
+        return {"status": "ok", "test": "ratelimit"}
+
+    # RC-7: Instrument FastAPI app with OTel FIRST (before other middlewares)
+    # This ensures FastAPIInstrumentor wraps all middlewares for proper span closure
+    if otel_enabled:
+        from opentelemetry import metrics, trace
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+        FastAPIInstrumentor.instrument_app(
+            new_app,
+            tracer_provider=trace.get_tracer_provider(),
+            meter_provider=metrics.get_meter_provider(),
+        )
+
+    # Store OTel enabled flag for middleware
+    new_app.state.otel_enabled = otel_enabled
+
+    # RC-3: Rate limit middleware (for /v1/* endpoints)
+    @new_app.middleware("http")
+    async def rate_limit_mw(request: Request, call_next):
+        """Add IETF RateLimit headers and enforce rate limits."""
+        # Only apply to /v1/* API endpoints
+        if not request.url.path.startswith("/v1/"):
+            return await call_next(request)
+
+        # Get rate limiter from app.state (can be overridden in tests)
+        rate_limiter: RateLimiter = getattr(new_app.state, "rate_limiter", None)
+        if not rate_limiter:
+            rate_limiter = NoOpRateLimiter()
+
+        # Extract identifier from request (use Authorization header or IP)
+        auth_header = request.headers.get("authorization", "")
+        if auth_header.startswith("Bearer "):
+            key = auth_header[7:]
+        else:
+            key = request.client.host if request.client else "anonymous"
+
+        # Check rate limit
+        result = rate_limiter.check_rate_limit(key, request.url.path)
+
+        # If rate limited, return 429
+        if not result.allowed:
+            request_id = request_id_var.get()
+            instance = f"urn:decisionproof:trace:{request_id}" if request_id else f"urn:decisionproof:trace:{uuid.uuid4()}"
+
+            problem = ProblemDetail(
+                type="https://api.decisionproof.ai/problems/http-429",
+                title="Too Many Requests",
+                status=429,
+                detail="Rate limit exceeded. Please retry after the specified time.",
+                instance=instance,
+            )
+
+            rate_limit_policy = f'"{result.policy_id}"; q={result.quota}; w={result.window}'
+            rate_limit = f'"{result.policy_id}"; r={result.remaining}; t={result.reset}'
+
+            return JSONResponse(
+                status_code=429,
+                content=problem.model_dump(exclude_none=True),
+                media_type="application/problem+json",
+                headers={
+                    "RateLimit-Policy": rate_limit_policy,
+                    "RateLimit": rate_limit,
+                    "Retry-After": str(result.reset),
+                },
+            )
+
+        # Process request normally
+        response = await call_next(request)
+
+        # Add RateLimit headers to successful responses
+        if 200 <= response.status_code < 300:
+            rate_limit_policy = f'"{result.policy_id}"; q={result.quota}; w={result.window}'
+            rate_limit = f'"{result.policy_id}"; r={result.remaining}; t={result.reset}'
+            response.headers["RateLimit-Policy"] = rate_limit_policy
+            response.headers["RateLimit"] = rate_limit
+
+        return response
+
+    # Completion logging middleware (must be innermost for proper span context)
+    @new_app.middleware("http")
+    async def completion_logging_mw(request: Request, call_next):
+        """Log HTTP request completion with trace context."""
+        run_id_var.set("")
+        plan_key_var.set("")
+        budget_decision_var.set("")
+
+        start_time = time.perf_counter()
+        status_code = 500
+
+        try:
+            response = await call_next(request)
+            status_code = response.status_code
+            return response
+        finally:
+            duration_seconds = time.perf_counter() - start_time
+            duration_ms = duration_seconds * 1000
+            log = logging.getLogger(__name__)
+
+            # RC-7: This log will automatically include trace_id/span_id via LoggingInstrumentor
+            log.info(
+                "http.request.completed",
+                extra={
+                    "event": "http.request.completed",  # RC-7: For test compatibility
+                    "method": request.method,
+                    "path": request.url.path,
+                    "status_code": status_code,
+                    "duration_ms": round(duration_ms, 2),
+                },
+            )
+
+            # RC-7 Gate-3: Record http.server.request.duration metric
+            # Get histogram on-demand to survive meter_provider resets (test fixture isolation)
+            if getattr(new_app.state, "otel_enabled", False):
+                from opentelemetry import metrics
+
+                meter = metrics.get_meter(__name__)
+                # create_histogram is idempotent - returns existing if already created
+                http_duration_histogram = meter.create_histogram(
+                    name="http.server.request.duration",
+                    unit="s",
+                    description="Measures the duration of inbound HTTP requests",
+                )
+                http_duration_histogram.record(
+                    duration_seconds,
+                    attributes={
+                        "http.request.method": request.method,
+                        "http.response.status_code": status_code,
+                        "url.scheme": request.url.scheme,
+                    },
+                )
+
+            run_id_var.set("")
+            plan_key_var.set("")
+            budget_decision_var.set("")
+
+    # Request ID middleware (outermost for context propagation)
+    @new_app.middleware("http")
+    async def request_id_mw(request: Request, call_next):
+        """Generate and propagate request_id."""
+        request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+        request_id_var.set(request_id)
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        return response
+
+    # Initialize rate limiter
+    new_app.state.rate_limiter = NoOpRateLimiter(quota=60, window=60)
+
+    return new_app
