@@ -62,8 +62,9 @@ jobs:
 
       - name: Build docker images for RC-5 gate
         run: |
-          cd dpp
-          docker compose -f infra/docker-compose.yml build api reaper worker
+          docker build -f dpp/Dockerfile.api -t decisionproof-api:rc5 dpp/
+          docker build -f dpp/Dockerfile.worker -t decisionproof-worker:rc5 dpp/
+          docker build -f dpp/Dockerfile.reaper -t decisionproof-reaper:rc5 dpp/
 
       - name: Execute RC gates
         run: |
