@@ -63,7 +63,7 @@ jobs:
       - name: Build docker images for RC-5 gate
         run: |
           cd dpp
-          docker compose build api reaper worker
+          docker compose -f infra/docker-compose.yml build api reaper worker
 
       - name: Execute RC gates
         run: |
