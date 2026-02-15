@@ -1,0 +1,209 @@
+name: Pilot Packet CI
+
+on:
+  pull_request:
+    paths:
+      - 'docs/pilot/**'
+      - 'tools/build_pilot_kickoff_packet.sh'
+      - 'tools/rehearse_customer_packet.sh'
+      - 'tools/scan_internal_content.sh'
+      - '.github/workflows/pilot_packet.yml'
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'docs/pilot/**'
+      - 'tools/build_pilot_kickoff_packet.sh'
+      - 'tools/rehearse_customer_packet.sh'
+      - 'tools/scan_internal_content.sh'
+  workflow_dispatch:
+
+jobs:
+  rehearse-customer:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zip unzip
+
+      - name: Run Customer Rehearsal
+        id: rehearsal
+        run: |
+          set +e
+          bash tools/rehearse_customer_packet.sh > rehearsal_output.log 2>&1
+          REHEARSAL_RC=$?
+          set -e
+
+          echo "exit_code=$REHEARSAL_RC" >> $GITHUB_OUTPUT
+
+          # Find latest evidence directory
+          LATEST_EVIDENCE=$(ls -1dt evidence/pilot_packet_review/* 2>/dev/null | head -1 || echo "")
+          echo "evidence_dir=$LATEST_EVIDENCE" >> $GITHUB_OUTPUT
+
+          # Find customer zip
+          CUSTOMER_ZIP=$(ls -1t dist/pilot_kickoff_packet_customer_*.zip 2>/dev/null | head -1 || echo "")
+          echo "customer_zip=$CUSTOMER_ZIP" >> $GITHUB_OUTPUT
+
+          # Compute SHA256
+          if [ -f "$CUSTOMER_ZIP" ]; then
+            CUSTOMER_SHA256=$(sha256sum "$CUSTOMER_ZIP" | awk '{print $1}')
+            echo "customer_sha256=$CUSTOMER_SHA256" >> $GITHUB_OUTPUT
+          else
+            echo "customer_sha256=n/a" >> $GITHUB_OUTPUT
+          fi
+
+          # Determine failed step if any
+          FAILED_STEP="none"
+          if [ $REHEARSAL_RC -ne 0 ]; then
+            if grep -q "Build failed" rehearsal_output.log; then
+              FAILED_STEP="build"
+            elif grep -q "ZIP integrity test failed" rehearsal_output.log; then
+              FAILED_STEP="unzip"
+            elif grep -q "Required files missing" rehearsal_output.log; then
+              FAILED_STEP="required-files"
+            elif grep -q "Internal content issues detected" rehearsal_output.log; then
+              FAILED_STEP="scan"
+            elif grep -q "Broken markdown links" rehearsal_output.log; then
+              FAILED_STEP="linkcheck"
+            else
+              FAILED_STEP="unknown"
+            fi
+          fi
+          echo "failed_step=$FAILED_STEP" >> $GITHUB_OUTPUT
+
+          # Output log for debugging
+          cat rehearsal_output.log
+
+          # Exit with rehearsal exit code
+          exit $REHEARSAL_RC
+
+      - name: Upload Customer Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pilot-packet-customer
+          path: |
+            dist/pilot_kickoff_packet_customer_*.zip
+            evidence/pilot_packet_review/**
+          retention-days: 30
+
+      - name: Post PR Comment
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const exitCode = '${{ steps.rehearsal.outputs.exit_code }}';
+            const evidenceDir = '${{ steps.rehearsal.outputs.evidence_dir }}';
+            const customerZip = '${{ steps.rehearsal.outputs.customer_zip }}';
+            const customerSha = '${{ steps.rehearsal.outputs.customer_sha256 }}';
+            const failedStep = '${{ steps.rehearsal.outputs.failed_step }}';
+
+            const status = exitCode === '0' ? 'PASS' : 'FAIL';
+            const statusEmoji = exitCode === '0' ? '✅' : '❌';
+
+            let commentBody = `## ${statusEmoji} RC: PILOT PACKET\n\n`;
+            commentBody += `- **Evidence**: \`${evidenceDir}\`\n`;
+            commentBody += `- **Customer ZIP**: \`${customerZip}\`\n`;
+            commentBody += `- **SHA256**: \`${customerSha}\`\n`;
+            commentBody += `- **Status**: ${status}\n`;
+
+            if (status === 'FAIL') {
+              commentBody += `- **Failed Step**: ${failedStep}\n`;
+            }
+
+            commentBody += `\n---\n`;
+            commentBody += `*Workflow: [${context.workflow}](${context.payload.repository.html_url}/actions/runs/${context.runId})*\n`;
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('RC: PILOT PACKET')
+            );
+
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: commentBody
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: commentBody
+              });
+            }
+
+  build-internal:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zip unzip
+
+      - name: Build Internal Packet
+        id: build_internal
+        run: |
+          PACKET_MODE=internal bash tools/build_pilot_kickoff_packet.sh
+
+          # Find internal zip
+          INTERNAL_ZIP=$(ls -1t dist/pilot_kickoff_packet_internal_*.zip 2>/dev/null | head -1 || echo "")
+          echo "internal_zip=$INTERNAL_ZIP" >> $GITHUB_OUTPUT
+
+          # Compute SHA256
+          if [ -f "$INTERNAL_ZIP" ]; then
+            INTERNAL_SHA256=$(sha256sum "$INTERNAL_ZIP" | awk '{print $1}')
+            echo "internal_sha256=$INTERNAL_SHA256" >> $GITHUB_OUTPUT
+            echo "✅ Internal packet built: $INTERNAL_ZIP"
+            echo "SHA256: $INTERNAL_SHA256"
+          else
+            echo "❌ Internal packet build failed"
+            exit 1
+          fi
+
+      - name: Upload Internal Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pilot-packet-internal
+          path: |
+            dist/pilot_kickoff_packet_internal_*.zip
+          retention-days: 30
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Internal Packet Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **ZIP**: \`${{ steps.build_internal.outputs.internal_zip }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **SHA256**: \`${{ steps.build_internal.outputs.internal_sha256 }}\`" >> $GITHUB_STEP_SUMMARY
