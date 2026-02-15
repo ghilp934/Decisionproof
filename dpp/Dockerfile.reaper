@@ -40,8 +40,7 @@ RUN python -c "import dpp_reaper.main; print('Reaper import smoke check: OK')"
 RUN useradd -m -u 1000 dpp && chown -R dpp:dpp /app
 USER dpp
 
-# Create readiness indicator file on startup
-RUN touch /tmp/reaper-ready
+# P0-2: Readiness file is created by main.py AFTER successful init (not at build time)
 
 # Run reaper
 CMD ["python", "-m", "dpp_reaper.main"]

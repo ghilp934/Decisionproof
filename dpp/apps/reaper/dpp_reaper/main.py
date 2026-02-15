@@ -16,6 +16,7 @@ Reaper Service: Two independent loops for run lifecycle management.
 import logging
 import os
 import threading
+from pathlib import Path
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -41,6 +42,9 @@ def main() -> None:
     - Reaper Loop: Detect and terminate zombie runs (lease expired)
     - Reconcile Loop: Recover stuck CLAIMED runs (Worker crash during finalize)
     """
+    # P0-2: Defensive clear of any pre-existing readiness file (e.g., from old image layers)
+    Path("/tmp/reaper-ready").unlink(missing_ok=True)
+
     # ENV-01: Configuration from environment with fail-fast
     database_url = os.getenv("DATABASE_URL")
     if not database_url:

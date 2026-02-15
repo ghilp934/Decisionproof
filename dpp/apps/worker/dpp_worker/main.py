@@ -2,6 +2,7 @@
 
 import logging
 import os
+from pathlib import Path
 
 import boto3
 from sqlalchemy import create_engine
@@ -22,6 +23,9 @@ logger = logging.getLogger(__name__)
 
 def main() -> None:
     """Main entry point for worker."""
+    # P0-2: Defensive clear of any pre-existing readiness file (e.g., from old image layers)
+    Path("/tmp/worker-ready").unlink(missing_ok=True)
+
     # ENV-01: Configuration from environment with fail-fast
     database_url = os.getenv("DATABASE_URL")
     if not database_url:
