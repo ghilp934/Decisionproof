@@ -96,11 +96,27 @@ def main() -> None:
     logger.info(f"Queue URL: {sqs_queue_url}")
     logger.info(f"Result bucket: {s3_result_bucket}")
 
+    # P0-3: Create readiness file for k8s readinessProbe
+    ready_file_path = "/tmp/worker-ready"
+    try:
+        with open(ready_file_path, "w") as f:
+            f.write("ready\n")
+        logger.info(f"Readiness file created: {ready_file_path}")
+    except Exception as e:
+        logger.error(f"Failed to create readiness file: {e}")
+        raise
+
     try:
         worker.run_forever()
     except KeyboardInterrupt:
         logger.info("Worker stopped by user")
     finally:
+        # P0-3: Remove readiness file on shutdown
+        try:
+            if os.path.exists(ready_file_path):
+                os.remove(ready_file_path)
+        except Exception:
+            pass
         db_session.close()
         logger.info("Worker shutdown complete")
 

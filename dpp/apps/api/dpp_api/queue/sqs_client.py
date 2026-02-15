@@ -12,21 +12,47 @@ class SQSClient:
     """SQS client wrapper for DPP."""
 
     def __init__(self):
-        """Initialize SQS client."""
-        sqs_endpoint = os.getenv("SQS_ENDPOINT_URL", "http://localhost:4566")
-        self.queue_url = os.getenv("SQS_QUEUE_URL", "http://localhost:4566/000000000000/dpp-runs")
+        """
+        Initialize SQS client.
 
-        # P0-2: Only use test credentials for LocalStack
-        # Production uses boto3 default credential chain (IAM roles, env vars, etc.)
-        sqs_kwargs = {
-            "endpoint_url": sqs_endpoint,
-            "region_name": "us-east-1",
-        }
+        P0-2: NO implicit localstack in prod.
+        - SQS_ENDPOINT_URL: Only used if explicitly set (no default)
+        - SQS_QUEUE_URL: Required in prod, allowed default only if endpoint_url exists
+        - Credentials: Only use dummy for LocalStack (when endpoint_url is set)
+        """
+        sqs_endpoint = os.getenv("SQS_ENDPOINT_URL")  # No default!
+        sqs_queue_url = os.getenv("SQS_QUEUE_URL")
 
-        # Check if endpoint is LocalStack (localhost or 127.0.0.1)
-        if sqs_endpoint and ("localhost" in sqs_endpoint or "127.0.0.1" in sqs_endpoint):
-            sqs_kwargs["aws_access_key_id"] = "test"
-            sqs_kwargs["aws_secret_access_key"] = "test"
+        # P0-2: Validate queue URL configuration
+        if not sqs_endpoint and not sqs_queue_url:
+            raise ValueError(
+                "SQS_QUEUE_URL is required in production. "
+                "Set SQS_QUEUE_URL or SQS_ENDPOINT_URL for LocalStack."
+            )
+
+        # If endpoint_url exists (LocalStack), allow default queue URL
+        if sqs_endpoint and not sqs_queue_url:
+            sqs_queue_url = "http://localhost:4566/000000000000/dpp-runs"
+
+        self.queue_url = sqs_queue_url
+
+        # Build boto3 kwargs
+        sqs_kwargs = {"region_name": os.getenv("AWS_REGION", "us-east-1")}
+
+        # P0-2: endpoint_url only if explicitly set
+        if sqs_endpoint:
+            sqs_kwargs["endpoint_url"] = sqs_endpoint
+
+            # P0-2: Dummy credentials only for LocalStack
+            if not os.getenv("AWS_ACCESS_KEY_ID"):
+                sqs_kwargs["aws_access_key_id"] = "test"
+                sqs_kwargs["aws_secret_access_key"] = "test"
+
+        # Explicit credentials if provided
+        if os.getenv("AWS_ACCESS_KEY_ID"):
+            sqs_kwargs["aws_access_key_id"] = os.getenv("AWS_ACCESS_KEY_ID")
+        if os.getenv("AWS_SECRET_ACCESS_KEY"):
+            sqs_kwargs["aws_secret_access_key"] = os.getenv("AWS_SECRET_ACCESS_KEY")
 
         self.client = boto3.client("sqs", **sqs_kwargs)
 

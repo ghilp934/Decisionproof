@@ -106,6 +106,9 @@ def main() -> None:
         daemon=False,
     )
 
+    # P0-3: Create readiness file for k8s readinessProbe
+    ready_file_path = "/tmp/reaper-ready"
+
     try:
         # Start both threads
         logger.info("Starting Reaper Loop thread...")
@@ -113,6 +116,15 @@ def main() -> None:
 
         logger.info("Starting Reconcile Loop thread...")
         reconcile_thread.start()
+
+        # P0-3: Create ready file after threads started
+        try:
+            with open(ready_file_path, "w") as f:
+                f.write("ready\n")
+            logger.info(f"Readiness file created: {ready_file_path}")
+        except Exception as e:
+            logger.error(f"Failed to create readiness file: {e}")
+            raise
 
         # Wait for both threads to complete (blocks until SIGTERM/SIGINT)
         reaper_thread.join()
@@ -122,6 +134,12 @@ def main() -> None:
         logger.info("Reaper stopped by user (KeyboardInterrupt)")
 
     finally:
+        # P0-3: Remove readiness file on shutdown
+        try:
+            if os.path.exists(ready_file_path):
+                os.remove(ready_file_path)
+        except Exception:
+            pass
         # Clean up sessions
         reaper_session.close()
         reconcile_session.close()

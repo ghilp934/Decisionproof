@@ -1,13 +1,9 @@
 """Redis client configuration for DPP."""
 
+import os
 import redis
 from typing import Optional
-
-# Redis connection settings (should be from config/env in production)
-REDIS_HOST = "localhost"
-REDIS_PORT = 6379
-REDIS_DB = 0
-REDIS_DECODE_RESPONSES = True  # Return strings instead of bytes
+from urllib.parse import urlparse
 
 
 class RedisClient:
@@ -20,18 +16,36 @@ class RedisClient:
         """
         Get Redis client instance.
 
+        P0-1: Production-configurable Redis with REDIS_URL/REDIS_PASSWORD.
+        - Priority: REDIS_URL env var (e.g., redis://host:6379/0 or rediss://...)
+        - Fallback: redis://localhost:6379/0 for local development
+        - REDIS_PASSWORD: Applied only if URL has no password
+
         Returns:
             redis.Redis: Redis client
         """
         if cls._instance is None:
-            cls._instance = redis.Redis(
-                host=REDIS_HOST,
-                port=REDIS_PORT,
-                db=REDIS_DB,
-                decode_responses=REDIS_DECODE_RESPONSES,
-                socket_connect_timeout=5,
-                socket_timeout=5,
-            )
+            redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+            redis_password = os.getenv("REDIS_PASSWORD")
+
+            # Parse URL to check if password is already present
+            parsed = urlparse(redis_url)
+
+            # Build connection kwargs
+            kwargs = {
+                "decode_responses": True,
+                "socket_connect_timeout": 5,
+                "socket_timeout": 5,
+                "health_check_interval": 30,  # P0-1: Stability option
+            }
+
+            # If password not in URL and REDIS_PASSWORD is set, add it
+            if not parsed.password and redis_password:
+                kwargs["password"] = redis_password
+
+            # Create client from URL
+            cls._instance = redis.from_url(redis_url, **kwargs)
+
         return cls._instance
 
     @classmethod

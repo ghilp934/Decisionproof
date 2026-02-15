@@ -2,6 +2,7 @@
 
 import hashlib
 import hmac
+import logging
 from typing import Optional
 
 from fastapi import Depends, HTTPException, Request, status
@@ -12,6 +13,9 @@ from dpp_api.context import tenant_id_var
 from dpp_api.db.repo_api_keys import APIKeyRepository
 from dpp_api.db.repo_tenants import TenantRepository
 from dpp_api.db.session import get_db
+from dpp_api.db.redis_client import get_redis
+
+logger = logging.getLogger(__name__)
 
 security = HTTPBearer(auto_error=False)
 
@@ -134,12 +138,24 @@ async def get_auth_context(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Update last_used_at asynchronously (fire-and-forget)
-    # In production, this should be done in background task or separate transaction
+    # P1-3: Update last_used_at with Redis debounce (prevent DB write storm)
+    # Only update DB if Redis SET succeeds (rate-limited to once per hour per key)
     try:
-        api_key_repo.update_last_used(key_id)
-    except Exception:
-        # Log error but don't fail the request
+        redis_client = get_redis()
+        debounce_key = f"apikey:lastused:{key_id}"
+        debounce_window = 3600  # 1 hour
+
+        # SET NX EX: Only succeeds if key doesn't exist, sets with expiration
+        acquired = redis_client.set(debounce_key, "1", nx=True, ex=debounce_window)
+
+        if acquired:
+            # Debounce window opened -> update DB
+            api_key_repo.update_last_used(key_id)
+        # else: Within debounce window -> skip DB update
+
+    except Exception as e:
+        # P1-3: Redis fail-open - auth continues, but last_used_at update skipped
+        logger.warning(f"Redis debounce failed for key {key_id}, skipping last_used_at update: {e}")
         pass
 
     # RC-6: Set tenant_id for observability logging

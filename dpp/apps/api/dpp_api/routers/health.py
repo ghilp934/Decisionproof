@@ -59,20 +59,17 @@ def check_redis() -> str:
 def check_sqs() -> str:
     """Check SQS connectivity.
 
+    P0-2: Reuse get_sqs_client() instead of hardcoding test credentials.
+
     Returns:
         str: "up" if healthy, error message otherwise
     """
     try:
-        # P1-J: List queues to verify SQS connection
-        sqs_endpoint = os.getenv("SQS_ENDPOINT_URL", "http://localhost:4566")
-        sqs_client = boto3.client(
-            "sqs",
-            endpoint_url=sqs_endpoint,
-            region_name="us-east-1",
-            aws_access_key_id="test",
-            aws_secret_access_key="test",
-        )
-        sqs_client.list_queues()
+        from dpp_api.queue.sqs_client import get_sqs_client
+
+        sqs_client = get_sqs_client()
+        # Simple list_queues to verify connectivity
+        sqs_client.client.list_queues()
         return "up"
     except Exception as e:
         logger.error(f"SQS health check failed: {e}")
@@ -82,20 +79,39 @@ def check_sqs() -> str:
 def check_s3() -> str:
     """Check S3 connectivity.
 
+    P0-2 + P1-1: Bucket-scoped check (no ListAllMyBuckets).
+    Uses head_bucket on DPP_RESULTS_BUCKET instead.
+
     Returns:
         str: "up" if healthy, error message otherwise
     """
     try:
-        # P1-J: List buckets to verify S3 connection
-        s3_endpoint = os.getenv("S3_ENDPOINT_URL", "http://localhost:4566")
-        s3_client = boto3.client(
-            "s3",
-            endpoint_url=s3_endpoint,
-            region_name="us-east-1",
-            aws_access_key_id="test",
-            aws_secret_access_key="test",
-        )
-        s3_client.list_buckets()
+        # P1-1: Use bucket-scoped check
+        results_bucket = os.getenv("DPP_RESULTS_BUCKET")
+        if not results_bucket:
+            return "down: DPP_RESULTS_BUCKET not configured"
+
+        # P0-2: Conditional endpoint_url and credentials
+        s3_endpoint = os.getenv("S3_ENDPOINT_URL")
+        s3_kwargs = {"region_name": os.getenv("AWS_REGION", "us-east-1")}
+
+        if s3_endpoint:
+            s3_kwargs["endpoint_url"] = s3_endpoint
+            # Dummy credentials only for LocalStack
+            if not os.getenv("AWS_ACCESS_KEY_ID"):
+                s3_kwargs["aws_access_key_id"] = "test"
+                s3_kwargs["aws_secret_access_key"] = "test"
+
+        # Explicit credentials if provided
+        if os.getenv("AWS_ACCESS_KEY_ID"):
+            s3_kwargs["aws_access_key_id"] = os.getenv("AWS_ACCESS_KEY_ID")
+        if os.getenv("AWS_SECRET_ACCESS_KEY"):
+            s3_kwargs["aws_secret_access_key"] = os.getenv("AWS_SECRET_ACCESS_KEY")
+
+        s3_client = boto3.client("s3", **s3_kwargs)
+
+        # P1-1: head_bucket instead of list_buckets
+        s3_client.head_bucket(Bucket=results_bucket)
         return "up"
     except Exception as e:
         logger.error(f"S3 health check failed: {e}")
