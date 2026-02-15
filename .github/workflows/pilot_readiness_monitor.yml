@@ -1,0 +1,195 @@
+name: Pilot Readiness Monitor
+
+on:
+  schedule:
+    # Daily at 16:30 UTC = 01:30 KST (next day)
+    - cron: '30 16 * * *'
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Pilot Base URL (optional, defaults to secret/var)'
+        required: false
+        type: string
+      open_issue_on_fail:
+        description: 'Open GitHub issue on failure'
+        required: false
+        type: boolean
+        default: false
+
+# Minimal permissions
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  monitor:
+    name: Monitor Pilot Readiness
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: ${{ vars.PILOT_MONITOR_ENABLED == '1' }}
+    concurrency:
+      group: pilot-readiness-monitor
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq jq bc
+
+      - name: Configure environment
+        id: config
+        run: |
+          # Base URL priority: input > secret > var
+          BASE_URL="${{ inputs.base_url }}"
+          if [ -z "$BASE_URL" ]; then
+            BASE_URL="${{ secrets.PILOT_BASE_URL }}"
+          fi
+          if [ -z "$BASE_URL" ]; then
+            BASE_URL="${{ vars.PILOT_BASE_URL }}"
+          fi
+
+          if [ -z "$BASE_URL" ]; then
+            echo "ERROR: PILOT_BASE_URL not configured"
+            exit 2
+          fi
+
+          # Redacted URL for logs (hide credentials if any)
+          REDACTED_URL=$(echo "$BASE_URL" | sed 's/:\/\/[^@]*@/:\/\/***@/')
+          echo "base_url=$BASE_URL" >> $GITHUB_OUTPUT
+          echo "redacted_url=$REDACTED_URL" >> $GITHUB_OUTPUT
+
+          echo "Base URL: $REDACTED_URL"
+
+      - name: Run Pilot Readiness Monitor
+        id: monitor
+        env:
+          PILOT_BASE_URL: ${{ steps.config.outputs.base_url }}
+          PILOT_TOKEN: ${{ secrets.PILOT_TOKEN }}
+          MODE: ci
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set +e
+          bash dpp/tools/pilot_readiness_monitor.sh
+          EXIT_CODE=$?
+          set -e
+
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+
+          # Find evidence directory
+          EVIDENCE_DIR=$(ls -1dt dpp/evidence/pilot_monitor/* 2>/dev/null | head -1 || echo "")
+          echo "evidence_dir=$EVIDENCE_DIR" >> $GITHUB_OUTPUT
+
+          if [ -n "$EVIDENCE_DIR" ] && [ -f "$EVIDENCE_DIR/manifest.json" ]; then
+            OK=$(cat "$EVIDENCE_DIR/manifest.json" | jq -r '.ok')
+            PASSED=$(cat "$EVIDENCE_DIR/manifest.json" | jq -r '.checks_passed')
+            TOTAL=$(cat "$EVIDENCE_DIR/manifest.json" | jq -r '.checks_total')
+
+            echo "ok=$OK" >> $GITHUB_OUTPUT
+            echo "checks_passed=$PASSED" >> $GITHUB_OUTPUT
+            echo "checks_total=$TOTAL" >> $GITHUB_OUTPUT
+
+            # Find first failing check
+            FIRST_FAIL=$(cat "$EVIDENCE_DIR/smoke/results.json" | jq -r '.[] | select(.ok == false) | .name' | head -1 || echo "")
+            echo "first_fail=$FIRST_FAIL" >> $GITHUB_OUTPUT
+          else
+            echo "ok=false" >> $GITHUB_OUTPUT
+            echo "checks_passed=0" >> $GITHUB_OUTPUT
+            echo "checks_total=0" >> $GITHUB_OUTPUT
+            echo "first_fail=unknown" >> $GITHUB_OUTPUT
+          fi
+
+          exit $EXIT_CODE
+
+      - name: Upload evidence artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pilot-readiness-monitor-evidence-${{ github.sha }}
+          path: dpp/evidence/pilot_monitor/**
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Write step summary
+        if: always()
+        run: |
+          STATUS="${{ steps.monitor.outputs.ok == 'true' && '✅ PASS' || '❌ FAIL' }}"
+
+          cat >> $GITHUB_STEP_SUMMARY <<EOF
+          ## $STATUS Pilot Readiness Monitor
+
+          - **Event**: ${{ github.event_name }}
+          - **SHA**: \`${{ github.sha }}\`
+          - **Base URL**: \`${{ steps.config.outputs.redacted_url }}\`
+          - **Checks**: ${{ steps.monitor.outputs.checks_passed }} / ${{ steps.monitor.outputs.checks_total }} passed
+          - **Evidence**: \`${{ steps.monitor.outputs.evidence_dir }}\`
+
+          EOF
+
+          if [ "${{ steps.monitor.outputs.ok }}" != "true" ]; then
+            cat >> $GITHUB_STEP_SUMMARY <<EOF
+          ### ⚠️ First Failing Check
+          \`${{ steps.monitor.outputs.first_fail }}\`
+
+          EOF
+          fi
+
+          cat >> $GITHUB_STEP_SUMMARY <<EOF
+          ---
+          *Workflow run: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})*
+          EOF
+
+      - name: Create issue on failure
+        if: failure() && inputs.open_issue_on_fail == true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const dateKst = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+            const title = `[Pilot Monitor] Readiness FAIL - ${dateKst}`;
+
+            const body = `## Pilot Readiness Monitor Failed
+
+            **Event**: ${{ github.event_name }}
+            **SHA**: \`${{ github.sha }}\`
+            **First Failing Check**: \`${{ steps.monitor.outputs.first_fail }}\`
+
+            **Checks**: ${{ steps.monitor.outputs.checks_passed }} / ${{ steps.monitor.outputs.checks_total }} passed
+
+            **Evidence Artifact**: \`pilot-readiness-monitor-evidence-${{ github.sha }}\`
+
+            **Run**: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            ---
+            *Auto-generated by Pilot Readiness Monitor*
+            `;
+
+            // Check for existing open issue
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'pilot-monitor',
+              per_page: 1
+            });
+
+            if (issues.length > 0) {
+              // Comment on existing issue
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues[0].number,
+                body: body
+              });
+            } else {
+              // Create new issue
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['pilot-monitor', 'incident']
+              });
+            }
