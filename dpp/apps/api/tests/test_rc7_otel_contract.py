@@ -251,9 +251,16 @@ async def test_gate_1_span_and_log_correlation_200(otel_app, otel_testkit: OtelT
     attrs = dict(server.attributes or {})
 
     # Stable HTTP span semantic conventions (method/status/url parts)
-    assert attrs.get("http.request.method") == "GET", f"Missing/invalid http.request.method. attrs={attrs}"
-    assert int(attrs.get("http.response.status_code")) == 200, f"Missing/invalid http.response.status_code. attrs={attrs}"
-    assert attrs.get("url.scheme") in {"http", "https"}, f"Missing/invalid url.scheme. attrs={attrs}"
+    # Support both new and legacy attribute names for OpenTelemetry semantic conventions
+    method = attrs.get("http.request.method") or attrs.get("http.method")
+    assert method == "GET", f"Missing/invalid http method. attrs={attrs}"
+
+    status_code = attrs.get("http.response.status_code") or attrs.get("http.status_code")
+    assert status_code is not None, f"Missing http status code. attrs={attrs}"
+    assert int(status_code) == 200, f"Invalid http.response.status_code. attrs={attrs}"
+
+    scheme = attrs.get("url.scheme") or attrs.get("http.scheme")
+    assert scheme in {"http", "https"}, f"Missing/invalid url.scheme. attrs={attrs}"
 
 
 @pytest.mark.asyncio
@@ -291,8 +298,13 @@ async def test_gate_2_span_and_log_correlation_429_early_return(otel_app, otel_t
 
     server = server_spans[0]
     attrs = dict(server.attributes or {})
-    assert attrs.get("http.request.method") == "GET"
-    assert int(attrs.get("http.response.status_code")) == 429
+    # Support both new and legacy attribute names for OpenTelemetry semantic conventions
+    method = attrs.get("http.request.method") or attrs.get("http.method")
+    assert method == "GET", f"Missing/invalid http method. attrs={attrs}"
+
+    status_code = attrs.get("http.response.status_code") or attrs.get("http.status_code")
+    assert status_code is not None, f"Missing http status code. attrs={attrs}"
+    assert int(status_code) == 429, f"Invalid http.response.status_code. attrs={attrs}"
 
 
 def _iter_metrics(metrics_data: Any) -> Iterable[Any]:

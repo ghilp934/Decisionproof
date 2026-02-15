@@ -73,15 +73,18 @@ if [ "$RULESET_EXISTS" -eq 0 ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 3. Ruleset 검증
+# 3. Ruleset 검증 - Get detailed ruleset info
 # ------------------------------------------------------------------------------
-RULESET_JSON=$(cat "$EVDIR/rulesets.json" | jq '.[] | select(.name == "decisionproof-main-rc-gate")' || echo "{}")
+RULESET_ID=$(cat "$EVDIR/rulesets.json" | jq -r '.[] | select(.name == "decisionproof-main-rc-gate") | .id' || echo "")
 
-if [ -z "$RULESET_JSON" ] || [ "$RULESET_JSON" = "{}" ]; then
-  die "Failed to extract ruleset data"
+if [ -z "$RULESET_ID" ]; then
+  die "Failed to find ruleset ID"
 fi
 
-echo "$RULESET_JSON" > "$EVDIR/active_ruleset.json"
+log "Fetching ruleset details (ID=$RULESET_ID)..."
+gh api "repos/$OWNER_REPO/rulesets/$RULESET_ID" --jq '.' > "$EVDIR/active_ruleset.json" 2>"$EVDIR/ruleset_detail_error.log" || die "Failed to fetch ruleset details"
+
+RULESET_JSON=$(cat "$EVDIR/active_ruleset.json")
 
 # 검증 항목
 FAIL_COUNT=0

@@ -3,21 +3,27 @@ name: Pilot Packet CI
 on:
   pull_request:
     paths:
-      - 'docs/pilot/**'
-      - 'tools/build_pilot_kickoff_packet.sh'
-      - 'tools/rehearse_customer_packet.sh'
-      - 'tools/scan_internal_content.sh'
+      - 'dpp/docs/pilot/**'
+      - 'dpp/tools/build_pilot_kickoff_packet.sh'
+      - 'dpp/tools/rehearse_customer_packet.sh'
+      - 'dpp/tools/scan_internal_content.sh'
       - '.github/workflows/pilot_packet.yml'
   push:
     branches:
       - main
       - master
     paths:
-      - 'docs/pilot/**'
-      - 'tools/build_pilot_kickoff_packet.sh'
-      - 'tools/rehearse_customer_packet.sh'
-      - 'tools/scan_internal_content.sh'
+      - 'dpp/docs/pilot/**'
+      - 'dpp/tools/build_pilot_kickoff_packet.sh'
+      - 'dpp/tools/rehearse_customer_packet.sh'
+      - 'dpp/tools/scan_internal_content.sh'
   workflow_dispatch:
+
+# Minimal permissions (write for PR comments)
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
 
 jobs:
   rehearse-customer:
@@ -41,18 +47,18 @@ jobs:
         id: rehearsal
         run: |
           set +e
-          bash tools/rehearse_customer_packet.sh > rehearsal_output.log 2>&1
+          bash dpp/tools/rehearse_customer_packet.sh > rehearsal_output.log 2>&1
           REHEARSAL_RC=$?
           set -e
 
           echo "exit_code=$REHEARSAL_RC" >> $GITHUB_OUTPUT
 
           # Find latest evidence directory
-          LATEST_EVIDENCE=$(ls -1dt evidence/pilot_packet_review/* 2>/dev/null | head -1 || echo "")
+          LATEST_EVIDENCE=$(ls -1dt dpp/evidence/pilot_packet_review/* 2>/dev/null | head -1 || echo "")
           echo "evidence_dir=$LATEST_EVIDENCE" >> $GITHUB_OUTPUT
 
           # Find customer zip
-          CUSTOMER_ZIP=$(ls -1t dist/pilot_kickoff_packet_customer_*.zip 2>/dev/null | head -1 || echo "")
+          CUSTOMER_ZIP=$(ls -1t dpp/dist/pilot_kickoff_packet_customer_*.zip 2>/dev/null | head -1 || echo "")
           echo "customer_zip=$CUSTOMER_ZIP" >> $GITHUB_OUTPUT
 
           # Compute SHA256
@@ -94,8 +100,8 @@ jobs:
         with:
           name: pilot-packet-customer
           path: |
-            dist/pilot_kickoff_packet_customer_*.zip
-            evidence/pilot_packet_review/**
+            dpp/dist/pilot_kickoff_packet_customer_*.zip
+            dpp/evidence/pilot_packet_review/**
           retention-days: 30
 
       - name: Post PR Comment
@@ -175,10 +181,10 @@ jobs:
       - name: Build Internal Packet
         id: build_internal
         run: |
-          PACKET_MODE=internal bash tools/build_pilot_kickoff_packet.sh
+          PACKET_MODE=internal bash dpp/tools/build_pilot_kickoff_packet.sh
 
           # Find internal zip
-          INTERNAL_ZIP=$(ls -1t dist/pilot_kickoff_packet_internal_*.zip 2>/dev/null | head -1 || echo "")
+          INTERNAL_ZIP=$(ls -1t dpp/dist/pilot_kickoff_packet_internal_*.zip 2>/dev/null | head -1 || echo "")
           echo "internal_zip=$INTERNAL_ZIP" >> $GITHUB_OUTPUT
 
           # Compute SHA256
@@ -197,7 +203,7 @@ jobs:
         with:
           name: pilot-packet-internal
           path: |
-            dist/pilot_kickoff_packet_internal_*.zip
+            dpp/dist/pilot_kickoff_packet_internal_*.zip
           retention-days: 30
 
       - name: Summary

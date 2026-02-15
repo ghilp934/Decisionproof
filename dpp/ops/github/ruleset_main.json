@@ -22,17 +22,15 @@
     {
       "type": "required_status_checks",
       "parameters": {
-        "strict_required_status_checks_policy": true,
         "required_status_checks": [
           {
-            "context": "RC Gates (Linux)",
-            "integration_id": null
+            "context": "RC Gates (Linux)"
           },
           {
-            "context": "rehearse-customer",
-            "integration_id": null
+            "context": "rehearse-customer"
           }
-        ]
+        ],
+        "strict_required_status_checks_policy": true
       }
     },
     {

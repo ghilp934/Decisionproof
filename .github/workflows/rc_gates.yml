@@ -52,7 +52,8 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e '.[dev]'
+          pip install -e 'dpp/.[dev]'
+          pip install opentelemetry-api opentelemetry-sdk opentelemetry-instrumentation-fastapi opentelemetry-instrumentation-logging
 
       - name: Docker environment info (evidence)
         run: |
@@ -60,17 +61,23 @@ jobs:
           docker compose version
           docker info
 
+      - name: Build docker images for RC-5 gate
+        run: |
+          docker build -f dpp/Dockerfile.api -t decisionproof-api:rc5 dpp/
+          docker build -f dpp/Dockerfile.worker -t decisionproof-worker:rc5 dpp/
+          docker build -f dpp/Dockerfile.reaper -t decisionproof-reaper:rc5 dpp/
+
       - name: Execute RC gates
         run: |
-          chmod +x tools/run_rc_gates.sh
-          bash tools/run_rc_gates.sh
+          chmod +x dpp/tools/run_rc_gates.sh
+          bash dpp/tools/run_rc_gates.sh
 
       - name: Extract RC summary
         id: rc_summary
         if: always()
         run: |
           # Find latest evidence directory
-          latest_dir=$(ls -1dt evidence/01_ci/* 2>/dev/null | head -1 || echo "")
+          latest_dir=$(ls -1dt dpp/evidence/01_ci/* 2>/dev/null | head -1 || echo "")
 
           if [ -z "$latest_dir" ]; then
             echo "latest_dir=N/A" >> "$GITHUB_OUTPUT"
@@ -134,7 +141,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: rc-gates-${{ github.run_id }}-${{ github.run_attempt }}
-          path: evidence/01_ci/**
+          path: dpp/evidence/01_ci/**
           retention-days: ${{ github.event.inputs.retention_days || 7 }}
           if-no-files-found: warn
 
@@ -160,7 +167,8 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e '.[dev]'
+          pip install -e 'dpp/.[dev]'
+          pip install opentelemetry-api opentelemetry-sdk opentelemetry-instrumentation-fastapi opentelemetry-instrumentation-logging
 
       - name: Docker environment info (evidence)
         run: |
@@ -170,13 +178,13 @@ jobs:
       - name: Execute RC gates (PowerShell)
         shell: pwsh
         run: |
-          powershell -ExecutionPolicy Bypass -File tools\run_rc_gates.ps1
+          powershell -ExecutionPolicy Bypass -File dpp\tools\run_rc_gates.ps1
 
       - name: Upload evidence artifact (Windows)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: rc-gates-windows-${{ github.run_id }}-${{ github.run_attempt }}
-          path: evidence/01_ci/**
+          path: dpp/evidence/01_ci/**
           retention-days: ${{ github.event.inputs.retention_days || 7 }}
           if-no-files-found: warn
