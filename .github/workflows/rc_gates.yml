@@ -43,6 +43,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Fail if CRLF detected (no \r allowed)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # List text files containing CR (\r). -I ignores binary. -l prints filenames.
+          # Exclude Windows-only scripts (*.ps1, *.bat, *.cmd) which legitimately use CRLF
+          files="$(git grep -Il $'\r' -- . ':!*.ps1' ':!*.bat' ':!*.cmd' || true)"
+          if [ -n "$files" ]; then
+            echo "ERROR: CRLF detected in the following files:"
+            echo "$files"
+            exit 1
+          fi
+
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
