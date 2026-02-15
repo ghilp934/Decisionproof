@@ -24,10 +24,6 @@ spec:
         app: dpp-reaper
         component: reaper
         version: "0.4.2.2"
-      annotations:
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "9090"
-        prometheus.io/path: "/metrics"
     spec:
       serviceAccountName: dpp-reaper
       containers:

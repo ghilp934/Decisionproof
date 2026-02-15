@@ -24,10 +24,6 @@ spec:
         app: dpp-api
         component: api
         version: "0.4.2.2"
-      annotations:
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "9090"
-        prometheus.io/path: "/metrics"
     spec:
       serviceAccountName: dpp-api
       containers:
@@ -37,9 +33,6 @@ spec:
         ports:
         - name: http
           containerPort: 8000
-          protocol: TCP
-        - name: metrics
-          containerPort: 9090
           protocol: TCP
 
         env:
@@ -74,11 +67,6 @@ spec:
             configMapKeyRef:
               name: dpp-config
               key: CORS_ALLOWED_ORIGINS
-        - name: PROMETHEUS_PORT
-          valueFrom:
-            configMapKeyRef:
-              name: dpp-config
-              key: PROMETHEUS_PORT
 
         # Secrets
         - name: DATABASE_URL
@@ -171,10 +159,6 @@ spec:
   - name: https
     port: 443
     targetPort: http
-    protocol: TCP
-  - name: metrics
-    port: 9090
-    targetPort: metrics
     protocol: TCP
   sessionAffinity: None
 
