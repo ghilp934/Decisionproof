@@ -26,6 +26,13 @@ COPY apps/api/dpp_api ./apps/api/dpp_api
 COPY alembic ./alembic
 COPY alembic.ini ./
 
+# P0-1: Set PYTHONPATH for API module imports
+ENV PYTHONPATH="/app/apps/api:${PYTHONPATH}"
+
+# P0-1: Smoke import check - verify API imports resolve before deployment
+RUN python -c "import dpp_api; import dpp_api.main; print('API import smoke check: OK')"
+RUN python -c "import uvicorn; print('uvicorn import check: OK')"
+
 # Create non-root user
 RUN useradd -m -u 1000 dpp && chown -R dpp:dpp /app
 USER dpp
