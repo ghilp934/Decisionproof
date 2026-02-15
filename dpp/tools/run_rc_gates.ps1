@@ -31,6 +31,29 @@ $RcTests = @(
 function Dump-Logs {
     param([int]$ExitCode)
 
+    # CRITICAL: Display pytest output FIRST if files exist (before any other output)
+    $StdoutFile = Join-Path $EvidenceDir "rc_run_stdout.log"
+    $StderrFile = Join-Path $EvidenceDir "rc_run_stderr.log"
+
+    if (Test-Path $StdoutFile) {
+        Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
+        Write-Host "PYTEST STDOUT:" -ForegroundColor Yellow
+        Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
+        Get-Content $StdoutFile | Write-Host
+    } else {
+        Write-Host "WARNING: rc_run_stdout.log not found at $EvidenceDir" -ForegroundColor Red
+    }
+
+    if (Test-Path $StderrFile) {
+        $StderrContent = Get-Content $StderrFile -Raw
+        if ($StderrContent.Trim().Length -gt 0) {
+            Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
+            Write-Host "PYTEST STDERR:" -ForegroundColor Yellow
+            Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
+            Write-Host $StderrContent
+        }
+    }
+
     Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
     Write-Host "[FAILURE DETECTED] Exit code: $ExitCode" -ForegroundColor Red
     Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow

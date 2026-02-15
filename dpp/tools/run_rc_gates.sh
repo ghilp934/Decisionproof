@@ -37,6 +37,24 @@ RC_TESTS=(
 # Auto-dump logs on failure
 DumpLogs() {
   local exit_code=$?
+
+  # CRITICAL: Display pytest output FIRST if files exist (before any other output)
+  if [[ -f "$EVIDENCE_DIR/rc_run_stdout.log" ]]; then
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${YELLOW}PYTEST STDOUT:${NC}"
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    cat "$EVIDENCE_DIR/rc_run_stdout.log" || echo "Failed to cat stdout"
+  else
+    echo -e "${RED}WARNING: rc_run_stdout.log not found at $EVIDENCE_DIR/${NC}"
+  fi
+
+  if [[ -f "$EVIDENCE_DIR/rc_run_stderr.log" && -s "$EVIDENCE_DIR/rc_run_stderr.log" ]]; then
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${YELLOW}PYTEST STDERR:${NC}"
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    cat "$EVIDENCE_DIR/rc_run_stderr.log" || echo "Failed to cat stderr"
+  fi
+
   echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
   echo -e "${RED}[FAILURE DETECTED] Exit code: $exit_code${NC}"
   echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
