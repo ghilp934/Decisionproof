@@ -2,19 +2,20 @@
 
 Decisionproof implements IETF draft-ietf-httpapi-ratelimit-headers compliant rate limiting.
 
-## RateLimit Headers
+## RateLimit Headers (SSOT - Single Source of Truth)
 
-All responses include RateLimit headers:
+All responses include RateLimit headers per IETF draft-ietf-httpapi-ratelimit-headers:
 
 ### RateLimit-Policy
 
 Describes the rate limit policy applied to this request.
 
 ```http
-RateLimit-Policy: rpm;w=60
+RateLimit-Policy: "default"; q=60; w=60
 ```
 
-- `rpm`: Policy name (requests per minute)
+- `"default"`: Policy identifier
+- `q=60`: Quota (requests allowed per window)
 - `w=60`: Window size in seconds
 
 ### RateLimit
@@ -36,9 +37,9 @@ When you exceed the rate limit, you receive a 429 response:
 ```http
 HTTP/1.1 429 Too Many Requests
 Content-Type: application/problem+json
-RateLimit-Policy: rpm;w=60
-RateLimit: limit=600, remaining=0, reset=30
-Retry-After: 30
+RateLimit-Policy: "default"; q=60; w=60
+RateLimit: limit=600, remaining=0, reset=60
+Retry-After: 60
 ```
 
 ```json
