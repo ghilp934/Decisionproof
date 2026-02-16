@@ -371,6 +371,9 @@ dpp/
 │       ├── dpp_reaper/       # Background reaper
 │       └── tests/            # Reaper tests
 ├── alembic/                  # Database migrations
+├── scripts/                  # Utility scripts
+│   ├── db_smoke_check.py     # Database schema drift detection
+│   └── seed_monetization_data.py # Seed data for testing
 ├── infra/
 │   └── docker-compose.yml    # Dev infrastructure
 ├── k8s/                      # Kubernetes manifests
@@ -406,14 +409,21 @@ cd apps/api && python -m pytest -v
 # 4. Check migration
 python -m alembic check
 
-# 5. Commit
+# 5. Database smoke check (optional)
+# STRICT mode (default): No index duplicates allowed
+PYTHONPATH=./apps/api python scripts/db_smoke_check.py
+
+# RELAXED mode: Allow index duplicates (for migration transitions)
+RELAXED=1 PYTHONPATH=./apps/api python scripts/db_smoke_check.py
+
+# 6. Commit
 git add -A
 git commit -m "Add my feature"
 
-# 6. Push
+# 7. Push
 git push origin feature/my-feature
 
-# 7. Create PR
+# 8. Create PR
 # ... GitHub PR workflow ...
 ```
 
