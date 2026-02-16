@@ -590,7 +590,7 @@ def custom_openapi():
     openapi_schema["components"]["securitySchemes"]["BearerAuth"] = {
         "type": "http",
         "scheme": "bearer",
-        "bearerFormat": "sk_{key_id}_{secret}",
+        "bearerFormat": "opaque-token",
         "description": "Bearer token authentication. Format: sk_{key_id}_{secret} (e.g., sk_abc123_xyz789def456...). Include Idempotency-Key header for duplicate prevention.",
     }
 
@@ -687,8 +687,8 @@ async def function_calling_specs():
         "auth": {
             "type": "http",
             "scheme": "bearer",
-            "bearer_format": "sk_{key_id}_{secret}",
-            "description": "Bearer token authentication. Include Idempotency-Key header for duplicate prevention.",
+            "bearer_format": "opaque-token",
+            "description": "Bearer token authentication. Format: sk_{key_id}_{secret} (e.g., sk_abc123_xyz789def456...). Include Idempotency-Key header for duplicate prevention.",
             "headers": {
                 "Authorization": "Bearer sk_{key_id}_{secret}",
                 "Idempotency-Key": "unique-request-id (UUID recommended)"

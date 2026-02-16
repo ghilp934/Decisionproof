@@ -177,15 +177,20 @@ def test_function_calling_specs_auth_no_environment_prefix(client: TestClient):
     spec = response.json()
     auth = spec.get("auth", {})
 
-    # Check bearer_format does NOT contain environment prefix
+    # Check bearer_format is OpenAPI-compliant (opaque-token)
     bearer_format = auth.get("bearer_format", "")
-    assert "sk_live_" not in bearer_format, "sk_live_ must NOT be in bearer_format"
-    assert "sk_test_" not in bearer_format, "sk_test_ must NOT be in bearer_format"
-    assert "sk_{environment}" not in bearer_format, "sk_{environment} must NOT be in bearer_format"
+    assert bearer_format == "opaque-token", \
+        f"bearer_format should be 'opaque-token', got: {bearer_format}"
 
-    # Should be: sk_{key_id}_{secret}
-    assert "sk_{key_id}_{secret}" in bearer_format or "sk_" in bearer_format, \
-        "bearer_format should be sk_{key_id}_{secret}"
+    # Check description contains actual token format (sk_{key_id}_{secret})
+    description = auth.get("description", "")
+    assert "sk_{key_id}_{secret}" in description, \
+        "description must specify sk_{key_id}_{secret} format"
+
+    # Ensure NO environment prefix in description
+    assert "sk_live_" not in description, "sk_live_ must NOT be in description"
+    assert "sk_test_" not in description, "sk_test_ must NOT be in description"
+    assert "sk_{environment}" not in description, "sk_{environment} must NOT be in description"
 
 
 def test_openapi_auth_scheme_no_x_api_key(client: TestClient):
