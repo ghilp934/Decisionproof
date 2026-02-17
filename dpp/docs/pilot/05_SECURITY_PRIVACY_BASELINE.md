@@ -17,7 +17,7 @@
 **검증 방법:**
 ```bash
 # 토큰이 로그에 남지 않는지 확인
-grep -r "sk_staging_" /var/log/app.log  # 결과 없어야 함
+grep -r "<STAGING_TOKEN>" /var/log/app.log  # 결과 없어야 함
 ```
 
 ### Rate Limit 준수
@@ -46,6 +46,13 @@ class RateLimiter:
             time.sleep(sleep_time)
         self.calls.append(now)
 ```
+
+### AWS 인프라 보안 (P0)
+
+**필수 규칙:**
+- AWS는 역할 기반 자격증명(Task Role/IRSA) 우선, 정적 키 주입 방지 (Guardrails)
+- S3 결과물 저장 시 SSE (Server-Side Encryption) 적용 (기본 AES256, 옵션 KMS)
+- 배포 전 `aws_preflight_check.py`로 환경/계정 확인
 
 ### HTTPS 전용
 
@@ -117,7 +124,7 @@ Decisionproof API 사용 중 개인정보가 처리될 수 있는 지점:
 
 1. **즉시 조치**: 의심 토큰 사용 중단
 2. **증빙 수집**: 로그, request_id, 발생 시각
-3. **보고**: pilot-support@decisionproof.ai (제목: [보안 사고] ...)
+3. **보고**: ghilplip934@gmail.com (제목: [보안 사고] ...)
 4. **대응**: 당사에서 토큰 무효화 + 재발급
 
 ---

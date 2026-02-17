@@ -9,8 +9,9 @@ from datetime import datetime, timezone
 from typing import Any
 
 import boto3
+from botocore.config import Config
 
-from dpp_api.config.env import get_sqs_queue_url, is_irsa_environment, is_localstack_endpoint
+from dpp_api.config import env
 
 
 class SQSClient:
@@ -21,40 +22,50 @@ class SQSClient:
         Initialize SQS client.
 
         Ops Hardening v2: NO hardcoded localhost defaults, enhanced LocalStack detection.
+        AWS Guardrails (P0): Production validation for credentials/endpoints/region.
         - SQS_ENDPOINT_URL: Only used if explicitly set (no default)
         - SQS_QUEUE_URL: ALWAYS required (fail-fast if missing)
-        - Credentials: Only inject "test" for LocalStack (4-marker detection)
+        - Credentials: Only inject "test" for LocalStack AND NOT in IRSA (A6)
 
         Raises:
             ValueError: If SQS_QUEUE_URL is missing
+            ValueError: If production guardrails fail (A1/A3/A4/A5)
         """
-        sqs_endpoint = os.getenv("SQS_ENDPOINT_URL")  # Optional: LocalStack only
+        # AWS Guardrails (P0): Production validation
+        sqs_endpoint = os.getenv("SQS_ENDPOINT_URL")
+        env.assert_no_custom_endpoint_in_prod(sqs_endpoint, "sqs")  # A4
+        env.assert_no_static_aws_creds("sqs")  # A1, A5
 
         # Ops Hardening v2: SQS_QUEUE_URL is ALWAYS required (no hardcoded defaults)
-        self.queue_url = get_sqs_queue_url()  # Raises ValueError if missing
+        self.queue_url = env.get_sqs_queue_url()  # Raises ValueError if missing
+
+        # AWS Region (A3: required in production)
+        region_name = env.get_aws_region(require_in_prod=True)
+
+        # Configure boto3 client with timeouts and retries
+        config = Config(
+            region_name=region_name,
+            retries={"max_attempts": 3, "mode": "standard"},
+            connect_timeout=10,
+            read_timeout=30,
+        )
 
         # Build boto3 kwargs
-        sqs_kwargs = {"region_name": os.getenv("AWS_REGION", "us-east-1")}
+        sqs_kwargs = {"config": config}
 
         # Ops Hardening v2: endpoint_url only if explicitly set
         if sqs_endpoint:
             sqs_kwargs["endpoint_url"] = sqs_endpoint
 
-            # P1-1: Test credentials ONLY for LocalStack AND NOT in IRSA/production
+            # A6: Test credentials ONLY for LocalStack AND NOT in IRSA/production
             # IRSA environments (EKS) use web identity tokens, NEVER static credentials
             if (
-                is_localstack_endpoint(sqs_endpoint)
+                env.is_localstack_endpoint(sqs_endpoint)
                 and not os.getenv("AWS_ACCESS_KEY_ID")
-                and not is_irsa_environment()
+                and not env.is_irsa_environment()
             ):
                 sqs_kwargs["aws_access_key_id"] = "test"
                 sqs_kwargs["aws_secret_access_key"] = "test"
-
-        # Explicit credentials if provided (override test creds)
-        if os.getenv("AWS_ACCESS_KEY_ID"):
-            sqs_kwargs["aws_access_key_id"] = os.getenv("AWS_ACCESS_KEY_ID")
-        if os.getenv("AWS_SECRET_ACCESS_KEY"):
-            sqs_kwargs["aws_secret_access_key"] = os.getenv("AWS_SECRET_ACCESS_KEY")
 
         self.client = boto3.client("sqs", **sqs_kwargs)
 

@@ -13,7 +13,7 @@ import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
 
-from dpp_api.config.env import get_s3_result_bucket
+from dpp_api.config import env
 
 logger = logging.getLogger(__name__)
 
@@ -30,29 +30,38 @@ class S3Client:
         """Initialize S3 client.
 
         Ops Hardening v2: NO silent defaults for bucket - fail-fast on misconfig.
+        AWS Guardrails (P0): Production validation for credentials/endpoints/region.
 
         Args:
             bucket: S3 bucket name (default from env: S3_RESULT_BUCKET or DPP_RESULTS_BUCKET)
-            region: AWS region (default from env: AWS_REGION or us-east-1)
+            region: AWS region (default from env: AWS_REGION)
             endpoint_url: Custom endpoint URL (for LocalStack/MinIO testing)
 
         Raises:
             ValueError: If bucket cannot be resolved from args or env
+            ValueError: If production guardrails fail (A1/A3/A4/A5)
         """
         # Ops Hardening v2: Fail-fast if bucket missing (no silent "dpp-results" default)
         if bucket:
             self.bucket = bucket
         else:
-            self.bucket = get_s3_result_bucket()  # Raises ValueError if missing
+            self.bucket = env.get_s3_result_bucket()  # Raises ValueError if missing
 
-        self.region = region or os.getenv("AWS_REGION", "us-east-1")
+        # AWS Guardrails (P0): Production validation
         self.endpoint_url = endpoint_url or os.getenv("S3_ENDPOINT_URL")
+        env.assert_no_custom_endpoint_in_prod(self.endpoint_url, "s3")  # A4
+        env.assert_no_static_aws_creds("s3")  # A1, A5
 
-        # Configure boto3 client
+        # AWS Region (A3: required in production)
+        self.region = region or env.get_aws_region(require_in_prod=True)
+
+        # Configure boto3 client with timeouts and retries
         config = Config(
             region_name=self.region,
             signature_version="s3v4",
             retries={"max_attempts": 3, "mode": "standard"},
+            connect_timeout=10,
+            read_timeout=60,
         )
 
         # Initialize S3 client
@@ -61,6 +70,8 @@ class S3Client:
             config=config,
             endpoint_url=self.endpoint_url,
         )
+
+        logger.info(f"S3Client initialized: region={self.region}, bucket={self.bucket}")
 
     def generate_presigned_url(
         self,

@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
@@ -11,6 +12,7 @@ import redis
 from sqlalchemy.orm import Session
 
 from dpp_api.budget import BudgetManager
+from dpp_api.config import env
 from dpp_api.db.repo_runs import RunRepository
 from dpp_worker.executor.stub_decision import StubDecisionExecutor
 from dpp_worker.finalize.optimistic_commit import (
@@ -74,6 +76,11 @@ class WorkerLoop:
         self.redis = redis_client
         self.lease_ttl_sec = lease_ttl_sec
         self.repo = RunRepository(db_session)
+
+        # S3 Server-Side Encryption (P0: S1/S2/S3)
+        # Get SSE kwargs based on production environment and endpoint
+        s3_endpoint = os.getenv("S3_ENDPOINT_URL")
+        self._s3_sse_kwargs = env.get_s3_server_side_encryption_kwargs(s3_endpoint)
 
         # Pack executors
         self.executors = {
@@ -331,6 +338,7 @@ class WorkerLoop:
 
             try:
                 # MS-6: Include actual_cost in S3 metadata for idempotent reconciliation
+                # P0: Apply S3 Server-Side Encryption (S1/S2/S3)
                 self.s3.put_object(
                     Bucket=self.result_bucket,
                     Key=s3_key,
@@ -339,6 +347,7 @@ class WorkerLoop:
                     Metadata={
                         "actual-cost-usd-micros": str(actual_cost_usd_micros),
                     },
+                    **self._s3_sse_kwargs,
                 )
                 logger.info(
                     f"Uploaded result to s3://{self.result_bucket}/{s3_key} "
