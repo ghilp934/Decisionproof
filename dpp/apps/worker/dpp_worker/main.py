@@ -5,12 +5,14 @@ import os
 from pathlib import Path
 
 import boto3
+from botocore.config import Config
 from sqlalchemy.orm import Session
 
 # P0-2: Removed sys.path manipulation - PYTHONPATH handles this in Dockerfile
 # Container images include dpp_api via COPY and ENV PYTHONPATH
 
 from dpp_api.budget import BudgetManager
+from dpp_api.config import env
 from dpp_api.db.engine import build_engine, build_sessionmaker
 from dpp_api.db.redis_client import RedisClient
 from dpp_api.utils import configure_json_logging
@@ -27,17 +29,18 @@ def main() -> None:
     Path("/tmp/worker-ready").unlink(missing_ok=True)
 
     # ENV-01: Configuration from environment with fail-fast
-    dp_env = os.getenv("DP_ENV", "").lower()
+    # Use canonical DPP_ENV/DP_ENV resolution (env.get_dpp_env)
+    dpp_env_name = env.get_dpp_env()
     database_url = os.getenv("DATABASE_URL")
 
-    if dp_env in {"prod", "production"}:
+    if env.is_production_env():
         # Production: DATABASE_URL is required (fail-fast)
         if not database_url:
             raise RuntimeError(
-                "DATABASE_URL environment variable is required in production (DP_ENV=prod/production). "
+                f"DATABASE_URL environment variable is required in production (environment: {dpp_env_name}). "
                 "Check deployment configuration and secrets injection."
             )
-        logger.info("DATABASE_URL: set (production mode)")
+        logger.info(f"DATABASE_URL: set (production mode, environment: {dpp_env_name})")
     else:
         # Development/CI: fallback to docker-compose default
         if not database_url:
@@ -47,53 +50,37 @@ def main() -> None:
             logger.info("DATABASE_URL: set")
 
     # P0-A: NO DEFAULTS for production safety
-    sqs_queue_url = os.getenv("SQS_QUEUE_URL")
-    if not sqs_queue_url:
-        raise ValueError(
-            "SQS_QUEUE_URL is required. "
-            "Set SQS_QUEUE_URL (and optionally SQS_ENDPOINT_URL for LocalStack)."
-        )
+    sqs_queue_url = env.get_sqs_queue_url()  # Raises ValueError if missing
+    s3_result_bucket = env.get_s3_result_bucket()  # Raises ValueError if missing
 
-    # P0-B: Canonical env var with backward compatibility
-    s3_result_bucket = os.getenv("S3_RESULT_BUCKET") or os.getenv("DPP_RESULTS_BUCKET")
-    if not s3_result_bucket:
-        raise ValueError(
-            "S3_RESULT_BUCKET (or DPP_RESULTS_BUCKET) is required."
-        )
+    # AWS Guardrails (P0): Production validation
+    sqs_endpoint = os.getenv("SQS_ENDPOINT_URL")
+    s3_endpoint = os.getenv("S3_ENDPOINT_URL")
 
-    # P0-A: AWS clients - NO defaults for endpoint_url
-    sqs_endpoint = os.getenv("SQS_ENDPOINT_URL")  # None if not set
-    s3_endpoint = os.getenv("S3_ENDPOINT_URL")    # None if not set
+    env.assert_no_custom_endpoint_in_prod(sqs_endpoint, "sqs")  # A4
+    env.assert_no_custom_endpoint_in_prod(s3_endpoint, "s3")    # A4
+    env.assert_no_static_aws_creds("worker")  # A1, A5
 
-    # P0-A: Enhanced LocalStack detection
-    def is_localstack(endpoint: str | None) -> bool:
-        """Check if endpoint is LocalStack or local development."""
-        if endpoint is None:
-            return False
-        endpoint_lower = endpoint.lower()
-        return any(
-            marker in endpoint_lower
-            for marker in ["localhost", "127.0.0.1", "localstack", "host.docker.internal"]
-        )
+    # AWS Region (A3: required in production)
+    region_name = env.get_aws_region(require_in_prod=True)
 
-    def is_irsa_environment() -> bool:
-        """P1-1: Detect EKS/IRSA environment (web identity tokens).
+    # SQS client with Guardrails and Config
+    sqs_config = Config(
+        region_name=region_name,
+        retries={"max_attempts": 3, "mode": "standard"},
+        connect_timeout=10,
+        read_timeout=30,
+    )
 
-        IRSA environments use AWS_ROLE_ARN + AWS_WEB_IDENTITY_TOKEN_FILE.
-        NEVER inject static credentials in IRSA environments.
-        """
-        return bool(os.getenv("AWS_ROLE_ARN") or os.getenv("AWS_WEB_IDENTITY_TOKEN_FILE"))
-
-    # SQS client: conditional endpoint_url
-    sqs_kwargs = {"region_name": os.getenv("AWS_REGION", "us-east-1")}
+    sqs_kwargs = {"config": sqs_config}
 
     if sqs_endpoint:
         sqs_kwargs["endpoint_url"] = sqs_endpoint
-        # P1-1: Test credentials ONLY for LocalStack AND NOT in IRSA/production
+        # A6: Test credentials ONLY for LocalStack AND NOT in IRSA/production
         if (
-            is_localstack(sqs_endpoint)
+            env.is_localstack_endpoint(sqs_endpoint)
             and not os.getenv("AWS_ACCESS_KEY_ID")
-            and not is_irsa_environment()
+            and not env.is_irsa_environment()
         ):
             sqs_kwargs["aws_access_key_id"] = "test"
             sqs_kwargs["aws_secret_access_key"] = "test"
@@ -101,16 +88,24 @@ def main() -> None:
 
     sqs_client = boto3.client("sqs", **sqs_kwargs)
 
-    # S3 client: conditional endpoint_url
-    s3_kwargs = {"region_name": os.getenv("AWS_REGION", "us-east-1")}
+    # S3 client with Guardrails and Config
+    s3_config = Config(
+        region_name=region_name,
+        signature_version="s3v4",
+        retries={"max_attempts": 3, "mode": "standard"},
+        connect_timeout=10,
+        read_timeout=60,
+    )
+
+    s3_kwargs = {"config": s3_config}
 
     if s3_endpoint:
         s3_kwargs["endpoint_url"] = s3_endpoint
-        # P1-1: Test credentials ONLY for LocalStack AND NOT in IRSA/production
+        # A6: Test credentials ONLY for LocalStack AND NOT in IRSA/production
         if (
-            is_localstack(s3_endpoint)
+            env.is_localstack_endpoint(s3_endpoint)
             and not os.getenv("AWS_ACCESS_KEY_ID")
-            and not is_irsa_environment()
+            and not env.is_irsa_environment()
         ):
             s3_kwargs["aws_access_key_id"] = "test"
             s3_kwargs["aws_secret_access_key"] = "test"

@@ -10,6 +10,8 @@ Exit codes:
 
 import hashlib
 import json
+import os
+import re
 import subprocess
 import sys
 import time
@@ -36,6 +38,18 @@ FORBIDDEN_BASENAMES = {
 
 # Forbidden extensions
 FORBIDDEN_EXTENSIONS = {".env", ".pem", ".key", ".p12", ".pfx"}
+
+# R1: AWS Access Key ID pattern (AKIA*, ASIA*)
+AWS_KEY_ID_PATTERN = re.compile(r"\b(AKIA|ASIA)[0-9A-Z]{16}\b")
+
+# R1: File extensions to scan for AWS Key IDs (text files only)
+AWS_KEY_SCAN_EXTENSIONS = {
+    ".py", ".md", ".txt", ".yml", ".yaml", ".json", ".toml", ".env", ".ini",
+    ".sh", ".bash", ".js", ".ts", ".jsx", ".tsx", ".html", ".xml", ".csv",
+}
+
+# R1: Max file size for AWS Key ID scan (500KB)
+AWS_KEY_SCAN_MAX_SIZE = 500 * 1024
 
 
 def check_docker_availability() -> Tuple[bool, str, str]:
@@ -68,7 +82,7 @@ def check_docker_availability() -> Tuple[bool, str, str]:
 
 
 def scan_repo_tree() -> Tuple[List[str], int, int]:
-    """Scan repo working tree for forbidden artifacts.
+    """Scan repo working tree for forbidden artifacts + AWS Key IDs (R1).
 
     Returns:
         (violations, scanned_count, excluded_count)
@@ -78,6 +92,9 @@ def scan_repo_tree() -> Tuple[List[str], int, int]:
     """
     violations = []
     repo_root = Path(__file__).parent.parent
+
+    # R1: Toggle for AWS Key ID scanning
+    scan_aws_key_ids = os.getenv("RC5_SCAN_AWS_KEY_IDS", "1") == "1"
 
     # Get git-tracked files
     try:
@@ -120,6 +137,28 @@ def scan_repo_tree() -> Tuple[List[str], int, int]:
         suffix = Path(file_path).suffix.lower()
         if suffix in FORBIDDEN_EXTENSIONS:
             violations.append(file_path)
+            continue
+
+        # R1: Scan text files for AWS Access Key IDs
+        if scan_aws_key_ids and suffix in AWS_KEY_SCAN_EXTENSIONS:
+            full_path = repo_root / file_path
+
+            try:
+                # Skip files larger than max size
+                if full_path.stat().st_size > AWS_KEY_SCAN_MAX_SIZE:
+                    continue
+
+                # Read file content (text mode, skip binary)
+                with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
+                    content = f.read()
+
+                # Search for AWS Key ID pattern
+                if AWS_KEY_ID_PATTERN.search(content):
+                    violations.append(f"{file_path} [AWS_KEY_ID]")
+
+            except (OSError, UnicodeDecodeError):
+                # Skip unreadable files
+                pass
 
     return sorted(set(violations)), scanned_count, excluded_count
 
