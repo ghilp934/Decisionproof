@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dpp-ses-feedback-config
+  namespace: dpp-production
+  labels:
+    app: dpp-ses-feedback
+    component: worker
+    phase: "3"
+data:
+  # AWS Region
+  AWS_REGION: "ap-northeast-2"
+
+  # SQS Queue URL (output from phase3_ses_feedback_infra.sh)
+  # REPLACE with actual queue URL
+  SQS_QUEUE_URL: "https://sqs.ap-northeast-2.amazonaws.com/783268398937/decisionproof-ses-feedback-queue"
+
+  # Worker configuration
+  POLL_INTERVAL_SEC: "20"   # Long polling wait time
+  MAX_MESSAGES: "10"         # Max messages per poll
+
+  # SNS Topic ARNs (for reference/monitoring)
+  SNS_BOUNCE_ARN: "arn:aws:sns:ap-northeast-2:783268398937:decisionproof-ses-bounce"
+  SNS_COMPLAINT_ARN: "arn:aws:sns:ap-northeast-2:783268398937:decisionproof-ses-complaint"
+  SNS_DELIVERY_ARN: "arn:aws:sns:ap-northeast-2:783268398937:decisionproof-ses-delivery"
+
+  # DLQ (for monitoring)
+  SQS_DLQ_URL: "https://sqs.ap-northeast-2.amazonaws.com/783268398937/decisionproof-ses-feedback-dlq"

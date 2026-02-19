@@ -43,6 +43,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Fail if forbidden artifacts are tracked
+        shell: bash
+        run: |
+          set -euo pipefail
+          tracked="$(git ls-files | grep -E 'BLOCKER_.*\.txt|/_ops/|prod-ca-.*\.(crt|cer|pem)|supabase-ca.*\.(crt|cer|pem)' || true)"
+          if [ -n "$tracked" ]; then
+            echo "ERROR: Forbidden artifacts tracked in git:"
+            echo "$tracked"
+            exit 1
+          fi
+          echo "OK: no forbidden artifacts tracked."
+
       - name: Fail if CRLF detected (no \r allowed)
         shell: bash
         run: |

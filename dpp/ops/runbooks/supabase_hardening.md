@@ -43,17 +43,28 @@
 
 ### 3. 연결 테스트
 
-**허용 IP에서 연결 테스트**:
+**env-var SSOT로 설정 후 스크립트 실행**:
 ```bash
-# psql로 연결 테스트
-psql "postgres://user:pass@aws-0-region.pooler.supabase.com:6543/postgres?sslmode=require" -c "SELECT 1;"
+# 환경변수 설정 (SSOT — 반드시 verify-full 사용)
+export PGHOST=db.<ref>.supabase.co
+export PGHOST_POOLER=aws-1-ap-northeast-2.pooler.supabase.com
+export PGPORT=5432
+export PGPORT_POOLER=5432
+export PGDATABASE=postgres
+export PGUSER=postgres
+export PGUSER_POOLER=postgres.<ref>
+export PGPASSWORD=<db-password>
+export PGSSLMODE=verify-full
+export PGSSLROOTCERT=/path/to/prod-ca-2021.crt   # CA cert 경로
 
-# Python으로 연결 테스트
-python -c "import psycopg2; conn = psycopg2.connect('$DATABASE_URL'); print('OK')"
+# verify-full 연결 테스트 (Direct + Pooler)
+bash dpp/ops/scripts/psql_verify_full.sh
 ```
 
-**성공 시**: `1` 또는 `OK` 출력
+**성공 시**: `=== All checks PASSED ===` 출력
 **실패 시**: IP allowlist에 해당 IP 추가 누락 → Supabase Dashboard에서 추가
+
+> ⚠️ `sslmode=require` 사용 금지 — 반드시 `verify-full` 사용 (CA 인증서 검증 포함)
 
 ### 4. ACK 변수 설정 (배포 환경)
 

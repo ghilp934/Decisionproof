@@ -72,3 +72,22 @@ temp/
 
 # Evidence (temporary verification files)
 evidence/
+
+# Migration (Supabase region migration - contains secrets)
+ops/scripts/migration_env.sh
+supabase_migration_backups/
+storage_migration_temp/
+storage_migration.log
+
+# SMTP Smoke Test (contains secrets)
+scripts/smoke_smtp_email.env
+
+# Ops/Residue (forbidden artifacts – must never be tracked)
+BLOCKER_*.txt
+_ops/
+prod-ca-*.crt
+prod-ca-*.cer
+prod-ca-*.pem
+supabase-ca*.crt
+supabase-ca*.cer
+supabase-ca*.pem

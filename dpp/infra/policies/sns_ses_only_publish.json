@@ -1,0 +1,22 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowSESPublish",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "ses.amazonaws.com"
+      },
+      "Action": "SNS:Publish",
+      "Resource": "arn:aws:sns:ap-northeast-2:783268398937:dp-ses-events-pilot",
+      "Condition": {
+        "StringEquals": {
+          "aws:SourceAccount": "783268398937"
+        },
+        "StringLike": {
+          "aws:SourceArn": "arn:aws:ses:ap-northeast-2:783268398937:identity/decisionproof.io.kr"
+        }
+      }
+    }
+  ]
+}

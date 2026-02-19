@@ -1,0 +1,19 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "MinimalSQSAccess",
+      "Effect": "Allow",
+      "Action": [
+        "sqs:ReceiveMessage",
+        "sqs:DeleteMessage",
+        "sqs:GetQueueAttributes",
+        "sqs:GetQueueUrl"
+      ],
+      "Resource": [
+        "arn:aws:sqs:ap-northeast-2:783268398937:dp-email-events-pilot",
+        "arn:aws:sqs:ap-northeast-2:783268398937:dp-email-events-dlq-pilot"
+      ]
+    }
+  ]
+}

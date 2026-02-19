@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: decisionproof-ses-feedback-sa
+  namespace: dpp-production
+  labels:
+    app: dpp-ses-feedback
+    component: worker
+    phase: "3"
+  annotations:
+    # IRSA Role ARN - NO AWS KEYS
+    eks.amazonaws.com/role-arn: "arn:aws:iam::783268398937:role/DecisionproofSESFeedbackRole"
+    description: "IRSA for SES feedback worker - NO AWS KEYS"

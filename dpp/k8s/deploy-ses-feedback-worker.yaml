@@ -1,0 +1,162 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dpp-ses-feedback-worker
+  namespace: dpp-production
+  labels:
+    app: dpp-ses-feedback
+    component: worker
+    version: "0.4.2.2"
+    phase: "3"
+spec:
+  replicas: 1  # Single worker is usually sufficient for feedback processing
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: dpp-ses-feedback
+      component: worker
+  template:
+    metadata:
+      labels:
+        app: dpp-ses-feedback
+        component: worker
+        version: "0.4.2.2"
+        phase: "3"
+      annotations:
+        # Force pod restart on config change
+        checksum/config: "{{ include (print $.Template.BasePath \"/configmap-ses-feedback.yaml\") . | sha256sum }}"
+    spec:
+      # CRITICAL: Use IRSA ServiceAccount (NO AWS KEYS)
+      serviceAccountName: decisionproof-ses-feedback-sa
+
+      containers:
+      - name: ses-feedback-worker
+        image: 783268398937.dkr.ecr.ap-northeast-2.amazonaws.com/dpp-ses-feedback-worker:0.4.2.2
+        imagePullPolicy: Always
+
+        env:
+        # AWS Region (from ConfigMap)
+        - name: AWS_REGION
+          valueFrom:
+            configMapKeyRef:
+              name: dpp-ses-feedback-config
+              key: AWS_REGION
+
+        # SQS Queue URL (from ConfigMap)
+        - name: SQS_QUEUE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: dpp-ses-feedback-config
+              key: SQS_QUEUE_URL
+
+        # Worker config (from ConfigMap)
+        - name: POLL_INTERVAL_SEC
+          valueFrom:
+            configMapKeyRef:
+              name: dpp-ses-feedback-config
+              key: POLL_INTERVAL_SEC
+        - name: MAX_MESSAGES
+          valueFrom:
+            configMapKeyRef:
+              name: dpp-ses-feedback-config
+              key: MAX_MESSAGES
+
+        # Database URL (from Secret)
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: dpp-secrets
+              key: database-url
+
+        # P0-SSL: Supabase verify-full SSL enforcement
+        - name: DPP_DB_SSLMODE
+          value: "verify-full"
+        - name: DPP_DB_SSLROOTCERT
+          value: "/etc/ssl/certs/supabase-ca/supabase-ca.crt"
+        - name: DP_ENV
+          value: "production"
+
+        # CRITICAL: DO NOT SET AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY
+        # IRSA automatically injects credentials via webhook
+
+        volumeMounts:
+        - name: supabase-ca
+          mountPath: /etc/ssl/certs/supabase-ca
+          readOnly: true
+
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+
+        # Optional: Health checks
+        # livenessProbe:
+        #   exec:
+        #     command:
+        #     - python
+        #     - -c
+        #     - "import boto3; boto3.client('sts').get_caller_identity()"
+        #   initialDelaySeconds: 30
+        #   periodSeconds: 60
+        #   timeoutSeconds: 10
+        #   failureThreshold: 3
+
+        # Security context
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false  # psycopg2 may need temp files
+          capabilities:
+            drop:
+            - ALL
+
+      volumes:
+      - name: supabase-ca
+        configMap:
+          name: dpp-supabase-ca
+
+      # Restart policy
+      restartPolicy: Always
+
+      # Node affinity (optional)
+      # affinity:
+      #   nodeAffinity:
+      #     preferredDuringSchedulingIgnoredDuringExecution:
+      #     - weight: 1
+      #       preference:
+      #         matchExpressions:
+      #         - key: workload-type
+      #           operator: In
+      #           values:
+      #           - worker
+
+---
+# Optional: HorizontalPodAutoscaler
+# Uncomment if you expect high SQS message volume
+# apiVersion: autoscaling/v2
+# kind: HorizontalPodAutoscaler
+# metadata:
+#   name: dpp-ses-feedback-worker-hpa
+#   namespace: dpp-production
+# spec:
+#   scaleTargetRef:
+#     apiVersion: apps/v1
+#     kind: Deployment
+#     name: dpp-ses-feedback-worker
+#   minReplicas: 1
+#   maxReplicas: 3
+#   metrics:
+#   - type: Resource
+#     resource:
+#       name: cpu
+#       target:
+#         type: Utilization
+#         averageUtilization: 70
