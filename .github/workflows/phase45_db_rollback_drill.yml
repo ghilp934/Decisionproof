@@ -62,6 +62,7 @@ jobs:
               print(f"  port        : {p.port or '[NONE]'}")
               print(f"  path        : {p.path}")
               qs = parse_qs(p.query)
+              print(f"  username    : {p.username or '[NONE]'}")
               print(f"  sslmode     : {qs.get('sslmode', ['(없음)'])[0]}")
               print(f"  URL valid   : {'OK' if ok else 'INVALID'}")
               if not ok:
