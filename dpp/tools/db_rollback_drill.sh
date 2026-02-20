@@ -214,9 +214,8 @@ ALEMBIC_INI_DIR="$REPO_ROOT"  # alembic.ini 위치
     DATABASE_URL="$DB_URL" alembic current 2>&1) \
     | tee "$DB_MIG_DIR/02_pre_alembic_current.txt"
 
-PRE_REVISION="$(cd "$ALEMBIC_INI_DIR" && \
-    DATABASE_URL="$DB_URL" alembic current 2>/dev/null \
-    | grep -oE '[0-9a-f]{12}' | head -1 || echo "unknown")"
+# Extract from tee'd file to avoid losing output when alembic writes to stderr
+PRE_REVISION="$(grep -oE '[0-9a-f]{12}' "$DB_MIG_DIR/02_pre_alembic_current.txt" | head -1 || echo "unknown")"
 
 # 4-B: Alembic heads
 (cd "$ALEMBIC_INI_DIR" && \
@@ -252,9 +251,10 @@ log "[5/7] Alembic 마이그레이션 리허설..."
 
 DRILL_START_SEC=$(date +%s)
 
-# 5-A: head가 아니면 upgrade head 먼저
-if [[ "$PRE_REVISION" != "$HEAD_REVISION" ]] && [[ "$PRE_REVISION" != "unknown" ]]; then
-    warn "현재 리비전($PRE_REVISION)이 head($HEAD_REVISION)가 아닙니다. upgrade head 먼저 실행."
+# 5-A: head가 아니거나 미초기화 상태(unknown)면 upgrade head 먼저
+# unknown = fresh DB (no alembic_version table) — must upgrade before downgrade
+if [[ "$PRE_REVISION" != "$HEAD_REVISION" ]]; then
+    warn "DB가 head가 아니거나 미초기화 상태입니다 (pre=$PRE_REVISION → head=$HEAD_REVISION). upgrade head 실행."
     (cd "$ALEMBIC_INI_DIR" && \
         DATABASE_URL="$DB_URL" alembic upgrade head 2>&1) \
         | tee "$DB_MIG_DIR/04a_upgrade_head.txt"
