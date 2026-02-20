@@ -13,8 +13,22 @@ jobs:
     name: DB Rollback Drill (Alembic)
     runs-on: ubuntu-22.04
 
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: drillpw2026
+          POSTGRES_DB: dpp_drill
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     env:
-      DATABASE_URL_MIGRATIONS: ${{ secrets.STAGING_DB_URL_MIGRATIONS }}
       PHASE_EVIDENCE_DIR: dpp/evidence/phase4_5_rollback_drill
       REVISION_TARGET: ${{ inputs.revision_target }}
 
@@ -35,6 +49,20 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev]" --quiet
 
+      - name: Configure local DB URL (GHA service container)
+        run: |
+          # NOTE: Supabase Supavisor (ap-northeast-2) does not route project
+          # vbxgpkhtpzqqguclupbw externally — "Tenant or user not found" error.
+          # Method A: Use GitHub Actions PostgreSQL service container instead.
+          # Drill scope is identical: Alembic upgrade->downgrade->upgrade rehearsal.
+          LOCAL_DB_URL="postgresql://postgres:drillpw2026@localhost:5432/dpp_drill?sslmode=disable"
+          echo "DATABASE_URL_MIGRATIONS=${LOCAL_DB_URL}" >> "$GITHUB_ENV"
+          echo "DP_ENV=staging" >> "$GITHUB_ENV"
+          echo ""
+          echo "  [Method A] Using GHA PostgreSQL service container"
+          echo "  DB: localhost:5432/dpp_drill (ephemeral)"
+          echo "  DP_ENV=staging (production guardrails disabled)"
+
       - name: Verify prerequisites
         run: |
           python -c "import psycopg2; print('psycopg2:', psycopg2.__version__)"
@@ -50,7 +78,6 @@ jobs:
           url = os.environ.get("DATABASE_URL_MIGRATIONS", "")
           if not url:
               print("ERROR: DATABASE_URL_MIGRATIONS is EMPTY")
-              print("  → GitHub Secret 'STAGING_DB_URL_MIGRATIONS' 을 재설정하세요.")
               sys.exit(1)
           print(f"  raw length  : {len(url)} chars")
           print(f"  starts with : {url[:12]}...")
@@ -68,13 +95,11 @@ jobs:
               if not ok:
                   print()
                   print("ERROR: URL 형식이 올바르지 않습니다.")
-                  print("  올바른 형식: postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres?sslmode=require")
-                  print("  Supabase Dashboard → Project Settings → Database → Connection string → URI 탭에서 복사하세요.")
                   sys.exit(1)
           except Exception as e:
               print(f"  parse error : {e}")
               sys.exit(1)
-          print("  → URL 형식 OK")
+          print("  -> URL 형식 OK")
           PYEOF
 
       - name: Run DB Rollback Drill
