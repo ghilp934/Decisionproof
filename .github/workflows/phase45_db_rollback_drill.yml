@@ -42,6 +42,40 @@ jobs:
           psql --version
           echo "DATABASE_URL_MIGRATIONS set: $([ -n \"$DATABASE_URL_MIGRATIONS\" ] && echo YES || echo NO)"
 
+      - name: Validate DB URL format
+        run: |
+          python3 - <<'PYEOF'
+          import os, sys
+          from urllib.parse import urlparse, parse_qs
+          url = os.environ.get("DATABASE_URL_MIGRATIONS", "")
+          if not url:
+              print("ERROR: DATABASE_URL_MIGRATIONS is EMPTY")
+              print("  → GitHub Secret 'STAGING_DB_URL_MIGRATIONS' 을 재설정하세요.")
+              sys.exit(1)
+          print(f"  raw length  : {len(url)} chars")
+          print(f"  starts with : {url[:12]}...")
+          try:
+              p = urlparse(url)
+              ok = bool(p.scheme and p.hostname and p.port)
+              print(f"  scheme      : {p.scheme}")
+              print(f"  hostname    : {p.hostname or '[NONE - URL 형식 오류]'}")
+              print(f"  port        : {p.port or '[NONE]'}")
+              print(f"  path        : {p.path}")
+              qs = parse_qs(p.query)
+              print(f"  sslmode     : {qs.get('sslmode', ['(없음)'])[0]}")
+              print(f"  URL valid   : {'OK' if ok else 'INVALID'}")
+              if not ok:
+                  print()
+                  print("ERROR: URL 형식이 올바르지 않습니다.")
+                  print("  올바른 형식: postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres?sslmode=require")
+                  print("  Supabase Dashboard → Project Settings → Database → Connection string → URI 탭에서 복사하세요.")
+                  sys.exit(1)
+          except Exception as e:
+              print(f"  parse error : {e}")
+              sys.exit(1)
+          print("  → URL 형식 OK")
+          PYEOF
+
       - name: Run DB Rollback Drill
         run: |
           mkdir -p evidence/phase4_5_rollback_drill/02_db_migrations
