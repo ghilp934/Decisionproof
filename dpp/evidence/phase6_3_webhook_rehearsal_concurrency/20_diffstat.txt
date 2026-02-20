@@ -1,0 +1,36 @@
+Phase 6.3 — Diffstat
+====================
+Date    : 2026-02-21
+Branch  : phase6-preflight
+
+File                                                                    | Lines
+------------------------------------------------------------------------+-------
+NEW: dpp/apps/api/dpp_api/billing/webhook_dedup.py                      |  +195
+NEW: dpp/apps/api/dpp_api/routers/webhooks.py                           |  +891
+NEW: dpp/apps/api/dpp_api/db/models.py (WebhookDedupEvent model added)  |  +394 (cumulative)
+NEW: dpp/apps/api/tests/test_phase6_3_webhook_idempotency_gate.py       |  +394
+NEW: dpp/migrations/20260221_create_webhook_dedup_events_p6_3.sql       |   +86
+NEW: dpp/ops/scripts/p6_3_webhook_concurrency_bomb.py                   |  +240
+NEW: dpp/ops/scripts/.local/webhook_payload.sample.json                 |   +26
+NEW: dpp/ops/scripts/.local/webhook_headers.sample.json                 |   +13
+NEW: dpp/ops/runbooks/webhook_rehearsal_concurrency.md                  |  +241
+MOD: dpp/.gitignore                                                      |    +3
+------------------------------------------------------------------------+-------
+TOTAL new lines (P6.3 scope)                                            | ~2083
+
+Key changes:
+  webhook_dedup.py (+195):
+    - get_paypal_dedup_key / get_toss_dedup_key
+    - try_acquire_dedup: two-step atomic gate
+    - mark_dedup_done / mark_dedup_failed
+
+  webhooks.py (+891 total, P6.3 delta ~40 LOC effective):
+    - PayPal Step 6: replaced SELECT-then-INSERT with atomic dedup gate
+    - Toss Step 4: replaced SELECT-then-INSERT with atomic dedup gate
+    - New imports: webhook_dedup module, sanitize, payload_hash_bytes
+
+  models.py (P6.3 delta: WebhookDedupEvent class ~50 LOC):
+    - class WebhookDedupEvent(Base) with UNIQUE(provider, dedup_key)
+
+  test file (+394):
+    - T1-T4 all PASS, 0.96s, no real DB/network

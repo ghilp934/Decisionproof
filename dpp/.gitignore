@@ -73,6 +73,9 @@ temp/
 # Evidence (temporary verification files)
 evidence/
 
+# P6.3: Concurrency bomb runtime inputs (contain real webhook credentials)
+ops/scripts/.local/
+
 # Migration (Supabase region migration - contains secrets)
 ops/scripts/migration_env.sh
 supabase_migration_backups/

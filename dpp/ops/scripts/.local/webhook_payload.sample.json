@@ -1,0 +1,23 @@
+{
+  "_comment": "PayPal webhook payload sample for P6.3 concurrency bomb.",
+  "_comment2": "Copy to webhook_payload.json and fill in real values from PayPal sandbox.",
+  "id": "WH-XXXXXXXXXXXXXXXXXXXX",
+  "event_type": "PAYMENT.CAPTURE.COMPLETED",
+  "resource_type": "capture",
+  "summary": "Payment completed for $ 0.01 USD",
+  "resource": {
+    "id": "CAPTURE-XXXXXXXXXXXXXXXXXX",
+    "amount": {
+      "currency_code": "USD",
+      "value": "0.01"
+    },
+    "status": "COMPLETED",
+    "supplementary_data": {
+      "related_ids": {
+        "order_id": "ORDER-XXXXXXXXXXXXXXXXXX"
+      }
+    }
+  },
+  "create_time": "2026-02-21T00:00:00Z",
+  "links": []
+}

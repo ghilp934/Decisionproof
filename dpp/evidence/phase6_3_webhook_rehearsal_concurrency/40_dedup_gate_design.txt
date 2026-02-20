@@ -1,0 +1,122 @@
+Phase 6.3 — Dedup Gate Design Evidence
+========================================
+Date    : 2026-02-21
+Branch  : phase6-preflight
+
+=======================================================================
+ATOMIC GATE: Two-step INSERT ON CONFLICT Design
+=======================================================================
+
+Problem (before P6.3):
+  PayPal/Toss handler used SELECT-then-INSERT (non-atomic):
+
+    # RACE CONDITION (old code):
+    existing = db.query(BillingEvent).filter_by(event_id=event_id).first()
+    if existing:
+        return {"status": "already_processed"}
+    billing_event = BillingEvent(...)
+    db.add(billing_event)
+    db.commit()
+
+  Under 5 concurrent requests with same event_id:
+    Request 1: SELECT → no row → proceeds
+    Request 2: SELECT → no row → proceeds  ← race window
+    Request 3: SELECT → no row → proceeds  ← race window
+    All 3: INSERT → 3 DB commits → double/triple entitlement grant
+
+Solution (P6.3): webhook_dedup.py try_acquire_dedup()
+
+  Step 1: INSERT ON CONFLICT (provider, dedup_key) DO NOTHING RETURNING id
+    ┌──────────────────────────────────────────────────────────────────┐
+    │ INSERT INTO webhook_dedup_events                                  │
+    │     (provider, dedup_key, first_seen_at, status, request_hash)  │
+    │ VALUES (:provider, :dedup_key, :now, 'processing', :request_hash)│
+    │ ON CONFLICT (provider, dedup_key) DO NOTHING                     │
+    │ RETURNING id                                                     │
+    └──────────────────────────────────────────────────────────────────┘
+
+    row returned  → this request is the FIRST processor → return True → continue
+    no row        → conflict exists → check step 2
+
+  Step 2: UPDATE WHERE status='failed' RETURNING id
+    ┌──────────────────────────────────────────────────────────────────┐
+    │ UPDATE webhook_dedup_events                                       │
+    │ SET status = 'processing', last_seen_at = :now                   │
+    │ WHERE provider = :provider AND dedup_key = :dedup_key            │
+    │   AND status = 'failed'                                          │
+    │ RETURNING id                                                     │
+    └──────────────────────────────────────────────────────────────────┘
+
+    row returned  → previous attempt failed; re-claim for re-processing → True
+    no row        → status is 'done' or concurrent 'processing' → False → 200
+
+=======================================================================
+DEDUP KEY EXTRACTION
+=======================================================================
+
+PayPal:
+  Primary:  payload['id']           → "ev_{event.id}"
+  Fallback: X-PAYPAL-TRANSMISSION-ID → "tx_{transmission_id}"
+  Raises:   ValueError if neither present
+
+Toss:
+  Primary:  Tosspayments-Webhook-Transmission-Id → "tx_{tid}"
+  Alias:    X-Transmission-ID → "tx_{tid}"
+  Fallback: data.paymentKey → "pkey_{paymentKey}"
+            data.transactionKey → "pkey_{transactionKey}"
+  Raises:   ValueError if none present
+
+=======================================================================
+DEDUP RECORD LIFECYCLE
+=======================================================================
+
+  INSERT (status='processing')
+      │
+      ├─ business processing succeeds → mark_dedup_done() → status='done'
+      │
+      └─ exception → mark_dedup_failed() → status='failed'
+                                    │
+                                    └─ next delivery → step 2 reclaims → status='processing'
+                                                            → retry processing
+
+=======================================================================
+CONCURRENT SAFETY PROOF
+=======================================================================
+
+Under 5 concurrent identical deliveries with dedup_key="ev_WH-123":
+
+  T=0ms: Requests 1-5 all start
+  T=5ms: All 5 reach INSERT ON CONFLICT
+         PostgreSQL: only 1 INSERT wins (UNIQUE constraint enforces this)
+         Result:
+           Request N (winner): row returned → True → proceeds to business logic
+           Requests 1-4 (others): no row → Step 2 UPDATE (status not 'failed') → no row → False
+
+  DB commits: exactly 1
+  200 responses: 5 (all receive 200; 4 with already_processed)
+
+Atomicity guarantee:
+  PostgreSQL UNIQUE constraint + INSERT ON CONFLICT is ACID-compliant.
+  No window between check and insert (unlike SELECT-then-INSERT).
+  Even under max_connections concurrent requests, exactly 1 INSERT wins.
+
+=======================================================================
+LOG HYGIENE
+=======================================================================
+
+WEBHOOK_RECEIVED log:
+  {
+    "event": "WEBHOOK_RECEIVED",
+    "provider": "paypal",
+    "payload_hash": "a3f8c2d1...",   ← SHA-256 of raw body
+    "payload_size": 412              ← byte count only
+  }
+
+NOT logged:
+  - Raw webhook body
+  - PayPal event_id (in payload)
+  - Resource data (payment amounts, customer data)
+  - Signature headers
+
+Dedup gate log (prefix only):
+  "dedup_key_prefix": "ev_WH-EVT-DE"   ← first 16 chars only (safe for audit)

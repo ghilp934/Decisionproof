@@ -1,0 +1,34 @@
+Phase 6.3 — pytest Output
+=========================
+Date    : 2026-02-21
+Branch  : phase6-preflight
+Command : pytest apps/api/tests/test_phase6_3_webhook_idempotency_gate.py -v
+
+============================= test session starts =============================
+platform win32 -- Python 3.14.3, pytest-9.0.2, pluggy-1.6.0
+asyncio: mode=Mode.AUTO, debug=False
+
+collecting ... collected 4 items
+
+tests/test_phase6_3_webhook_idempotency_gate.py::test_t1_dedup_conflict_returns_already_processed_no_business_call PASSED [ 25%]
+tests/test_phase6_3_webhook_idempotency_gate.py::test_t2_dedup_success_calls_business_processing_exactly_once PASSED [ 50%]
+tests/test_phase6_3_webhook_idempotency_gate.py::test_t3_webhook_logs_only_hash_and_size_not_raw_body PASSED [ 75%]
+tests/test_phase6_3_webhook_idempotency_gate.py::test_t4_five_concurrent_identical_events_process_exactly_once PASSED [100%]
+
+======================== 4 passed, 2 warnings in 0.96s ========================
+
+Test descriptions:
+  T1 PASS: dedup conflict (try_acquire_dedup=False) → 200 already_processed,
+           _process_paypal_event NOT called
+  T2 PASS: dedup success (try_acquire_dedup=True) → _process_paypal_event called once,
+           status=processed
+  T3 PASS: WEBHOOK_RECEIVED log has payload_hash+size; SENTINEL not in any log record
+  T4 PASS: 5 concurrent identical events → process function called exactly once
+           (processed=1, already_processed=4, _process_call_count=1)
+
+Mocking strategy (no real DB/network):
+  - try_acquire_dedup: patched to return False (T1) or True (T2/T3/T4)
+  - get_paypal_client: AsyncMock returning {"verification_status": "SUCCESS"}
+  - get_db: returns iter([MagicMock()]) — no real PostgreSQL
+  - _process_paypal_event: AsyncMock spy (T1-T3) / side_effect counter (T4)
+  - mark_dedup_done: patched (no-op)

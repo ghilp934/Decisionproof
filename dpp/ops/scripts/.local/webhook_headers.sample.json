@@ -1,0 +1,10 @@
+{
+  "_comment": "PayPal webhook request headers sample for P6.3 concurrency bomb.",
+  "_comment2": "Copy to webhook_headers.json and fill in real values from PayPal sandbox.",
+  "_comment3": "NEVER commit webhook_headers.json — it contains real credentials.",
+  "X-PAYPAL-TRANSMISSION-ID": "<REDACTED>",
+  "X-PAYPAL-TRANSMISSION-TIME": "<REDACTED>",
+  "X-PAYPAL-CERT-URL": "<REDACTED>",
+  "X-PAYPAL-AUTH-ALGO": "SHA256withRSA",
+  "X-PAYPAL-TRANSMISSION-SIG": "<REDACTED>"
+}

@@ -1,0 +1,73 @@
+Phase 6.3 — Files Changed
+==========================
+Date    : 2026-02-21
+Branch  : phase6-preflight
+
+NEW FILES
+---------
+apps/api/dpp_api/billing/webhook_dedup.py
+  - get_paypal_dedup_key(payload, headers) → str
+  - get_toss_dedup_key(payload, headers) → str
+  - try_acquire_dedup(db, provider, dedup_key, request_hash) → bool
+      Step 1: INSERT ON CONFLICT DO NOTHING RETURNING id
+      Step 2: UPDATE WHERE status='failed' RETURNING id
+  - mark_dedup_done(db, provider, dedup_key)
+  - mark_dedup_failed(db, provider, dedup_key)
+
+migrations/20260221_create_webhook_dedup_events_p6_3.sql
+  - CREATE TABLE webhook_dedup_events (id, provider, dedup_key, ...)
+  - ALTER TABLE ADD CONSTRAINT uq_webhook_dedup_events UNIQUE(provider, dedup_key)
+  - CREATE INDEX idx_webhook_dedup_provider_key
+  - CREATE INDEX idx_webhook_dedup_status (partial: status IN ('processing','failed'))
+  - CREATE INDEX idx_webhook_dedup_first_seen
+
+apps/api/tests/test_phase6_3_webhook_idempotency_gate.py
+  - T1: dedup conflict → 200 already_processed; _process_paypal_event NOT called
+  - T2: dedup success → _process_paypal_event called once; status=processed
+  - T3: WEBHOOK_RECEIVED log has payload_hash+size; sentinel not in any log record
+  - T4: 5 concurrent identical events → process function called exactly once
+
+ops/scripts/p6_3_webhook_concurrency_bomb.py
+  - Async concurrent HTTP bomb (asyncio.gather × N)
+  - Logs payload_hash/size only (not raw body)
+  - Outputs: per-request table + summary + PASS/FAIL verdict
+
+ops/scripts/.local/webhook_payload.sample.json
+  - PayPal payload template (no secrets; real values gitignored)
+
+ops/scripts/.local/webhook_headers.sample.json
+  - PayPal headers template with <REDACTED> placeholders
+
+ops/runbooks/webhook_rehearsal_concurrency.md
+  - 5-step runbook: DB check, input prep, bomb run, DB verify, log verify
+  - Failure scenarios + evidence collection commands
+
+MODIFIED FILES
+--------------
+apps/api/dpp_api/db/models.py
+  + WebhookDedupEvent ORM model (table: webhook_dedup_events)
+    Columns: id (BIGSERIAL PK), provider, dedup_key, first_seen_at,
+             last_seen_at, status (CHECK: processing|done|failed), request_hash
+    Constraint: UniqueConstraint("provider", "dedup_key", name="uq_webhook_dedup_events")
+    Indexes: idx_webhook_dedup_provider_key, idx_webhook_dedup_status, idx_webhook_dedup_first_seen
+
+apps/api/dpp_api/routers/webhooks.py
+  + PayPal handler: Step 6 replaced with atomic dedup gate
+      - get_paypal_dedup_key() → dedup_key
+      - try_acquire_dedup(db, "paypal", dedup_key, payload_hash) → bool
+      - if not is_first: return {"status": "already_processed"}
+      - on success: mark_dedup_done()
+      - on exception: mark_dedup_failed()
+  + Toss handler: Step 4 replaced with atomic dedup gate
+      - get_toss_dedup_key() → dedup_key
+      - try_acquire_dedup(db, "toss", dedup_key, payload_hash) → bool
+      - if not is_first: return {"status": "already_processed"}
+      - BillingEvent.event_id = dedup_key (was: transmission_id)
+      - on success: mark_dedup_done()
+      - on exception: mark_dedup_failed()
+  + New imports: get_paypal_dedup_key, get_toss_dedup_key,
+                 mark_dedup_done, mark_dedup_failed, try_acquire_dedup,
+                 payload_hash_bytes, sanitize_str
+
+.gitignore
+  + ops/scripts/.local/  (P6.3: gitignore real webhook credentials)

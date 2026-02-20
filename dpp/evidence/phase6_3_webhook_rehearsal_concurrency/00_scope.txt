@@ -1,0 +1,42 @@
+Phase 6.3 — Scope & Objectives
+================================
+Date    : 2026-02-21
+Branch  : phase6-preflight
+Version : DPP v0.4.2.2
+
+Objective:
+  Prove that the webhook idempotency gate prevents duplicate business
+  processing even when 5 concurrent identical webhooks arrive from
+  PayPal/Toss retry storms (DEC-P02-6).
+
+Problem (before P6.3):
+  handlers used SELECT-then-INSERT (non-atomic):
+    1. SELECT ... WHERE event_id = ?   → no row → proceed
+    2. (concurrent thread does the same) → also no row → also proceeds
+    3. Both INSERT → double commit (double entitlement grant, double refund, etc.)
+
+Solution (P6.3):
+  Two-step atomic gate backed by PostgreSQL UNIQUE constraint:
+    Step 1: INSERT ON CONFLICT (provider, dedup_key) DO NOTHING RETURNING id
+              → row returned : first handler → continue business processing
+              → no row       : conflict → check step 2
+    Step 2: UPDATE WHERE status='failed' RETURNING id
+              → row returned : reclaim failed event for PG retry
+              → no row       : 'done' or concurrent 'processing' → 200 immediately
+
+Acceptance Criteria:
+  AC1: Identical webhook × 5 → exactly 1 DB commit, 4 safe ACK (200)
+  AC2: Atomic gate uses INSERT ON CONFLICT (not SELECT-then-INSERT)
+  AC3: Logs contain only payload_hash/size (no raw body content)
+  AC4: Failed events (status='failed') can be re-claimed via step 2
+  AC5: Migration SQL creates UNIQUE(provider, dedup_key) constraint
+  AC6: WebhookDedupEvent ORM model consistent with migration schema
+  AC7: T1-T4 tests pass (4/4, no real DB/network)
+  AC8: Runbook + concurrency bomb script executable by operator
+
+Scope boundary:
+  - PayPal handler: Step 6 (dedup gate) added before Step 7 (business)
+  - Toss handler:   Step 4 (dedup gate) added before Step 5 (API re-query)
+  - webhook_dedup.py: NEW atomic gate module
+  - webhook_dedup_events table: NEW migration + ORM model
+  - Log hygiene: only payload_hash/size logged (raw body never logged)
