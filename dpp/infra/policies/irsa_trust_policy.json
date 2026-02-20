@@ -1,0 +1,18 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::783268398937:oidc-provider/oidc.eks.ap-northeast-2.amazonaws.com/id/21122D9EB7CB3688E31DBA87A12EF928"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "oidc.eks.ap-northeast-2.amazonaws.com/id/21122D9EB7CB3688E31DBA87A12EF928:sub": "system:serviceaccount:dpp-production:dp-worker",
+          "oidc.eks.ap-northeast-2.amazonaws.com/id/21122D9EB7CB3688E31DBA87A12EF928:aud": "sts.amazonaws.com"
+        }
+      }
+    }
+  ]
+}

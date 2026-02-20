@@ -1,0 +1,77 @@
+name: Phase 4.5 — DB Rollback Drill
+
+on:
+  workflow_dispatch:
+    inputs:
+      revision_target:
+        description: "Alembic downgrade target (default: -1)"
+        required: false
+        default: "-1"
+
+jobs:
+  db_rollback_drill:
+    name: DB Rollback Drill (Alembic)
+    runs-on: ubuntu-22.04
+
+    env:
+      DATABASE_URL_MIGRATIONS: ${{ secrets.STAGING_DB_URL_MIGRATIONS }}
+      PHASE_EVIDENCE_DIR: dpp/evidence/phase4_5_rollback_drill
+      REVISION_TARGET: ${{ inputs.revision_target }}
+
+    defaults:
+      run:
+        working-directory: dpp
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]" --quiet
+
+      - name: Verify prerequisites
+        run: |
+          python -c "import psycopg2; print('psycopg2:', psycopg2.__version__)"
+          alembic --version
+          psql --version
+          echo "DATABASE_URL_MIGRATIONS set: $([ -n \"$DATABASE_URL_MIGRATIONS\" ] && echo YES || echo NO)"
+
+      - name: Run DB Rollback Drill
+        run: |
+          mkdir -p evidence/phase4_5_rollback_drill/02_db_migrations
+          bash tools/db_rollback_drill.sh
+
+      - name: Show manifest
+        if: always()
+        run: |
+          MANIFEST="evidence/phase4_5_rollback_drill/02_db_migrations/manifest_db_migrations.json"
+          if [ -f "$MANIFEST" ]; then
+            echo "=== manifest_db_migrations.json ==="
+            cat "$MANIFEST"
+          else
+            echo "manifest not found"
+          fi
+
+      - name: Show evidence tree
+        if: always()
+        run: |
+          find evidence/phase4_5_rollback_drill/02_db_migrations -type f 2>/dev/null \
+            | sort | while read f; do
+              echo "--- $f ---"
+              cat "$f"
+              echo ""
+            done
+
+      - name: Upload evidence artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase45-db-rollback-drill-${{ github.run_number }}
+          path: dpp/evidence/phase4_5_rollback_drill/
+          retention-days: 30

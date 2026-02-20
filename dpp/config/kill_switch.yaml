@@ -1,0 +1,18 @@
+# Kill Switch Configuration
+# P0-1: Paid Pilot Scorecard & Kill Switch
+#
+# Modes:
+#   NORMAL: All features enabled (default)
+#   SAFE_MODE: Restricts high-risk operations (onboarding, key issuance, upgrades)
+#   HARD_STOP: Emergency shutdown (only health checks allowed)
+#
+# Override via environment variable: KILL_SWITCH_MODE
+
+mode: NORMAL
+
+# Metadata (populated at runtime)
+reason: "Default configuration"
+set_at: null
+set_by_ip: null
+ttl_minutes: 0
+expires_at: null

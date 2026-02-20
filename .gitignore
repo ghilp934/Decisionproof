@@ -61,3 +61,13 @@ Thumbs.db
 
 # Alembic
 alembic/versions/*.pyc
+
+# Ops/Residue (forbidden artifacts – must never be tracked)
+BLOCKER_*.txt
+_ops/
+prod-ca-*.crt
+prod-ca-*.cer
+prod-ca-*.pem
+supabase-ca*.crt
+supabase-ca*.cer
+supabase-ca*.pem

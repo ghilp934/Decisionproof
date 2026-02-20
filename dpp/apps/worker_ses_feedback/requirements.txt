@@ -1,0 +1,3 @@
+# Phase 3: SES Feedback Worker dependencies
+boto3>=1.35.0      # AWS SDK (uses IRSA, no keys)
+psycopg2-binary>=2.9.9  # PostgreSQL adapter

@@ -1,0 +1,30 @@
+{
+  "Name": "DPPSESWorkerPIIProtection",
+  "Description": "Mask PII in SES feedback worker logs",
+  "Version": "2021-06-01",
+  "Statement": [
+    {
+      "Sid": "Audit",
+      "DataIdentifier": [
+        "arn:aws:dataprotection::aws:data-identifier/EmailAddress",
+        "arn:aws:dataprotection::aws:data-identifier/AwsSecretKey"
+      ],
+      "Operation": {
+        "Audit": {
+          "FindingsDestination": {}
+        }
+      }
+    },
+    {
+      "Sid": "Redact",
+      "DataIdentifier": [
+        "arn:aws:dataprotection::aws:data-identifier/EmailAddress"
+      ],
+      "Operation": {
+        "Deidentify": {
+          "MaskConfig": {}
+        }
+      }
+    }
+  ]
+}
