@@ -29,7 +29,7 @@ jobs:
           --health-retries 5
 
     env:
-      PHASE_EVIDENCE_DIR: dpp/evidence/phase4_5_rollback_drill
+      PHASE_EVIDENCE_DIR: evidence/phase4_5_rollback_drill
       REVISION_TARGET: ${{ inputs.revision_target }}
 
     defaults:
@@ -134,4 +134,5 @@ jobs:
         with:
           name: phase45-db-rollback-drill-${{ github.run_number }}
           path: dpp/evidence/phase4_5_rollback_drill/
+          if-no-files-found: warn
           retention-days: 30
