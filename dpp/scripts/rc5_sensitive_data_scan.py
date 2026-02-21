@@ -35,8 +35,10 @@ FORBIDDEN_FILE_TYPES = {
 
 # Legitimate certificate bundles (whitelist)
 LEGITIMATE_CERT_PATTERNS = {
+    "/usr/local/lib/python3.12/site-packages/certifi/cacert.pem",
     "/usr/local/lib/python3.12/site-packages/pip/_vendor/certifi/cacert.pem",
     "/usr/local/lib/python3.12/site-packages/botocore/cacert.pem",
+    "/usr/local/lib/python3.11/site-packages/certifi/cacert.pem",
     "/usr/local/lib/python3.11/site-packages/pip/_vendor/certifi/cacert.pem",
     "/usr/local/lib/python3.11/site-packages/botocore/cacert.pem",
 }
