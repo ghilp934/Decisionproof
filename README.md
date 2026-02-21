@@ -1,12 +1,12 @@
 # Decisionproof API Platform (Pilot) — v0.4.2.2
-## Decision Pack Platform — Agent-Centric API Platform
+## Decision Pack Platform — Agent-Centric API Platform/Solution
 
 [![Status](https://img.shields.io/badge/Status-PILOT-orange)](#status)
 [![Tests](https://img.shields.io/badge/Tests-133%20passing-success)](dpp/IMPLEMENTATION_REPORT.md#test-coverage-summary)
 [![Money](https://img.shields.io/badge/Money-Zero%20leak%20design-critical)](#money-flow-zero-leak-design)
 [![License](https://img.shields.io/badge/License-Apache--2.0-blue)](#license)
 
-**Payment-based API platform for AI agents** — designed for **predictable execution** and **auditable cost settlement**.
+**Payment-based API platform for AI agents** — run multi-step workloads with **spend caps, receipts, and automatic reconciliation**.
 
 ---
 
