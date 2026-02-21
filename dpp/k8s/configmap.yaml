@@ -10,14 +10,18 @@ data:
   LOG_LEVEL: "INFO"
   DPP_JSON_LOGS: "true"
 
-  # AWS Region
-  AWS_REGION: "us-east-1"
+  # AWS Region (Phase 1: Seoul Cutover)
+  AWS_REGION: "ap-northeast-2"
 
   # SQS Configuration
-  SQS_QUEUE_URL: "https://sqs.us-east-1.amazonaws.com/${AWS_ACCOUNT_ID}/dpp-runs-production"
+  SQS_QUEUE_URL: "https://sqs.ap-northeast-2.amazonaws.com/${AWS_ACCOUNT_ID}/dpp-runs-production"
 
   # S3 Configuration
   S3_RESULT_BUCKET: "dpp-results-production"
+
+  # WORM Evidence Bucket (P5.3 / P6.4 — Kill-switch audit + cutover evidence)
+  DPP_WORM_BUCKET: "dpp-evidence-worm-783268398937"
+  DPP_WORM_PREFIX: "dpp-evidence"
 
   # CRITICAL (P0-2): Do NOT set SQS_ENDPOINT_URL or S3_ENDPOINT_URL
   # Production must use IAM roles via boto3 default credential chain
