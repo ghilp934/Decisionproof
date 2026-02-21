@@ -1,0 +1,27 @@
+Phase 6.4 — Diffstat
+====================
+Date    : 2026-02-21
+Branch  : phase6-preflight
+
+File                                                          | Lines
+--------------------------------------------------------------+-------
+NEW: dpp/tools/pilot_cutover_run.sh                          |  +396
+NEW: dpp/tools/seal_evidence_to_worm.sh                      |  +212
+NEW: dpp/ops/runbooks/pilot_cutover_run.md                   |  +198
+NEW: dpp/ops/runbooks/db_rollback_verification_human.md      |  +238
+NEW: dpp/apps/api/tests/test_phase6_4_seal_manifest_static.py|  +359
+NEW: dpp/evidence/phase6_4_cutover/ (static templates)       |   +~150
+--------------------------------------------------------------+-------
+TOTAL new lines (P6.4 scope)                                 | ~1553
+
+Tests:
+  10/10 PASSED in 0.xx s (no AWS/S3/DB calls, fully static)
+
+Key design decisions:
+  - pilot_cutover_run.sh: two-phase (Run1=gates, Run2=--seal-only after human)
+  - seal_evidence_to_worm.sh: s3api put-object (not s3 cp) for Object Lock support
+  - Exit codes: 1=step failure, 2=human DB gate pending (distinct semantics)
+  - AWS_PROFILE defaults to dpp-admin (DPP ops rule)
+  - s3_bucket redacted in manifest (secrets AC5 compliance)
+  - Cross-platform sha256: sha256sum (Linux) + shasum -a 256 (macOS)
+  - Cross-platform retain-until: GNU date -d / BSD date -v

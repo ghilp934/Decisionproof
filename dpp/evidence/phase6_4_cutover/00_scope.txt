@@ -1,0 +1,48 @@
+Phase 6.4 — Pilot Cutover: Scope & Objectives
+===============================================
+Date    : 2026-02-21
+Branch  : phase6-preflight
+Version : DPP v0.4.2.2
+
+Mission:
+  "컷오버 직전 최종 봉인" — One-shot cutover gate sequence + WORM evidence sealing.
+
+  Proves:
+    1. RC Gates full PASS (including RC-10/11/12/13)
+    2. Staging dry-run PASS (P4.3 data isolation verified)
+    3. App rollback drill PASS + DB rollback verified by HUMAN
+    4. All evidence sealed to S3 Object Lock (WORM) — tamper-evident
+
+Automation boundary:
+  AUTOMATED : RC Gates, Staging dry-run, App rollback drill, tar/sha256/S3 upload
+  HUMAN ONLY: DB PITR/restore verification (never automated)
+
+Evidence structure (runtime-generated, gitignored):
+  dpp/evidence/phase6_4_cutover/<UTC_YYYYMMDDTHHMMSSZ>/
+    00_scope.txt
+    30_rc_gates.txt
+    40_staging_dry_run.txt
+    50_rollback_drill.txt
+    55_db_rollback_human_checkpoint.txt  ← HUMAN fills + marks COMPLETED
+    56_db_restore_screenshots/           ← HUMAN uploads screenshots
+    60_evidence_seal_manifest.json       ← sha256, s3_key, version_id, retain_until
+    70_worm_upload_stdout.txt            ← put-object + head-object output
+    90_result_summary.txt               ← AC1-AC5 PASS/FAIL
+    evidence.tar.gz                      ← sealed tarball
+    evidence.tar.gz.sha256               ← sha256 of tarball
+
+Acceptance Criteria:
+  AC1: pilot_cutover_run.sh runs RC→DryRun→Rollback(app) automatically;
+       fails immediately on any sub-step failure (exit 1)
+  AC2: DB rollback verification is HUMAN STEP; COMPLETED gate enforced (exit 2)
+  AC3: evidence.tar.gz + sha256 generated; sha256 in manifest
+  AC4: S3 WORM upload success; head-object VersionId/retention in manifest
+  AC5: No secrets/raw payload/env dump in any evidence file
+
+Committed files (this phase):
+  dpp/tools/pilot_cutover_run.sh
+  dpp/tools/seal_evidence_to_worm.sh
+  dpp/ops/runbooks/pilot_cutover_run.md
+  dpp/ops/runbooks/db_rollback_verification_human.md
+  dpp/apps/api/tests/test_phase6_4_seal_manifest_static.py
+  dpp/evidence/phase6_4_cutover/{00,10,20,55,90}*.txt  (static templates)
