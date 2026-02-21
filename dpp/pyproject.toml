@@ -15,6 +15,10 @@ dependencies = [
     "boto3>=1.35.0",
     "structlog>=24.4.0",
     "jsonschema>=4.0.0",
+    "supabase>=2.9.0",  # Phase 2: Supabase Auth for email onboarding
+    "httpx>=0.27.0",  # SMTP Smoke Test: Async HTTP client for Supabase API calls
+    "pyyaml>=6.0.0",  # P0-1: Kill Switch configuration loader
+    "email-validator>=2.0.0",  # Pydantic EmailStr validation (required by internal.py SmokeEmailRequest)
 ]
 
 [project.optional-dependencies]
