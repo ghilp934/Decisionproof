@@ -33,7 +33,7 @@ RULE_NAME="KillSwitchAuditGovernanceBypass"
 TRAIL_NAME="${TRAIL_NAME:-dpp-audit-trail}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INFRA_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+INFRA_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 RULE_JSON_TEMPLATE="${INFRA_DIR}/eventbridge/kill_switch_audit_breakglass_rule_v1.json"
 TARGET_JSON_TEMPLATE="${INFRA_DIR}/eventbridge/kill_switch_audit_breakglass_target_v1.json"
