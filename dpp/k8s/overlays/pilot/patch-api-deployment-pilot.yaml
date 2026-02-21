@@ -1,0 +1,15 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dpp-api
+spec:
+  template:
+    spec:
+      containers:
+      - name: dpp-api
+        image: 783268398937.dkr.ecr.ap-northeast-2.amazonaws.com/dpp-api:0.4.2.2
+        env:
+        - name: DP_ENV
+          value: "pilot"
+        - name: KILL_SWITCH_AUDIT_BUCKET
+          value: "dpp-evidence-worm-783268398937"

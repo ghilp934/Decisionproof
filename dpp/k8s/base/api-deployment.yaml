@@ -1,0 +1,299 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dpp-api
+  namespace: dpp-production
+  labels:
+    app: dpp-api
+    component: api
+    version: "0.4.2.2"
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0  # Zero-downtime deployment
+  selector:
+    matchLabels:
+      app: dpp-api
+      component: api
+  template:
+    metadata:
+      labels:
+        app: dpp-api
+        component: api
+        version: "0.4.2.2"
+    spec:
+      serviceAccountName: dpp-api
+      containers:
+      - name: dpp-api
+        image: ${AWS_ACCOUNT_ID}.dkr.ecr.ap-northeast-2.amazonaws.com/dpp-api:0.4.2.2
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 8000
+          protocol: TCP
+
+        env:
+        # P0-3: Production environment flag.
+        # DPP_ACK_* vars are injected ONLY after completing:
+        #   Phase 3 → DPP_ACK_SUPABASE_NETWORK_RESTRICTIONS (supabase_hardening.md)
+        #   Phase 5 → DPP_ACK_SUPABASE_BACKUP_POLICY (db_backup_restore.md)
+        - name: DP_ENV
+          value: "production"
+
+        # P0-1: PYTHONPATH for API module imports (belt-and-suspenders with Dockerfile)
+        - name: PYTHONPATH
+          value: /app/apps/api
+
+        # ConfigMap
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: dpp-config
+              key: LOG_LEVEL
+        - name: DPP_JSON_LOGS
+          valueFrom:
+            configMapKeyRef:
+              name: dpp-config
+              key: DPP_JSON_LOGS
+        - name: AWS_REGION
+          valueFrom:
+            configMapKeyRef:
+              name: dpp-config
+              key: AWS_REGION
+        - name: SQS_QUEUE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: dpp-config
+              key: SQS_QUEUE_URL
+        - name: S3_RESULT_BUCKET
+          valueFrom:
+            configMapKeyRef:
+              name: dpp-config
+              key: S3_RESULT_BUCKET
+        - name: CORS_ALLOWED_ORIGINS
+          valueFrom:
+            configMapKeyRef:
+              name: dpp-config
+              key: CORS_ALLOWED_ORIGINS
+
+        # Phase 3: Supabase Network Restrictions ACK
+        # Injected ONLY after D+E (ALLOW/DENY) tests both PASS (supabase_hardening.md)
+        - name: DPP_ACK_SUPABASE_NETWORK_RESTRICTIONS
+          valueFrom:
+            configMapKeyRef:
+              name: dpp-config
+              key: DPP_ACK_SUPABASE_NETWORK_RESTRICTIONS
+
+        # Secrets
+        # DATABASE_URL MUST be Supabase Pooler URL (port 6543, hostname contains 'pooler')
+        # See: docs/supabase/00_supabase_ssot.md
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: dpp-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: dpp-secrets
+              key: redis-url
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: dpp-secrets
+              key: redis-password
+        - name: SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              name: dpp-secrets
+              key: sentry-dsn
+
+        # Phase 2: Supabase Auth
+        - name: SUPABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: dpp-secrets
+              key: supabase-url
+        - name: SB_PUBLISHABLE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: dpp-secrets
+              key: sb-publishable-key
+        - name: SB_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: dpp-secrets
+              key: sb-secret-key
+
+        # Phase 6.1: Payment provider secrets (injected via ASCP → dpp-secrets)
+        - name: PAYPAL_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: dpp-secrets
+              key: paypal-client-id
+        - name: PAYPAL_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: dpp-secrets
+              key: paypal-client-secret
+        - name: PAYPAL_WEBHOOK_ID
+          valueFrom:
+            secretKeyRef:
+              name: dpp-secrets
+              key: paypal-webhook-id
+        - name: TOSS_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: dpp-secrets
+              key: toss-secret-key
+        - name: TOSS_WEBHOOK_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: dpp-secrets
+              key: toss-webhook-secret
+              optional: true  # TOSS_WEBHOOK_SECRET is optional (signature verification)
+        # Phase 6.1: HMAC pepper for kill-switch audit fingerprinting (P5.9)
+        - name: KILL_SWITCH_AUDIT_FINGERPRINT_PEPPER_B64
+          valueFrom:
+            secretKeyRef:
+              name: dpp-secrets
+              key: ks-audit-fingerprint-pepper-b64
+
+        # Phase 6.1: Kill-switch audit config (non-secret — from ConfigMap or env literal)
+        # ⚠️ Override per environment: staging=GOVERNANCE, production=COMPLIANCE
+        - name: KILL_SWITCH_AUDIT_REQUIRED
+          value: "1"
+        - name: KILL_SWITCH_AUDIT_STRICT
+          value: "1"
+        - name: KILL_SWITCH_AUDIT_BUCKET
+          value: "<REPLACE_WITH_WORM_BUCKET_NAME>"  # e.g., dpp-kill-switch-audit-prod
+        - name: KILL_SWITCH_AUDIT_WORM_MODE
+          value: "GOVERNANCE"  # Pilot: GOVERNANCE | Production locked: COMPLIANCE
+        - name: KILL_SWITCH_AUDIT_FINGERPRINT_KID
+          value: "kid_202602"  # Update on pepper rotation: kid_YYYYMM
+
+        # Phase 6.1: PayPal environment selector (non-secret)
+        # sandbox = https://api-m.sandbox.paypal.com | live = https://api-m.paypal.com
+        - name: PAYPAL_ENV
+          value: "sandbox"  # ⚠️ Override in production overlay: live
+
+        # Phase 6.1: Billing preflight config
+        - name: DPP_BILLING_PREFLIGHT_REQUIRED
+          value: "1"
+        - name: DPP_BILLING_PREFLIGHT_TIMEOUT_SECONDS
+          value: "5"
+
+        # P0-SSL: Supabase verify-full SSL enforcement
+        # CA ConfigMap mounted at /etc/ssl/certs/supabase-ca (see ops/runbooks/db_ssl_verify_full.md)
+        - name: DPP_DB_SSLMODE
+          value: "verify-full"
+        - name: DPP_DB_SSLROOTCERT
+          value: "/etc/ssl/certs/supabase-ca/supabase-ca.crt"
+
+        # P0-2: CRITICAL - Do NOT set SQS_ENDPOINT_URL or S3_ENDPOINT_URL
+        # Production uses IAM roles via boto3 default credential chain
+
+        volumeMounts:
+        - name: supabase-ca
+          mountPath: /etc/ssl/certs/supabase-ca
+          readOnly: true
+        # DEC-P04-SECRETS: CSI 마운트 — secrets-store sync 트리거 + 파일 접근 경로
+        # 이 마운트가 있어야 SecretProviderClass.secretObjects → dpp-secrets 자동 생성/갱신
+        - name: secrets-store-inline
+          mountPath: /mnt/secrets-store
+          readOnly: true
+
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"
+
+        # Liveness probe (P1-J: /health)
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        # Readiness probe (P1-J: /readyz with dependency check)
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        # Startup probe (for slow starts)
+        startupProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 0
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 12  # 60 seconds max startup time
+
+      volumes:
+      - name: supabase-ca
+        configMap:
+          name: dpp-supabase-ca
+      # DEC-P04-SECRETS: secrets-store CSI 볼륨
+      # Pod 마운트 → SecretProviderClass(dpp-secrets-aws) 동기화 → dpp-secrets Secret 생성
+      - name: secrets-store-inline
+        csi:
+          driver: secrets-store.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: dpp-secrets-aws
+
+      # Graceful shutdown
+      terminationGracePeriodSeconds: 30
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dpp-api
+  namespace: dpp-production
+  labels:
+    app: dpp-api
+    component: api
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+spec:
+  type: LoadBalancer
+  selector:
+    app: dpp-api
+    component: api
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
+  - name: https
+    port: 443
+    targetPort: http
+    protocol: TCP
+  sessionAffinity: None
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dpp-api
+  namespace: dpp-production
+  annotations:
+    # IRSA (IAM Roles for Service Accounts)
+    eks.amazonaws.com/role-arn: arn:aws:iam::${AWS_ACCOUNT_ID}:role/dpp-api-role

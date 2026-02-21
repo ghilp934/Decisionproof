@@ -1,0 +1,203 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dpp-worker
+  namespace: dpp-production
+  labels:
+    app: dpp-worker
+    component: worker
+    version: "0.4.2.2"
+spec:
+  replicas: 5  # Initial replicas (HPA will scale 5-10)
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: dpp-worker
+      component: worker
+  template:
+    metadata:
+      labels:
+        app: dpp-worker
+        component: worker
+        version: "0.4.2.2"
+    spec:
+      serviceAccountName: dpp-worker
+      containers:
+      - name: dpp-worker
+        image: ${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/dpp-worker:0.4.2.2
+        imagePullPolicy: Always
+
+        env:
+        # ConfigMap
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: dpp-config
+              key: LOG_LEVEL
+        - name: DPP_JSON_LOGS
+          valueFrom:
+            configMapKeyRef:
+              name: dpp-config
+              key: DPP_JSON_LOGS
+        - name: AWS_REGION
+          valueFrom:
+            configMapKeyRef:
+              name: dpp-config
+              key: AWS_REGION
+        - name: SQS_QUEUE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: dpp-config
+              key: SQS_QUEUE_URL
+        - name: S3_RESULT_BUCKET
+          valueFrom:
+            configMapKeyRef:
+              name: dpp-config
+              key: S3_RESULT_BUCKET
+        - name: WORKER_HEARTBEAT_INTERVAL_SEC
+          valueFrom:
+            configMapKeyRef:
+              name: dpp-config
+              key: WORKER_HEARTBEAT_INTERVAL_SEC
+        - name: WORKER_LEASE_TTL_SEC
+          valueFrom:
+            configMapKeyRef:
+              name: dpp-config
+              key: WORKER_LEASE_TTL_SEC
+
+        # Secrets
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: dpp-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: dpp-secrets
+              key: redis-url
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: dpp-secrets
+              key: redis-password
+
+        # P0-2: CRITICAL - Do NOT set SQS_ENDPOINT_URL or S3_ENDPOINT_URL
+        # Production uses IAM roles via boto3 default credential chain
+
+        # P0-3: Pilot-safe defaults (was 8Gi/4CPU min 5 replicas = 40Gi/20CPU baseline!)
+        # Pilot overlay reduces further (1Gi/1CPU, 1-3 replicas)
+        resources:
+          requests:
+            memory: "2Gi"     # Was 8Gi - reduced for pilot cost safety
+            cpu: "1000m"      # Was 4000m - reduced for pilot cost safety
+          limits:
+            memory: "4Gi"     # Allow burst up to 4Gi
+            cpu: "2000m"      # Allow burst up to 2 CPU
+
+        # Liveness probe (process health check)
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - "pgrep -f 'python.*dpp_worker' || exit 1"
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        # Readiness probe (worker ready to process)
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - "pgrep -f 'python.*dpp_worker' && test -f /tmp/worker-ready || exit 1"
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+      # Graceful shutdown (allow current run to complete)
+      terminationGracePeriodSeconds: 180  # 3 minutes for pack execution
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dpp-worker
+  namespace: dpp-production
+  annotations:
+    # IRSA (IAM Roles for Service Accounts)
+    eks.amazonaws.com/role-arn: arn:aws:iam::${AWS_ACCOUNT_ID}:role/dpp-worker-role
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: dpp-worker-hpa
+  namespace: dpp-production
+  labels:
+    app: dpp-worker
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: dpp-worker
+  # P0-3: Pilot-safe defaults (was min 5, max 10 = potential 80Gi/40CPU!)
+  # Pilot overlay reduces further (min 1, max 3)
+  minReplicas: 2     # Was 5 - reduced for pilot cost safety
+  maxReplicas: 5     # Was 10 - reduced for pilot cost safety
+  metrics:
+  # CPU-based scaling
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  # Memory-based scaling
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 75
+  # SQS queue depth scaling (requires custom metrics)
+  # - type: External
+  #   external:
+  #     metric:
+  #       name: sqs_queue_depth
+  #       selector:
+  #         matchLabels:
+  #           queue_name: dpp-runs-production
+  #     target:
+  #       type: AverageValue
+  #       averageValue: "20"  # Scale up if queue depth > 20 per worker
+
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+      selectPolicy: Max
+    scaleDown:
+      stabilizationWindowSeconds: 300  # Wait 5 minutes before scaling down
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+      - type: Pods
+        value: 1
+        periodSeconds: 120
+      selectPolicy: Min

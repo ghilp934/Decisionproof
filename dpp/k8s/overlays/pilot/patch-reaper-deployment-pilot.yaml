@@ -1,0 +1,10 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dpp-reaper
+spec:
+  template:
+    spec:
+      containers:
+      - name: dpp-reaper
+        image: 783268398937.dkr.ecr.ap-northeast-2.amazonaws.com/dpp-reaper:0.4.2.2

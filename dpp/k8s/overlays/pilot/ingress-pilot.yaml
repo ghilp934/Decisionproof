@@ -1,0 +1,45 @@
+# ingress-pilot.yaml
+# Strategic Merge Patch: ingress.yaml의 Ingress 리소스를 pilot 전용으로 완전 교체
+#
+# 설계 결정:
+#   - metadata.annotations: 키 단위 MERGE (patch 값이 base 값을 덮어씀)
+#     → us-east-1 / ${CERTIFICATE_ID} / ${ALB_SECURITY_GROUP_ID} 토큰 제거
+#   - spec: $patch:replace → base의 host:api.example.com 규칙이 섞이지 않도록
+#     pilot host 하나만 남김
+#
+# ⚠️ 배포 전 반드시 교체:
+#   REPLACE_ME_PILOT_HOST           → e.g. api-pilot.example.com
+#   REPLACE_ME_PILOT_ACM_CERT_ARN   → e.g. arn:aws:acm:ap-northeast-2:783268398937:certificate/...
+#   REPLACE_ME_PILOT_ALB_SG         → e.g. sg-0123abcd...
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dpp-api-ingress
+  namespace: dpp-pilot
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/healthcheck-path: /readyz
+
+    # TODO(필수): 배포 전 실제 값으로 교체 (pre_gate_check.sh 통과 조건)
+    alb.ingress.kubernetes.io/certificate-arn: REPLACE_ME_PILOT_ACM_CERT_ARN
+    alb.ingress.kubernetes.io/security-groups: REPLACE_ME_PILOT_ALB_SG
+
+    alb.ingress.kubernetes.io/tags: Environment=pilot,Application=dpp-api,Version=0.4.2.2
+spec:
+  $patch: replace
+  rules:
+  - host: REPLACE_ME_PILOT_HOST
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: dpp-api
+            port:
+              number: 80

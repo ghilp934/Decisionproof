@@ -1,0 +1,66 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: dpp-pilot
+
+resources:
+  - ../../base
+  - namespace.yaml
+  - pilot.params.yaml
+  - secretproviderclass-dpp-secrets-pilot.yaml
+
+# ingress-pilot.yaml은 patches에 배치:
+#   base의 ingress.yaml에 dpp-api-ingress가 이미 있으므로
+#   resources:에 추가하면 duplicate 오류 발생.
+#   patches:+target:으로 "완결 교체(spec.$patch:replace)" 방식 사용.
+patches:
+  # API Deployment: image / DP_ENV / KILL_SWITCH_AUDIT_BUCKET 고정
+  - path: patch-api-deployment-pilot.yaml
+    target:
+      kind: Deployment
+      name: dpp-api
+  # API ServiceAccount: IRSA role ARN ${AWS_ACCOUNT_ID} 제거
+  - path: patch-api-sa-pilot.yaml
+    target:
+      kind: ServiceAccount
+      name: dpp-api
+  # Reaper Deployment: image us-east-1 → ap-northeast-2
+  - path: patch-reaper-deployment-pilot.yaml
+    target:
+      kind: Deployment
+      name: dpp-reaper
+  # Reaper ServiceAccount: IRSA role ARN ${AWS_ACCOUNT_ID} 제거
+  - path: patch-reaper-sa-pilot.yaml
+    target:
+      kind: ServiceAccount
+      name: dpp-reaper
+  # Worker Deployment: replicas/resources/image pilot 값으로 고정
+  - path: patch-worker-deployment-pilot.yaml
+    target:
+      kind: Deployment
+      name: dpp-worker
+  # Worker ServiceAccount: IRSA role ARN ${AWS_ACCOUNT_ID} 제거
+  - path: patch-worker-sa-pilot.yaml
+    target:
+      kind: ServiceAccount
+      name: dpp-worker
+  # Worker HPA: minReplicas 1, maxReplicas 3으로 pilot 캡
+  - path: patch-worker-hpa-pilot.yaml
+    target:
+      kind: HorizontalPodAutoscaler
+      name: dpp-worker-hpa
+  # ConfigMap: SQS/S3/CORS를 pilot 값으로 교체, ${AWS_ACCOUNT_ID} 제거
+  - path: patch-configmap-pilot.yaml
+    target:
+      kind: ConfigMap
+      name: dpp-config
+  # Ingress: us-east-1 / ${...} 토큰 제거, pilot host/cert/sg 교체
+  - path: ingress-pilot.yaml
+    target:
+      kind: Ingress
+      name: dpp-api-ingress
+
+labels:
+  - pairs:
+      environment: pilot
+    includeSelectors: false
