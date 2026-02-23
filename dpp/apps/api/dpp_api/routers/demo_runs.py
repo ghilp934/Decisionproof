@@ -55,6 +55,7 @@ from pydantic import ValidationError
 
 from dpp_api.pricing.problem_details import create_problem_details_response
 from dpp_api.schemas_demo import AI_DISCLOSURE, DemoRunCreateRequest
+from dpp_api.utils.sanitize import sanitize_log_value
 
 logger = logging.getLogger(__name__)
 
@@ -410,7 +411,7 @@ def _store_result_in_s3(
         )
         return (s3.bucket, key)
     except Exception as e:
-        logger.warning("demo: S3 upload failed for %s: %s", run_id, e)
+        logger.warning("demo: S3 upload failed for %s: %s", sanitize_log_value(run_id), e)
         return None
 
 
@@ -739,7 +740,7 @@ async def get_demo_run(
     try:
         run_data: dict = json.loads(run_str)
     except json.JSONDecodeError:
-        logger.error("demo: corrupt run_data for %s", run_id)
+        logger.error("demo: corrupt run_data for %s", sanitize_log_value(run_id))
         return _p404()
 
     # ── Retention / expiry check ──────────────────────────────────────────────

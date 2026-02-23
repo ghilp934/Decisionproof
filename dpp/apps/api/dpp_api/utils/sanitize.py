@@ -108,6 +108,18 @@ def sanitize_obj(obj: Any, depth: int = 0) -> Any:
     return obj
 
 
+def sanitize_log_value(value: str, max_len: int = 128) -> str:
+    """Strip newline/CR characters to prevent log injection (CWE-117).
+
+    Replaces \\n and \\r with their escaped representations so that
+    user-controlled strings cannot inject fake log lines.
+    Also caps length to prevent log flooding.
+    """
+    if not isinstance(value, str):
+        value = str(value)
+    return value.replace("\n", "\\n").replace("\r", "\\r")[:max_len]
+
+
 def sanitize_exc(exc_info: tuple) -> str:
     """Format an exc_info tuple into a sanitized traceback string.
 
