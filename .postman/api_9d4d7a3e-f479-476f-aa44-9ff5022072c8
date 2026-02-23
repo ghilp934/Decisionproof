@@ -12,6 +12,9 @@ rootDirectory = postman
 
 [config.relations.collections.metaData]
 
-[config.relations.apiDefinition]
+[config.relations.apiDefinition
+files[] = {"path":"decisionproof-mini-demo.openapi.json","metaData":{}}
 
 [config.relations.apiDefinition.metaData]
+type = openapi:3_1
+rootFiles[] = decisionproof-mini-demo.openapi.json
