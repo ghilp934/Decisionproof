@@ -1,10 +1,10 @@
 {
 	"info": {
-		"_postman_id": "be267f34-24be-49d0-9ca7-635e5e892ea2",
+		"_postman_id": "6f2d2a87-1199-4bcb-a2a2-c787f5b6c8b8",
 		"name": "Decisionproof Mini Demo",
 		"description": "Agent-centric decision execution platform with idempotent metering, RFC 9457 error handling, and IETF RateLimit headers.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_uid": "52590545-be267f34-24be-49d0-9ca7-635e5e892ea2"
+		"_uid": "52590545-6f2d2a87-1199-4bcb-a2a2-c787f5b6c8b8"
 	},
 	"item": [
 		{
@@ -12,7 +12,7 @@
 			"item": [
 				{
 					"name": "Submit a Demo Decision Run",
-					"id": "5f4d51bf-ebc3-4d97-83ec-6bd17f8c2bdf",
+					"id": "bd96e94d-56bc-479c-a9f4-1428a83147d1",
 					"protocolProfileBehavior": {
 						"disableBodyPruning": true
 					},
@@ -39,7 +39,7 @@
 					},
 					"response": [
 						{
-							"id": "741b2a51-22b4-4e32-b914-204574ee663a",
+							"id": "69995ce7-5d1a-4748-afb4-361c6ea465ca",
 							"name": "Successful Response",
 							"originalRequest": {
 								"method": "POST",
@@ -67,15 +67,14 @@
 							"header": [
 								{
 									"key": "Content-Type",
-									"value": "application/json",
-									"uuid": "13ae85a4-d384-4b45-83ad-c793b26fb4cf"
+									"value": "application/json"
 								}
 							],
 							"cookie": [],
 							"body": ""
 						},
 						{
-							"id": "bd69db32-4d31-449e-bdb2-7d40d44a2d7f",
+							"id": "e778ac02-d140-49f8-a953-1f460a950850",
 							"name": "Missing or invalid authentication credentials",
 							"originalRequest": {
 								"method": "POST",
@@ -103,15 +102,14 @@
 							"header": [
 								{
 									"key": "Content-Type",
-									"value": "application/problem+json",
-									"uuid": "34d2e997-df6a-4603-9518-284e14d8cfe0"
+									"value": "application/problem+json"
 								}
 							],
 							"cookie": [],
 							"body": "{\n  \"type\": \"https://api.decisionproof.io.kr/problems/unauthorized\",\n  \"title\": \"Unauthorized\",\n  \"status\": 401,\n  \"detail\": \"Invalid or missing X-RapidAPI-Proxy-Secret\"\n}"
 						},
 						{
-							"id": "89a9a616-4c89-463f-95fc-a3d0036a1af0",
+							"id": "5f772e02-6b8a-40a6-bc22-4d13d8ad838e",
 							"name": "Request body exceeds 4096 bytes",
 							"originalRequest": {
 								"method": "POST",
@@ -139,15 +137,14 @@
 							"header": [
 								{
 									"key": "Content-Type",
-									"value": "application/problem+json",
-									"uuid": "762d160a-037f-40e0-b364-a0d51786edd2"
+									"value": "application/problem+json"
 								}
 							],
 							"cookie": [],
 							"body": "{\n  \"type\": \"...\",\n  \"title\": \"Request Entity Too Large\",\n  \"status\": 413\n}"
 						},
 						{
-							"id": "d799b289-4264-4ff1-a65b-c1ff5377dda8",
+							"id": "6f0e4fcb-1b3d-4f29-a159-c4b0721a10e7",
 							"name": "Request validation failed (extra key, question too long, etc.)",
 							"originalRequest": {
 								"method": "POST",
@@ -175,15 +172,14 @@
 							"header": [
 								{
 									"key": "Content-Type",
-									"value": "application/problem+json",
-									"uuid": "e4143593-9c8c-4dd0-9f9d-13fb111fa017"
+									"value": "application/problem+json"
 								}
 							],
 							"cookie": [],
 							"body": "{\n  \"type\": \"https://api.decisionproof.io.kr/problems/validation-error\",\n  \"title\": \"Unprocessable Entity\",\n  \"status\": 422,\n  \"detail\": \"Extra inputs are not permitted\"\n}"
 						},
 						{
-							"id": "48eb6e84-1399-4b4c-b295-debf8004f1bd",
+							"id": "d1106931-408b-4987-90fd-f4c95d385810",
 							"name": "Rate limit exceeded",
 							"originalRequest": {
 								"method": "POST",
@@ -211,8 +207,7 @@
 							"header": [
 								{
 									"key": "Content-Type",
-									"value": "application/problem+json",
-									"uuid": "b562b00f-e4b1-417a-b2e0-508eb57621a6"
+									"value": "application/problem+json"
 								}
 							],
 							"cookie": [],
@@ -222,7 +217,7 @@
 				},
 				{
 					"name": "Poll Demo Run Status",
-					"id": "eae3faf8-d62d-4017-a6c0-977762e7ff95",
+					"id": "a6122dd8-2e1b-4d9c-a23d-0e800a1f584d",
 					"protocolProfileBehavior": {
 						"disableBodyPruning": true
 					},
@@ -256,7 +251,7 @@
 					},
 					"response": [
 						{
-							"id": "3437cee7-4feb-4627-a5dc-2285ca4eee43",
+							"id": "31056cab-11ef-4dc9-9da2-7a95bac7925c",
 							"name": "Successful Response",
 							"originalRequest": {
 								"method": "GET",
@@ -291,15 +286,14 @@
 							"header": [
 								{
 									"key": "Content-Type",
-									"value": "application/json",
-									"uuid": "18ee2c96-c42f-4983-8023-2b5d776b92a2"
+									"value": "application/json"
 								}
 							],
 							"cookie": [],
 							"body": ""
 						},
 						{
-							"id": "b714d9b0-1e23-41b2-9170-7a30758c16bd",
+							"id": "aa41bf42-c7f1-47e0-9295-7387cd009b1e",
 							"name": "Missing or invalid authentication credentials",
 							"originalRequest": {
 								"method": "GET",
@@ -334,15 +328,14 @@
 							"header": [
 								{
 									"key": "Content-Type",
-									"value": "application/problem+json",
-									"uuid": "92581252-e8a5-4619-90e0-36aef1ed415e"
+									"value": "application/problem+json"
 								}
 							],
 							"cookie": [],
 							"body": "{\n  \"type\": \"https://api.decisionproof.io.kr/problems/unauthorized\",\n  \"title\": \"Unauthorized\",\n  \"status\": 401,\n  \"detail\": \"Invalid or missing X-RapidAPI-Proxy-Secret\"\n}"
 						},
 						{
-							"id": "a17a69e4-52b3-427b-a96c-9965c8cdcc17",
+							"id": "5d8b424d-81ba-4e75-8515-a539c16e9684",
 							"name": "Run not found (or expired tombstone purged)",
 							"originalRequest": {
 								"method": "GET",
@@ -377,15 +370,14 @@
 							"header": [
 								{
 									"key": "Content-Type",
-									"value": "application/problem+json",
-									"uuid": "aa28e5fb-e918-48aa-b6ca-0d2090e31526"
+									"value": "application/problem+json"
 								}
 							],
 							"cookie": [],
 							"body": "{\n  \"type\": \"...\",\n  \"title\": \"Not Found\",\n  \"status\": 404\n}"
 						},
 						{
-							"id": "d33c6986-a6d1-4177-8ea6-082ca537743a",
+							"id": "91a3bd5b-f2f1-41c3-9a0c-245fdda5a4c1",
 							"name": "Run has expired and data has been purged (owner only)",
 							"originalRequest": {
 								"method": "GET",
@@ -420,15 +412,14 @@
 							"header": [
 								{
 									"key": "Content-Type",
-									"value": "application/problem+json",
-									"uuid": "8a52e252-86d5-4e17-bb0a-1ee663be8f03"
+									"value": "application/problem+json"
 								}
 							],
 							"cookie": [],
 							"body": "{\n  \"type\": \"...\",\n  \"title\": \"Gone\",\n  \"status\": 410\n}"
 						},
 						{
-							"id": "02dde30d-284d-49fc-af20-30e273d71e64",
+							"id": "46f801af-ed90-4e4d-8e88-78a677131c4c",
 							"name": "Validation Error",
 							"originalRequest": {
 								"method": "GET",
@@ -463,15 +454,14 @@
 							"header": [
 								{
 									"key": "Content-Type",
-									"value": "application/json",
-									"uuid": "14b8f712-4743-4000-9784-ee22349070f0"
+									"value": "application/json"
 								}
 							],
 							"cookie": [],
 							"body": "{\n  \"detail\": [\n    {\n      \"loc\": [\n        679,\n        \"string\"\n      ],\n      \"msg\": \"string\",\n      \"type\": \"string\",\n      \"input\": \"\",\n      \"ctx\": {}\n    },\n    {\n      \"loc\": [\n        1596,\n        4460\n      ],\n      \"msg\": \"string\",\n      \"type\": \"string\",\n      \"input\": \"\",\n      \"ctx\": {}\n    }\n  ]\n}"
 						},
 						{
-							"id": "81a36853-7683-4a67-82d0-70941de7c649",
+							"id": "0200fcb6-490d-4c49-b912-7ede08cdcd37",
 							"name": "Rate limit exceeded",
 							"originalRequest": {
 								"method": "GET",
@@ -506,8 +496,7 @@
 							"header": [
 								{
 									"key": "Content-Type",
-									"value": "application/problem+json",
-									"uuid": "11ca2315-c944-4fa7-91a2-44f40fe17255"
+									"value": "application/problem+json"
 								}
 							],
 							"cookie": [],
@@ -516,53 +505,7 @@
 					]
 				}
 			],
-			"id": "44efde68-aa08-4fd5-8c3a-c4f08a9bd31f",
-			"event": [
-				{
-					"listen": "prerequest",
-					"script": {
-						"id": "1bc62597-1192-4d07-8a02-b7150ba1fa9b",
-						"type": "text/javascript",
-						"packages": {},
-						"requests": {},
-						"exec": [
-							""
-						]
-					}
-				},
-				{
-					"listen": "test",
-					"script": {
-						"id": "0a818d29-d44f-4844-aa87-2ec18a31bb74",
-						"type": "text/javascript",
-						"packages": {},
-						"requests": {},
-						"exec": [
-							"pm.test(\"health: status 200\", () => {\r",
-							"  pm.response.to.have.status(200);\r",
-							"});\r",
-							"\r",
-							"pm.test(\"health: response time < 1500ms\", () => {\r",
-							"  pm.expect(pm.response.responseTime).to.be.below(1500);\r",
-							"});\r",
-							"\r",
-							"// 응답이 JSON이든 텍스트든 'success' 표식이 있으면 통과\r",
-							"pm.test(\"health: contains success marker\", () => {\r",
-							"  const text = pm.response.text().toLowerCase();\r",
-							"  let ok = text.includes(\"success\");\r",
-							"\r",
-							"  try {\r",
-							"    const j = pm.response.json();\r",
-							"    const flat = JSON.stringify(j).toLowerCase();\r",
-							"    ok = ok || flat.includes(\"success\");\r",
-							"  } catch (e) {}\r",
-							"\r",
-							"  pm.expect(ok, \"response should include 'success'\").to.be.true;\r",
-							"});"
-						]
-					}
-				}
-			]
+			"id": "8d527889-2774-44b7-bc77-3d3dbb4f1ce8"
 		}
 	],
 	"auth": {
@@ -579,7 +522,7 @@
 		{
 			"listen": "prerequest",
 			"script": {
-				"id": "5ea843cc-1889-4d51-a37a-c26a521d7100",
+				"id": "5c51c8aa-f5af-4709-b03f-715aa2bb9d3f",
 				"type": "text/javascript",
 				"packages": {},
 				"requests": {},
@@ -591,7 +534,7 @@
 		{
 			"listen": "test",
 			"script": {
-				"id": "1db64a7e-b96c-4e67-9831-7605bf7a9638",
+				"id": "258b9574-c84f-4b1e-a5ce-445a2b973786",
 				"type": "text/javascript",
 				"packages": {},
 				"requests": {},
@@ -603,7 +546,7 @@
 	],
 	"variable": [
 		{
-			"id": "27084e12-3a2a-4918-a68d-4e60a73990f9",
+			"id": "0398ef0e-c0c8-4998-9eb6-cc87f679f166",
 			"key": "baseUrl",
 			"value": "https://api.decisionproof.io.kr"
 		}

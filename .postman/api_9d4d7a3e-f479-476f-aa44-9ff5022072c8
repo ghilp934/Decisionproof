@@ -9,12 +9,11 @@ id = 9d4d7a3e-f479-476f-aa44-9ff5022072c8
 
 [config.relations.collections]
 rootDirectory = postman
+files[] = {"id":"52590545-6f2d2a87-1199-4bcb-a2a2-c787f5b6c8b8","path":"Decisionproof Mini Demo.json","metaData":{"generateCollectionPreferences":"{\"requestNameSource\":\"Fallback\",\"indentCharacter\":\"Space\",\"parametersResolution\":\"Example\",\"folderStrategy\":\"Tags\",\"nestedFolderHierarchy\":false,\"includeAuthInfoInExample\":false,\"enableOptionalParameters\":false,\"keepImplicitHeaders\":false,\"includeDeprecated\":false,\"alwaysInheritAuthentication\":true,\"updateCollectionSync\":true,\"requestParametersResolution\":\"Example\",\"exampleParametersResolution\":\"Example\"}"}}
 
 [config.relations.collections.metaData]
 
-[config.relations.apiDefinition
-files[] = {"path":"decisionproof-mini-demo.openapi.json","metaData":{}}
+[config.relations.apiDefinition]
 
 [config.relations.apiDefinition.metaData]
 type = openapi:3_1
-rootFiles[] = decisionproof-mini-demo.openapi.json
