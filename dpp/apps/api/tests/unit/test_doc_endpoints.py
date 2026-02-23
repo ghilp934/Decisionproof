@@ -6,6 +6,7 @@ Tests:
 2. llms.txt link integrity
 3. Pricing SSoT endpoint (/pricing/ssot.json)
 4. 429 ProblemDetails regression
+5. openapi-demo endpoint (/.well-known/openapi-demo.json) — Mini Demo LOCK
 """
 
 import json
@@ -251,6 +252,105 @@ class TestFunctionCallingSpecs:
         """Content-Type must be application/json."""
         response = client.get("/docs/function-calling-specs.json")
         assert response.headers["Content-Type"] == "application/json"
+
+
+class TestOpenAPIDemoEndpoint:
+    """AC Tests: Mini Demo OpenAPI LOCK (/.well-known/openapi-demo.json).
+
+    PASS iff ALL conditions are true:
+    - endpoint returns 200
+    - openapi == "3.1.0"
+    - servers length == 1
+    - servers[0].url == "https://api.decisionproof.io.kr"
+    - paths keys == {"/v1/demo/runs", "/v1/demo/runs/{run_id}"} (정확히 일치)
+    - 다른 path 0개
+    """
+
+    DEMO_BASE_URL = "https://api.decisionproof.io.kr"
+    ALLOWED_PATHS = {"/v1/demo/runs", "/v1/demo/runs/{run_id}"}
+
+    def test_openapi_demo_endpoint_exists(self, client):
+        """(AC-1) GET /.well-known/openapi-demo.json → 200."""
+        response = client.get("/.well-known/openapi-demo.json")
+        assert response.status_code == 200, (
+            f"/.well-known/openapi-demo.json must return 200, got {response.status_code}"
+        )
+
+    def test_openapi_demo_version(self, client):
+        """(AC-2) openapi 버전 == '3.1.0'."""
+        response = client.get("/.well-known/openapi-demo.json")
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get("openapi") == "3.1.0", (
+            f"openapi version must be '3.1.0', got {data.get('openapi')!r}"
+        )
+
+    def test_openapi_demo_servers_lock(self, client):
+        """(AC-3) servers 길이 == 1 AND servers[0].url == DEMO_BASE_URL."""
+        response = client.get("/.well-known/openapi-demo.json")
+        assert response.status_code == 200
+        data = response.json()
+
+        assert "servers" in data, "openapi-demo must have 'servers' field"
+        assert len(data["servers"]) == 1, (
+            f"servers must have exactly 1 entry, got {len(data['servers'])}: {data['servers']}"
+        )
+        assert data["servers"][0]["url"] == self.DEMO_BASE_URL, (
+            f"servers[0].url must be {self.DEMO_BASE_URL!r}, "
+            f"got {data['servers'][0].get('url')!r}"
+        )
+
+    def test_openapi_demo_paths_allowlist_exact(self, client):
+        """(AC-4) paths keys == ALLOWED_PATHS (정확히 일치, 초과/미달 모두 FAIL)."""
+        response = client.get("/.well-known/openapi-demo.json")
+        assert response.status_code == 200
+        data = response.json()
+
+        assert "paths" in data, "openapi-demo must have 'paths' field"
+        actual_paths = set(data["paths"].keys())
+
+        leaked = actual_paths - self.ALLOWED_PATHS
+        missing = self.ALLOWED_PATHS - actual_paths
+
+        assert not leaked, (
+            f"Non-allowlist paths leaked into demo spec: {sorted(leaked)}"
+        )
+        assert not missing, (
+            f"Required demo paths missing from spec: {sorted(missing)}"
+        )
+
+    def test_openapi_demo_no_extra_paths(self, client):
+        """(AC-4b) 허용 목록 외 path 개수 == 0 (별도 assertion)."""
+        response = client.get("/.well-known/openapi-demo.json")
+        assert response.status_code == 200
+        data = response.json()
+
+        extra = set(data.get("paths", {}).keys()) - self.ALLOWED_PATHS
+        assert len(extra) == 0, (
+            f"Demo spec contains {len(extra)} unauthorized path(s): {sorted(extra)}"
+        )
+
+    def test_openapi_demo_content_type_json(self, client):
+        """(AC-5) Content-Type: application/json."""
+        response = client.get("/.well-known/openapi-demo.json")
+        assert response.status_code == 200
+        assert "application/json" in response.headers.get("content-type", ""), (
+            f"Expected application/json, got {response.headers.get('content-type')!r}"
+        )
+
+
+class TestOpenAPIDemoEnvOverride:
+    """DP_DEMO_PUBLIC_BASE_URL env override 검증."""
+
+    DEMO_BASE_URL = "https://api.decisionproof.io.kr"
+
+    def test_default_demo_base_url_is_iokr(self, client, monkeypatch):
+        """env 미설정 시 기본값 == https://api.decisionproof.io.kr."""
+        monkeypatch.delenv("DP_DEMO_PUBLIC_BASE_URL", raising=False)
+        response = client.get("/.well-known/openapi-demo.json")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["servers"][0]["url"] == self.DEMO_BASE_URL
 
 
 class TestDocumentationEndpoints:

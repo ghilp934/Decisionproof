@@ -5,10 +5,11 @@
 #   - metadata.annotations: 키 단위 MERGE (patch 값이 base 값을 덮어씀)
 #     → us-east-1 / ${CERTIFICATE_ID} / ${ALB_SECURITY_GROUP_ID} 토큰 제거
 #   - spec: $patch:replace → base의 host:api.example.com 규칙이 섞이지 않도록
-#     pilot host 하나만 남김
+#     pilot hosts 전체를 SYNC_MARKER 구간으로 관리
 #
-# ⚠️ 이 파일을 직접 편집하지 마세요.
-#   pilot_tls.env 수정 → ./sync_pilot_tls_values.sh 실행 → 자동 업데이트됩니다.
+# ⚠️ 이 파일의 spec.rules 구간을 직접 편집하지 마세요.
+#   pilot.params.yaml의 PILOT_HOST / PILOT_HOST_ALIASES 수정
+#   → ./sync_pilot_values.sh 실행 → BEGIN/END 마커 구간이 자동 치환됩니다.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -32,6 +33,7 @@ metadata:
 spec:
   $patch: replace
   rules:
+  # BEGIN:SYNC_HOST_RULES — sync_pilot_values.sh 가 이 구간을 완전 치환합니다. 직접 편집 금지.
   - host: api-pilot.decisionproof.io.kr
     http:
       paths:
@@ -42,3 +44,14 @@ spec:
             name: dpp-api
             port:
               number: 80
+  - host: api.decisionproof.io.kr
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: dpp-api
+            port:
+              number: 80
+  # END:SYNC_HOST_RULES

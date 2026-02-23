@@ -15,6 +15,35 @@ spec:
           value: "dpp-evidence-worm-783268398937"
         - name: DPP_BILLING_PREFLIGHT_REQUIRED
           value: "0"
+        # Mini Demo 공개 Base URL — configMapKeyRef로 주입 (하드코딩 금지)
+        - name: DP_DEMO_PUBLIC_BASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: dpp-config
+              key: DP_DEMO_PUBLIC_BASE_URL
+        # Mini Demo Rapid-only auth secrets (optional: true → pod 기동 보장, dev/test 호환)
+        # 사전 생성 필요: kubectl -n dpp-pilot create secret generic dpp-demo-secrets \
+        #   --from-literal=RAPIDAPI_PROXY_SECRET=<값> \
+        #   --from-literal=DP_DEMO_SHARED_TOKEN=<값> \
+        #   --from-literal=DEMO_ACTOR_KEY_SALT=<값>
+        - name: RAPIDAPI_PROXY_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: dpp-demo-secrets
+              key: RAPIDAPI_PROXY_SECRET
+              optional: true
+        - name: DP_DEMO_SHARED_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: dpp-demo-secrets
+              key: DP_DEMO_SHARED_TOKEN
+              optional: true
+        - name: DEMO_ACTOR_KEY_SALT
+          valueFrom:
+            secretKeyRef:
+              name: dpp-demo-secrets
+              key: DEMO_ACTOR_KEY_SALT
+              optional: true
         livenessProbe:
           httpGet:
             path: /health
