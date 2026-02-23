@@ -48,6 +48,54 @@ kubectl -n dpp-pilot get secret dpp-demo-secrets -o jsonpath='{.data}' \
 
 ---
 
+## Image Pin Policy (Option B: digest)
+
+> **정책**: Pilot 배포는 반드시 `image@sha256:<digest>` 형식으로 고정한다.
+> Tag(`:0.4.2.2`)는 mutable이므로 ECR에서 덮어쓰기 가능 — 배포 드리프트 발생 위험.
+> Digest는 immutable — 동일 SHA 보장.
+
+### Digest 조회 (배포 전 필수)
+
+```bash
+# dpp-api digest
+aws ecr describe-images --profile dpp-admin --region ap-northeast-2 \
+  --repository-name dpp-api \
+  --image-ids imageTag=0.4.2.2 \
+  --query 'imageDetails[0].imageDigest' --output text
+
+# dpp-worker digest
+aws ecr describe-images --profile dpp-admin --region ap-northeast-2 \
+  --repository-name dpp-worker \
+  --image-ids imageTag=0.4.2.2 \
+  --query 'imageDetails[0].imageDigest' --output text
+
+# dpp-reaper digest
+aws ecr describe-images --profile dpp-admin --region ap-northeast-2 \
+  --repository-name dpp-reaper \
+  --image-ids imageTag=0.4.2.2 \
+  --query 'imageDetails[0].imageDigest' --output text
+```
+
+### 적용 형식
+
+```yaml
+# patch-api-deployment-pilot.yaml
+image: 783268398937.dkr.ecr.ap-northeast-2.amazonaws.com/dpp-api@sha256:<digest>
+```
+
+### 적용 후 확인
+
+```bash
+# dpp-api 이미지가 @sha256 형식인지 확인
+kubectl -n dpp-pilot get deploy dpp-api \
+  -o jsonpath='{.spec.template.spec.containers[0].image}'
+
+# RC-15 gate 통과 확인
+pytest -q -o addopts= apps/api/tests/test_rc15_k8s_image_digest_pin.py
+```
+
+---
+
 ## 전제조건 (Preconditions — 완료 기준 + 증거 위치)
 
 - [ ] 올바른 AWS 계정/프로파일로 로그인 (`AWS_PROFILE=dpp-admin` 또는 `--profile dpp-admin`)

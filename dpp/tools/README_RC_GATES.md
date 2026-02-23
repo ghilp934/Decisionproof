@@ -22,6 +22,51 @@
 | **RC-10.P5.8** | **test_rc10_worm_mode_hardening.py** | **WORM mode hardening: explicit GOVERNANCE/COMPLIANCE, no bypass** |
 | **RC-10.P5.9** | **test_rc10_p59_fingerprint_hmac_kid.py** | **Fingerprint hardening: HMAC(pepper) + Key-ID prefix, rotation-ready** |
 | **RC-14** | **test_rc14_demo_marketplace_gate.py** | **Mini Demo P0 Lockdown: Fail-Closed 503, auth 401, poll 429, openapi-demo LOCK** |
+| **RC-15** | **test_rc15_k8s_image_digest_pin.py** | **K8s Image Digest Pin: pilot overlay 3개 Deployment가 @sha256 pin 사용 확인** |
+
+## RC-15: K8s Image Digest Pin Gate
+
+### Purpose
+
+Pilot overlay의 3개 Deployment patch 파일(api/worker/reaper)이 모두 `@sha256:` digest로
+이미지를 고정하고 있는지 검사한다.
+
+**Tag-only(`:0.4.2.2`) 또는 `:latest` 발견 시 즉시 FAIL** → 배포 드리프트 원천 차단.
+
+### What it tests
+
+| Test | Scenario | Pass Condition |
+|------|----------|----------------|
+| file_exists | patch-{api,worker,reaper}-deployment-pilot.yaml 존재 | 파일 읽기 성공 |
+| image_line_present | `image:` 라인 최소 1개 | 라인 존재 |
+| image_uses_digest_pin | `@sha256:` 포함 | sha256 digest pin 확인 |
+| image_no_latest_tag | `:latest` 부재 | `:latest` 없음 |
+| image_no_mutable_tag | `:버전태그` 부재(digest pin 전제) | tag-only 없음 |
+
+### STOP RULES
+
+- `@sha256:` 없음 → RC-15 FAIL, 배포 금지
+- `:latest` 있음 → RC-15 FAIL, 배포 금지
+
+### Quick verification
+
+```bash
+# RC-15 only
+pytest -q -o addopts= apps/api/tests/test_rc15_k8s_image_digest_pin.py
+
+# digest 갱신 후 gate 재확인
+aws ecr describe-images --repository-name dpp-api --image-ids imageTag=<tag> \
+  --query 'imageDetails[0].imageDigest' --output text
+# → patch-api-deployment-pilot.yaml의 image 라인을 <repo>@sha256:<digest> 로 교체 후 실행
+```
+
+### FAIL criteria
+
+- `image:` 라인에 `@sha256:` 없음
+- `:latest` tag 존재
+- tag-only 이미지 존재 (`@sha256:` 없이 `:버전`)
+
+---
 
 ## RC-10: Log Masking + Kill-Switch WORM Audit (P5.2 + P5.3)
 
