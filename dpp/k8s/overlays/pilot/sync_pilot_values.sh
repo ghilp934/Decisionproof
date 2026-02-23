@@ -15,7 +15,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PARAMS_FILE="${SCRIPT_DIR}/pilot.params.yaml"
-INGRESS_FILE="${SCRIPT_DIR}/ingress-pilot.yaml"
+# INGRESS_FILE: JSON 6902 패치 파일 (spec.rules 관리)
+# ingress-pilot.yaml은 annotations SMP 전용이므로, rules 동기화는 이 파일에서 수행
+INGRESS_FILE="${SCRIPT_DIR}/patch-ingress-rules-pilot.yaml"
 
 # ─── 0) 파일 존재 확인 ────────────────────────────────────────────────────────
 if [[ ! -f "${PARAMS_FILE}" ]]; then

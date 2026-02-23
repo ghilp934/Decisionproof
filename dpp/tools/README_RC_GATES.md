@@ -21,6 +21,7 @@
 | **RC-10.P5.7** | **test_rc10_webhook_error_semantics.py** | **Webhook error taxonomy: retry storm prevention** |
 | **RC-10.P5.8** | **test_rc10_worm_mode_hardening.py** | **WORM mode hardening: explicit GOVERNANCE/COMPLIANCE, no bypass** |
 | **RC-10.P5.9** | **test_rc10_p59_fingerprint_hmac_kid.py** | **Fingerprint hardening: HMAC(pepper) + Key-ID prefix, rotation-ready** |
+| **RC-14** | **test_rc14_demo_marketplace_gate.py** | **Mini Demo P0 Lockdown: Fail-Closed 503, auth 401, poll 429, openapi-demo LOCK** |
 
 ## RC-10: Log Masking + Kill-Switch WORM Audit (P5.2 + P5.3)
 
@@ -349,6 +350,55 @@ RC-13 FAILS when any of:
 - `/admin/kill-switch` returns non-500 when audit is required but not configured
 - Kill-switch state changes despite audit misconfiguration
 - Break-glass runbook missing or lacking required headings
+
+---
+
+---
+
+## RC-14: Mini Demo Marketplace Gate — P0 Lockdown
+
+### Purpose
+
+Enforce Fail-Closed auth, openapi-demo surface LOCK, and poll rate limiting
+for the public Mini Demo API surface (`POST /v1/demo/runs`, `GET /v1/demo/runs/{run_id}`).
+Prevents silent auth bypass when `RAPIDAPI_PROXY_SECRET` is accidentally unset.
+
+### What it tests
+
+| Test | Scenario | Pass Condition |
+|------|----------|----------------|
+| (1) openapi-demo LOCK | `GET /.well-known/openapi-demo.json` | 200, `servers.length==1`, `servers[0].url==https://api.decisionproof.io.kr`, `paths=={/v1/demo/runs, /v1/demo/runs/{run_id}}` |
+| (2) Fail-Closed POST | `RAPIDAPI_PROXY_SECRET` empty, POST demo run | **503** `application/problem+json` — never 202/200/401 |
+| (2) Fail-Closed GET | `RAPIDAPI_PROXY_SECRET` empty, GET demo run | **503** `application/problem+json` |
+| (2) 503 detail | 503 body | `detail` contains `"RAPIDAPI_PROXY_SECRET"` (operator guidance, no secret value) |
+| (3) Auth: missing proxy header | env set, no `X-RapidAPI-Proxy-Secret` | **401** `application/problem+json` |
+| (3) Auth: wrong proxy header | env set, wrong `X-RapidAPI-Proxy-Secret` | **401** `application/problem+json` |
+| (3) Auth: missing Bearer | proxy secret correct, no `Authorization` | **401** `application/problem+json` |
+| (3) Auth: wrong Bearer | proxy secret correct, wrong Bearer | **401** `application/problem+json` |
+| (4) Poll rate limit | POST → GET → immediate GET | **429** `application/problem+json` |
+| (4) Retry-After | 429 response | `Retry-After` header present and is positive integer |
+
+### STOP RULES (CI BLOCKED if any fail)
+
+- `RAPIDAPI_PROXY_SECRET` missing → demo returns `202/200/401` (not `503`)
+- Any error response is NOT `application/problem+json` with `type/title/status/detail/instance`
+- `429` response missing `Retry-After` header
+- openapi-demo paths drift from exactly `{/v1/demo/runs, /v1/demo/runs/{run_id}}`
+
+### Quick verification
+
+```bash
+pytest -q -o addopts= apps/api/tests/test_rc14_demo_marketplace_gate.py
+```
+
+### FAIL criteria
+
+Any of these causes RC-14 to FAIL:
+- `RAPIDAPI_PROXY_SECRET` empty/unset → demo endpoint returns non-503
+- Auth header wrong/missing → response is not 401 or not `problem+json`
+- Double poll → response is not 429 or `Retry-After` header absent
+- openapi-demo `servers` length != 1 or URL != `https://api.decisionproof.io.kr`
+- openapi-demo `paths` contains any key outside `{/v1/demo/runs, /v1/demo/runs/{run_id}}`
 
 ---
 

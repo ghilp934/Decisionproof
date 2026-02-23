@@ -1,9 +1,58 @@
 # Pilot Cutover Runbook — api.decisionproof.io.kr 신규 호스트 추가
 
+## Preflight: dpp-demo-secrets 필수 점검 (Fail-Closed)
+
+> **STOP** — 이 섹션을 완료하지 않으면 demo 엔드포인트가 503으로 막힙니다.
+
+### 필수 Secret 3키 (모두 필수, `optional: false`)
+
+| Key | 출처 | 설명 |
+|-----|------|------|
+| `RAPIDAPI_PROXY_SECRET` | RapidAPI 대시보드 → API → Configuration → Security | RapidAPI가 모든 요청에 주입하는 Proxy Secret |
+| `DP_DEMO_SHARED_TOKEN` | 직접 생성 (`python3 -c "import secrets; print(secrets.token_hex(32))"`) | Bearer 토큰 검증용 |
+| `DEMO_ACTOR_KEY_SALT` | 직접 생성 (`python3 -c "import secrets; print(secrets.token_hex(24))"`) | HMAC Actor Key 파생용 salt (설정 후 불변) |
+
+### Secret 생성 / 갱신 커맨드 (권장: dry-run | apply)
+
+```bash
+# 신규 생성 (3키 모두 한 번에)
+kubectl -n dpp-pilot create secret generic dpp-demo-secrets \
+  --from-literal=RAPIDAPI_PROXY_SECRET=<RapidAPI에서_복사> \
+  --from-literal=DP_DEMO_SHARED_TOKEN=<직접_생성> \
+  --from-literal=DEMO_ACTOR_KEY_SALT=<직접_생성> \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+# 단일 키 업데이트 (JSON patch — base64 주의사항 참조)
+ENCODED=$(echo -n "<새_값>" | base64 -w 0)
+kubectl -n dpp-pilot patch secret dpp-demo-secrets \
+  --type='json' \
+  -p="[{\"op\":\"replace\",\"path\":\"/data/RAPIDAPI_PROXY_SECRET\",\"value\":\"${ENCODED}\"}]"
+```
+
+> **base64 주의**: `kubectl patch`에서 `/data` 값은 base64 인코딩이어야 합니다.
+> `echo -n "<값>" | base64 -w 0` 처럼 **개행 없이(`-w 0`)** 인코딩하세요.
+> 개행이 포함되면 시크릿 값이 달라져 인증이 실패합니다.
+
+### Preflight 확인
+
+```bash
+# Secret 존재 여부 확인 (값은 표시 안 됨)
+kubectl -n dpp-pilot get secret dpp-demo-secrets -o jsonpath='{.data}' \
+  | python3 -c "import json,sys,base64; d=json.load(sys.stdin); [print(f'{k}: {len(base64.b64decode(v))} bytes') for k,v in d.items()]"
+
+# 기대 출력 (3키 모두 표시):
+# DEMO_ACTOR_KEY_SALT: 48 bytes
+# DP_DEMO_SHARED_TOKEN: 64 bytes
+# RAPIDAPI_PROXY_SECRET: <RapidAPI 값 길이> bytes
+```
+
+---
+
 ## 전제조건 (Preconditions — 완료 기준 + 증거 위치)
 
 - [ ] 올바른 AWS 계정/프로파일로 로그인 (`AWS_PROFILE=dpp-admin` 또는 `--profile dpp-admin`)
 - [ ] `kubectl` 컨텍스트 = `dpp-pilot` 클러스터
+- [ ] **`dpp-demo-secrets` 3키 모두 생성 완료** (위 Preflight 섹션 참조)
 - [ ] `sync_pilot_values.sh` 실행 완료 — ingress-pilot.yaml에 `api.decisionproof.io.kr` host rule 존재 확인
 - [ ] ACM 인증서가 `api.decisionproof.io.kr` 을 SAN으로 포함하는지 확인 (아래 TLS 섹션 참조)
 - [ ] Route 53에 `api.decisionproof.io.kr` A(ALIAS) 레코드가 Pilot ALB를 가리키는지 확인

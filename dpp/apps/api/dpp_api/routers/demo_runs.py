@@ -240,12 +240,18 @@ def _store_delete(key: str) -> None:
 
 # ─── Problem response helpers ─────────────────────────────────────────────────
 
+def _make_instance() -> str:
+    """RFC 9457 opaque instance URI — unique per response."""
+    return f"urn:decisionproof:trace:{uuid.uuid4()}"
+
+
 def _p401(detail: str) -> JSONResponse:
     return create_problem_details_response(
         type_uri="https://api.decisionproof.io.kr/problems/unauthorized",
         title="Unauthorized",
         status=401,
         detail=detail,
+        instance=_make_instance(),
     )
 
 
@@ -255,6 +261,7 @@ def _p413() -> JSONResponse:
         title="Request Entity Too Large",
         status=413,
         detail=f"Request body exceeds {MAX_BODY_BYTES} bytes.",
+        instance=_make_instance(),
     )
 
 
@@ -264,6 +271,7 @@ def _p422(detail: str) -> JSONResponse:
         title="Unprocessable Entity",
         status=422,
         detail=detail,
+        instance=_make_instance(),
     )
 
 
@@ -273,6 +281,7 @@ def _p429(detail: str, retry_after: int) -> JSONResponse:
         title="Too Many Requests",
         status=429,
         detail=detail,
+        instance=_make_instance(),
         headers={"Retry-After": str(retry_after)},
     )
 
@@ -283,6 +292,7 @@ def _p404(detail: str = "Run not found.") -> JSONResponse:
         title="Not Found",
         status=404,
         detail=detail,
+        instance=_make_instance(),
     )
 
 
@@ -292,6 +302,7 @@ def _p410(detail: str = "Run has expired and its data has been purged.") -> JSON
         title="Gone",
         status=410,
         detail=detail,
+        instance=_make_instance(),
     )
 
 
@@ -300,17 +311,27 @@ def _p410(detail: str = "Run has expired and its data has been purged.") -> JSON
 async def _verify_rapid_auth(request: Request) -> None:
     """Validate X-RapidAPI-Proxy-Secret and Authorization: Bearer.
 
-    If env vars are not configured (dev/test without secrets), passes through.
-    In production, both RAPIDAPI_PROXY_SECRET and DP_DEMO_SHARED_TOKEN must be set.
+    FAIL-CLOSED: If RAPIDAPI_PROXY_SECRET is not configured, all demo
+    requests are rejected with 503. This prevents silent bypass when the
+    secret is accidentally omitted in deployment. RAPIDAPI_PROXY_SECRET
+    must always be set in production — there is no dev-mode bypass.
+
+    DP_DEMO_SHARED_TOKEN is an optional second auth layer (401 if set but wrong).
     """
-    expected_proxy = os.getenv("RAPIDAPI_PROXY_SECRET", "")
-    if expected_proxy:
-        proxy_secret = request.headers.get("X-RapidAPI-Proxy-Secret", "")
-        if not hmac.compare_digest(proxy_secret.encode(), expected_proxy.encode()):
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid or missing X-RapidAPI-Proxy-Secret",
-            )
+    expected_proxy = os.getenv("RAPIDAPI_PROXY_SECRET", "").strip()
+    if not expected_proxy:
+        # Server misconfiguration — fail closed, never bypass
+        raise HTTPException(
+            status_code=503,
+            detail="missing RAPIDAPI_PROXY_SECRET",
+        )
+
+    proxy_secret = request.headers.get("X-RapidAPI-Proxy-Secret", "")
+    if not hmac.compare_digest(proxy_secret.encode(), expected_proxy.encode()):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or missing X-RapidAPI-Proxy-Secret",
+        )
 
     expected_token = os.getenv("DP_DEMO_SHARED_TOKEN", "")
     if expected_token:

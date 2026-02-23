@@ -21,29 +21,31 @@ spec:
             configMapKeyRef:
               name: dpp-config
               key: DP_DEMO_PUBLIC_BASE_URL
-        # Mini Demo Rapid-only auth secrets (optional: true → pod 기동 보장, dev/test 호환)
-        # 사전 생성 필요: kubectl -n dpp-pilot create secret generic dpp-demo-secrets \
-        #   --from-literal=RAPIDAPI_PROXY_SECRET=<값> \
-        #   --from-literal=DP_DEMO_SHARED_TOKEN=<값> \
-        #   --from-literal=DEMO_ACTOR_KEY_SALT=<값>
+        # Mini Demo Rapid-only auth secrets — REQUIRED (Fail-Closed)
+        # 사전 생성 필요 (3키 모두 필수):
+        #   kubectl -n dpp-pilot create secret generic dpp-demo-secrets \
+        #     --from-literal=RAPIDAPI_PROXY_SECRET=<값> \
+        #     --from-literal=DP_DEMO_SHARED_TOKEN=<값> \
+        #     --from-literal=DEMO_ACTOR_KEY_SALT=<값>
+        # optional: false → Secret 미생성 시 Pod 기동 실패 (의도적 Fail-Closed)
         - name: RAPIDAPI_PROXY_SECRET
           valueFrom:
             secretKeyRef:
               name: dpp-demo-secrets
               key: RAPIDAPI_PROXY_SECRET
-              optional: true
+              optional: false
         - name: DP_DEMO_SHARED_TOKEN
           valueFrom:
             secretKeyRef:
               name: dpp-demo-secrets
               key: DP_DEMO_SHARED_TOKEN
-              optional: true
+              optional: false
         - name: DEMO_ACTOR_KEY_SALT
           valueFrom:
             secretKeyRef:
               name: dpp-demo-secrets
               key: DEMO_ACTOR_KEY_SALT
-              optional: true
+              optional: false
         livenessProbe:
           httpGet:
             path: /health

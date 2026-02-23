@@ -2,11 +2,15 @@
 
 Confirms the demo surface exists and the LOCK invariants hold:
 - /.well-known/openapi-demo.json: status 200, servers lock, paths lock
-- POST /v1/demo/runs: accepts valid request (auth bypassed in dev mode)
+- POST /v1/demo/runs: accepts valid request (Fail-Closed: auth always required)
 - GET  /v1/demo/runs/{run_id}: returns 200
 
 These tests use the FastAPI TestClient without real Redis/S3.
 The demo router falls back to in-memory store when Redis is unavailable.
+
+NOTE: After Fail-Closed (A1 patch), RAPIDAPI_PROXY_SECRET must be set
+for any demo endpoint to respond. The set_demo_env fixture handles this.
+All demo endpoint requests include SMOKE_AUTH_HEADERS.
 """
 
 import json
@@ -24,6 +28,28 @@ from dpp_api.schemas_demo import AI_DISCLOSURE
 DEMO_BASE_URL = "https://api.decisionproof.io.kr"
 ALLOWED_PATHS = {"/v1/demo/runs", "/v1/demo/runs/{run_id}"}
 
+# Smoke test auth credentials (used by set_demo_env + SMOKE_AUTH_HEADERS)
+SMOKE_PROXY_SECRET = "smoke-proxy-secret-789xyz"
+SMOKE_BEARER_TOKEN = "smoke-bearer-token-012abc"
+SMOKE_AUTH_HEADERS = {
+    "X-RapidAPI-Proxy-Secret": SMOKE_PROXY_SECRET,
+    "Authorization": f"Bearer {SMOKE_BEARER_TOKEN}",
+}
+
+
+@pytest.fixture(scope="module", autouse=True)
+def set_demo_env():
+    """Set demo auth env vars for the entire module (Fail-Closed compliance).
+
+    Uses os.environ directly since monkeypatch is function-scoped and cannot
+    be used with scope="module". Cleans up after all tests in this module.
+    """
+    os.environ["RAPIDAPI_PROXY_SECRET"] = SMOKE_PROXY_SECRET
+    os.environ["DP_DEMO_SHARED_TOKEN"] = SMOKE_BEARER_TOKEN
+    yield
+    os.environ.pop("RAPIDAPI_PROXY_SECRET", None)
+    os.environ.pop("DP_DEMO_SHARED_TOKEN", None)
+
 
 @pytest.fixture(scope="module")
 def client():
@@ -34,7 +60,10 @@ def client():
 # ─── openapi-demo LOCK tests ──────────────────────────────────────────────────
 
 class TestOpenAPIDemoLock:
-    """LOCK invariants for /.well-known/openapi-demo.json."""
+    """LOCK invariants for /.well-known/openapi-demo.json.
+
+    These tests call the well-known endpoint which requires no auth.
+    """
 
     def test_endpoint_returns_200(self, client):
         r = client.get("/.well-known/openapi-demo.json")
@@ -109,16 +138,20 @@ class TestOpenAPIDemoLock:
         assert "429" in get_responses, "GET must document 429 response"
 
 
-# ─── Demo endpoint smoke tests (auth env vars not set → bypass) ──────────────
+# ─── Demo endpoint smoke tests (auth required — Fail-Closed) ──────────────────
 
 class TestDemoEndpointsSmoke:
-    """Basic smoke tests for demo endpoints (dev mode, no auth secrets configured)."""
+    """Basic smoke tests for demo endpoints.
+
+    All requests include SMOKE_AUTH_HEADERS to satisfy Fail-Closed auth guard.
+    """
 
     def test_post_demo_runs_returns_202(self, client):
-        """Valid request → 202 Accepted."""
+        """Valid request with auth → 202 Accepted."""
         r = client.post(
             "/v1/demo/runs",
             json={"inputs": {"question": "Should we proceed?"}},
+            headers=SMOKE_AUTH_HEADERS,
         )
         assert r.status_code == 202, f"Expected 202, got {r.status_code}: {r.text}"
 
@@ -126,6 +159,7 @@ class TestDemoEndpointsSmoke:
         r = client.post(
             "/v1/demo/runs",
             json={"inputs": {"question": "Test question"}},
+            headers=SMOKE_AUTH_HEADERS,
         )
         data = r.json()
         assert "run_id" in data
@@ -135,6 +169,7 @@ class TestDemoEndpointsSmoke:
         r = client.post(
             "/v1/demo/runs",
             json={"inputs": {"question": "Test question"}},
+            headers=SMOKE_AUTH_HEADERS,
         )
         data = r.json()
         assert "poll_url" in data
@@ -144,6 +179,7 @@ class TestDemoEndpointsSmoke:
         r = client.post(
             "/v1/demo/runs",
             json={"inputs": {"question": "Test question"}},
+            headers=SMOKE_AUTH_HEADERS,
         )
         data = r.json()
         assert "poll" in data
@@ -153,6 +189,7 @@ class TestDemoEndpointsSmoke:
         r = client.post(
             "/v1/demo/runs",
             json={"inputs": {"question": "Test question"}},
+            headers=SMOKE_AUTH_HEADERS,
         )
         data = r.json()
         assert data["meta"]["ai_generated"] is True
@@ -163,11 +200,12 @@ class TestDemoEndpointsSmoke:
         post_r = client.post(
             "/v1/demo/runs",
             json={"inputs": {"question": "What is the recommendation?"}},
+            headers=SMOKE_AUTH_HEADERS,
         )
         assert post_r.status_code == 202
         run_id = post_r.json()["run_id"]
 
-        get_r = client.get(f"/v1/demo/runs/{run_id}")
+        get_r = client.get(f"/v1/demo/runs/{run_id}", headers=SMOKE_AUTH_HEADERS)
         assert get_r.status_code == 200
 
     def test_get_completed_has_ai_headers(self, client):
@@ -175,9 +213,10 @@ class TestDemoEndpointsSmoke:
         post_r = client.post(
             "/v1/demo/runs",
             json={"inputs": {"question": "Evaluate this."}},
+            headers=SMOKE_AUTH_HEADERS,
         )
         run_id = post_r.json()["run_id"]
-        get_r = client.get(f"/v1/demo/runs/{run_id}")
+        get_r = client.get(f"/v1/demo/runs/{run_id}", headers=SMOKE_AUTH_HEADERS)
         assert get_r.headers.get("X-DP-AI-Generated") == "true"
 
     def test_get_cache_control_no_store(self, client):
@@ -185,13 +224,17 @@ class TestDemoEndpointsSmoke:
         post_r = client.post(
             "/v1/demo/runs",
             json={"inputs": {"question": "test"}},
+            headers=SMOKE_AUTH_HEADERS,
         )
         run_id = post_r.json()["run_id"]
-        get_r = client.get(f"/v1/demo/runs/{run_id}")
+        get_r = client.get(f"/v1/demo/runs/{run_id}", headers=SMOKE_AUTH_HEADERS)
         assert "no-store" in get_r.headers.get("Cache-Control", "")
 
     def test_get_nonexistent_returns_404(self, client):
-        r = client.get("/v1/demo/runs/demo_nonexistent_abc123")
+        r = client.get(
+            "/v1/demo/runs/demo_nonexistent_abc123",
+            headers=SMOKE_AUTH_HEADERS,
+        )
         assert r.status_code == 404
         data = r.json()
         assert data["status"] == 404

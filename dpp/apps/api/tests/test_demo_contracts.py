@@ -16,6 +16,10 @@ All tests use monkeypatching to control:
   - in-memory store (no Redis required)
   - auth env vars (RAPIDAPI_PROXY_SECRET, DP_DEMO_SHARED_TOKEN)
   - S3 unavailable (graceful fallback)
+
+NOTE: After Fail-Closed (A1), RAPIDAPI_PROXY_SECRET MUST be set for any demo
+endpoint call to succeed. The mem_store fixture sets it automatically.
+Tests that test auth failures (401) explicitly use auth_env + wrong headers.
 """
 
 import json
@@ -40,6 +44,12 @@ ALLOWED_PATHS = {"/v1/demo/runs", "/v1/demo/runs/{run_id}"}
 TEST_PROXY_SECRET = "test-proxy-secret-abc123"
 TEST_BEARER_TOKEN = "test-bearer-token-xyz789"
 
+# Auth headers for all requests that should pass auth (Fail-Closed compliant)
+VALID_AUTH_HEADERS = {
+    "X-RapidAPI-Proxy-Secret": TEST_PROXY_SECRET,
+    "Authorization": f"Bearer {TEST_BEARER_TOKEN}",
+}
+
 
 # ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -49,8 +59,17 @@ def client():
 
 
 @pytest.fixture
-def mem_store():
-    """Provide a clean in-memory dict as the demo store for each test."""
+def mem_store(monkeypatch):
+    """Provide a clean in-memory dict as the demo store for each test.
+
+    Also sets RAPIDAPI_PROXY_SECRET and DP_DEMO_SHARED_TOKEN env vars so that
+    the Fail-Closed auth guard passes. Tests that test auth failures use
+    auth_env explicitly and send wrong headers — the env var being set is correct.
+    """
+    # Fail-Closed: must set RAPIDAPI_PROXY_SECRET for demo endpoints to respond
+    monkeypatch.setenv("RAPIDAPI_PROXY_SECRET", TEST_PROXY_SECRET)
+    monkeypatch.setenv("DP_DEMO_SHARED_TOKEN", TEST_BEARER_TOKEN)
+
     store: dict[str, tuple[str, Optional[float]]] = {}
 
     def fake_get(key: str) -> Optional[str]:
@@ -195,27 +214,31 @@ class TestOpenAPIDemoAC:
 # ─── POST /v1/demo/runs contracts ─────────────────────────────────────────────
 
 class TestPostDemoRunsContracts:
-    """Contract tests for POST /v1/demo/runs."""
+    """Contract tests for POST /v1/demo/runs.
+
+    All non-auth-failure tests send VALID_AUTH_HEADERS to pass Fail-Closed guard.
+    Auth-failure tests use auth_env (env var set) but send intentionally wrong headers.
+    """
 
     # ── Happy path ────────────────────────────────────────────────────────────
 
     def test_valid_request_returns_202(self, client, mem_store, valid_body):
-        r = client.post("/v1/demo/runs", json=valid_body)
+        r = client.post("/v1/demo/runs", json=valid_body, headers=VALID_AUTH_HEADERS)
         assert r.status_code == 202
 
     def test_receipt_has_run_id(self, client, mem_store, valid_body):
-        r = client.post("/v1/demo/runs", json=valid_body)
+        r = client.post("/v1/demo/runs", json=valid_body, headers=VALID_AUTH_HEADERS)
         data = r.json()
         assert "run_id" in data
         assert data["run_id"].startswith("demo_")
 
     def test_receipt_has_poll_url(self, client, mem_store, valid_body):
-        r = client.post("/v1/demo/runs", json=valid_body)
+        r = client.post("/v1/demo/runs", json=valid_body, headers=VALID_AUTH_HEADERS)
         data = r.json()
         assert "poll_url" in data
 
     def test_receipt_has_created_at(self, client, mem_store, valid_body):
-        r = client.post("/v1/demo/runs", json=valid_body)
+        r = client.post("/v1/demo/runs", json=valid_body, headers=VALID_AUTH_HEADERS)
         data = r.json()
         assert "created_at" in data
 
@@ -224,7 +247,7 @@ class TestPostDemoRunsContracts:
         r = client.post(
             "/v1/demo/runs",
             json=valid_body,
-            headers={"X-RapidAPI-Subscription": "BASIC"},
+            headers={**VALID_AUTH_HEADERS, "X-RapidAPI-Subscription": "BASIC"},
         )
         data = r.json()
         assert data["poll"]["recommended_delay_ms"] == 3000
@@ -234,27 +257,27 @@ class TestPostDemoRunsContracts:
         r = client.post(
             "/v1/demo/runs",
             json=valid_body,
-            headers={"X-RapidAPI-Subscription": "PRO"},
+            headers={**VALID_AUTH_HEADERS, "X-RapidAPI-Subscription": "PRO"},
         )
         data = r.json()
         assert data["poll"]["recommended_delay_ms"] == 2000
 
     def test_receipt_ai_meta(self, client, mem_store, valid_body):
-        r = client.post("/v1/demo/runs", json=valid_body)
+        r = client.post("/v1/demo/runs", json=valid_body, headers=VALID_AUTH_HEADERS)
         data = r.json()
         assert data["meta"]["ai_generated"] is True
         assert data["meta"]["ai_disclosure"] == AI_DISCLOSURE
 
     def test_response_header_no_store(self, client, mem_store, valid_body):
-        r = client.post("/v1/demo/runs", json=valid_body)
+        r = client.post("/v1/demo/runs", json=valid_body, headers=VALID_AUTH_HEADERS)
         assert "no-store" in r.headers.get("Cache-Control", "")
 
     def test_response_header_ai_generated(self, client, mem_store, valid_body):
-        r = client.post("/v1/demo/runs", json=valid_body)
+        r = client.post("/v1/demo/runs", json=valid_body, headers=VALID_AUTH_HEADERS)
         assert r.headers.get("X-DP-AI-Generated") == "true"
 
     def test_response_header_ai_disclosure(self, client, mem_store, valid_body):
-        r = client.post("/v1/demo/runs", json=valid_body)
+        r = client.post("/v1/demo/runs", json=valid_body, headers=VALID_AUTH_HEADERS)
         assert AI_DISCLOSURE in r.headers.get("X-DP-AI-Disclosure", "")
 
     # ── Validation errors ─────────────────────────────────────────────────────
@@ -267,6 +290,7 @@ class TestPostDemoRunsContracts:
                 "inputs": {"question": "Valid question"},
                 "evil_extra_key": "injected",
             },
+            headers=VALID_AUTH_HEADERS,
         )
         assert r.status_code == 422
         data = r.json()
@@ -278,6 +302,7 @@ class TestPostDemoRunsContracts:
         r = client.post(
             "/v1/demo/runs",
             json={"inputs": {"question": "q", "injected": "bad"}},
+            headers=VALID_AUTH_HEADERS,
         )
         assert r.status_code == 422
         assert r.json()["status"] == 422
@@ -291,6 +316,7 @@ class TestPostDemoRunsContracts:
                 "inputs": {"question": "valid"},
                 "reservation": {"unauthorized_field": "value"},
             },
+            headers=VALID_AUTH_HEADERS,
         )
         assert r.status_code == 422
         assert "problem+json" in r.headers.get("content-type", "")
@@ -300,6 +326,7 @@ class TestPostDemoRunsContracts:
         r = client.post(
             "/v1/demo/runs",
             json={"inputs": {"question": "x" * 513}},
+            headers=VALID_AUTH_HEADERS,
         )
         assert r.status_code == 422
         data = r.json()
@@ -311,17 +338,26 @@ class TestPostDemoRunsContracts:
         r = client.post(
             "/v1/demo/runs",
             json={"inputs": {"question": "q" * 512}},
+            headers=VALID_AUTH_HEADERS,
         )
         assert r.status_code == 202
 
     def test_missing_inputs_returns_422(self, client, mem_store):
         """inputs field missing → 422."""
-        r = client.post("/v1/demo/runs", json={"meta": {}})
+        r = client.post(
+            "/v1/demo/runs",
+            json={"meta": {}},
+            headers=VALID_AUTH_HEADERS,
+        )
         assert r.status_code == 422
 
     def test_missing_question_returns_422(self, client, mem_store):
         """question missing from inputs → 422."""
-        r = client.post("/v1/demo/runs", json={"inputs": {}})
+        r = client.post(
+            "/v1/demo/runs",
+            json={"inputs": {}},
+            headers=VALID_AUTH_HEADERS,
+        )
         assert r.status_code == 422
 
     # ── Auth enforcement ──────────────────────────────────────────────────────
@@ -386,28 +422,18 @@ class TestPostDemoRunsContracts:
     def test_body_over_4096_bytes_returns_413(self, client, mem_store):
         """Body > 4096 bytes → 413 problem+json (checked before Pydantic validation).
 
-        Body size check runs first in create_demo_run, so 413 is returned
-        even if the body also has schema violations.
-        Body size: "q"*512 question + JSON overhead ≈ 560 bytes < 4096.
-        We pad via a long valid question repeated in a JSON-encoded string
-        using the Content-Length header trick won't work — body is actually read.
-        Strategy: encode a valid-schema body where the JSON itself is large.
-        We repeat the question up to near-limit, then add a tiny extra byte.
+        Auth runs first (Depends), then body size guard. After Fail-Closed,
+        we must include valid auth headers so the 413 guard is reached.
         """
-        # Build a valid schema body that is large: question = 512 chars (~560 byte body)
-        # We cannot exceed 512 chars for question. Instead, craft the raw JSON body directly
-        # with 4097 bytes total (body size check doesn't know about schema).
-        # Use a comment-like structure: valid JSON but too big.
-        # The only schema-valid way to get > 4096 bytes is impossible with
-        # max 512-char question (body ≈ 560 bytes). So we test the 413 guard
-        # by sending raw bytes that are valid JSON but exceed 4096.
-        # We use Content-Type: application/json with a gigantic string body.
         big_body = '{"inputs": {"question": "' + "q" * 512 + '"}, "padding": "' + "p" * 4000 + '"}'
         assert len(big_body.encode()) > 4096, "Test setup error: body must exceed 4096 bytes"
         r = client.post(
             "/v1/demo/runs",
             content=big_body.encode(),
-            headers={"Content-Type": "application/json"},
+            headers={
+                "Content-Type": "application/json",
+                **VALID_AUTH_HEADERS,
+            },
         )
         # Body size check (> 4096) fires before Pydantic → must be 413
         assert r.status_code == 413, (
@@ -424,9 +450,11 @@ class TestGetDemoRunContracts:
     """Contract tests for GET /v1/demo/runs/{run_id}."""
 
     def _post_and_get_run_id(self, client, mem_store) -> str:
+        """POST a valid run and return run_id. Includes auth headers (Fail-Closed)."""
         r = client.post(
             "/v1/demo/runs",
             json={"inputs": {"question": "Contract test question."}},
+            headers=VALID_AUTH_HEADERS,
         )
         assert r.status_code == 202
         return r.json()["run_id"]
@@ -435,62 +463,62 @@ class TestGetDemoRunContracts:
 
     def test_completed_status_200(self, client, mem_store):
         run_id = self._post_and_get_run_id(client, mem_store)
-        r = client.get(f"/v1/demo/runs/{run_id}")
+        r = client.get(f"/v1/demo/runs/{run_id}", headers=VALID_AUTH_HEADERS)
         assert r.status_code == 200
 
     def test_completed_has_status_field(self, client, mem_store):
         run_id = self._post_and_get_run_id(client, mem_store)
-        data = client.get(f"/v1/demo/runs/{run_id}").json()
+        data = client.get(f"/v1/demo/runs/{run_id}", headers=VALID_AUTH_HEADERS).json()
         assert data["status"] == "COMPLETED"
 
     def test_completed_meta_ai_generated(self, client, mem_store):
         """meta.ai_generated must be True."""
         run_id = self._post_and_get_run_id(client, mem_store)
-        data = client.get(f"/v1/demo/runs/{run_id}").json()
+        data = client.get(f"/v1/demo/runs/{run_id}", headers=VALID_AUTH_HEADERS).json()
         assert data["meta"]["ai_generated"] is True
 
     def test_completed_meta_ai_disclosure(self, client, mem_store):
         """meta.ai_disclosure must equal AI_DISCLOSURE."""
         run_id = self._post_and_get_run_id(client, mem_store)
-        data = client.get(f"/v1/demo/runs/{run_id}").json()
+        data = client.get(f"/v1/demo/runs/{run_id}", headers=VALID_AUTH_HEADERS).json()
         assert data["meta"]["ai_disclosure"] == AI_DISCLOSURE
 
     def test_completed_result_inline_exists(self, client, mem_store):
         """COMPLETED response must contain result_inline."""
         run_id = self._post_and_get_run_id(client, mem_store)
-        data = client.get(f"/v1/demo/runs/{run_id}").json()
+        data = client.get(f"/v1/demo/runs/{run_id}", headers=VALID_AUTH_HEADERS).json()
         assert "result_inline" in data, "COMPLETED must have result_inline"
 
     def test_completed_result_inline_is_ai_generated(self, client, mem_store):
         """result_inline.is_ai_generated must be True."""
         run_id = self._post_and_get_run_id(client, mem_store)
-        data = client.get(f"/v1/demo/runs/{run_id}").json()
+        data = client.get(f"/v1/demo/runs/{run_id}", headers=VALID_AUTH_HEADERS).json()
         ri = data["result_inline"]
         assert ri["is_ai_generated"] is True
 
     def test_completed_result_inline_disclaimer(self, client, mem_store):
         """result_inline.disclaimer must equal AI_DISCLOSURE."""
         run_id = self._post_and_get_run_id(client, mem_store)
-        data = client.get(f"/v1/demo/runs/{run_id}").json()
+        data = client.get(f"/v1/demo/runs/{run_id}", headers=VALID_AUTH_HEADERS).json()
         ri = data["result_inline"]
         assert ri["disclaimer"] == AI_DISCLOSURE
 
     def test_completed_header_ai_generated(self, client, mem_store):
         """X-DP-AI-Generated: true on COMPLETED response."""
         run_id = self._post_and_get_run_id(client, mem_store)
-        r = client.get(f"/v1/demo/runs/{run_id}")
+        r = client.get(f"/v1/demo/runs/{run_id}", headers=VALID_AUTH_HEADERS)
         assert r.headers.get("X-DP-AI-Generated") == "true"
 
     def test_completed_header_ai_disclosure(self, client, mem_store):
         """X-DP-AI-Disclosure header present."""
         run_id = self._post_and_get_run_id(client, mem_store)
-        r = client.get(f"/v1/demo/runs/{run_id}")
+        r = client.get(f"/v1/demo/runs/{run_id}", headers=VALID_AUTH_HEADERS)
         assert AI_DISCLOSURE in r.headers.get("X-DP-AI-Disclosure", "")
 
     def test_completed_cache_control_no_store(self, client, mem_store):
         """Cache-Control: no-store on COMPLETED response."""
         run_id = self._post_and_get_run_id(client, mem_store)
-        r = client.get(f"/v1/demo/runs/{run_id}")
+        r = client.get(f"/v1/demo/runs/{run_id}", headers=VALID_AUTH_HEADERS)
         assert "no-store" in r.headers.get("Cache-Control", "")
 
     # ── Poll rate limiting ────────────────────────────────────────────────────
@@ -500,11 +528,11 @@ class TestGetDemoRunContracts:
         run_id = self._post_and_get_run_id(client, mem_store)
 
         # First GET: sets last_poll timestamp
-        r1 = client.get(f"/v1/demo/runs/{run_id}")
+        r1 = client.get(f"/v1/demo/runs/{run_id}", headers=VALID_AUTH_HEADERS)
         assert r1.status_code == 200
 
         # Second GET immediately → must be 429 (< 3s min interval for BASIC)
-        r2 = client.get(f"/v1/demo/runs/{run_id}")
+        r2 = client.get(f"/v1/demo/runs/{run_id}", headers=VALID_AUTH_HEADERS)
         assert r2.status_code == 429, (
             f"Expected 429 on immediate double poll, got {r2.status_code}"
         )
@@ -515,8 +543,8 @@ class TestGetDemoRunContracts:
     def test_429_has_retry_after_header(self, client, mem_store):
         """429 response must include Retry-After header."""
         run_id = self._post_and_get_run_id(client, mem_store)
-        client.get(f"/v1/demo/runs/{run_id}")  # First poll
-        r = client.get(f"/v1/demo/runs/{run_id}")  # Immediate second poll
+        client.get(f"/v1/demo/runs/{run_id}", headers=VALID_AUTH_HEADERS)  # First poll
+        r = client.get(f"/v1/demo/runs/{run_id}", headers=VALID_AUTH_HEADERS)  # Immediate second
         assert r.status_code == 429
         retry_after = r.headers.get("Retry-After")
         assert retry_after is not None, "429 must include Retry-After header"
@@ -525,22 +553,22 @@ class TestGetDemoRunContracts:
     def test_429_content_type_problem_json(self, client, mem_store):
         """429 Content-Type must be application/problem+json."""
         run_id = self._post_and_get_run_id(client, mem_store)
-        client.get(f"/v1/demo/runs/{run_id}")
-        r = client.get(f"/v1/demo/runs/{run_id}")
+        client.get(f"/v1/demo/runs/{run_id}", headers=VALID_AUTH_HEADERS)
+        r = client.get(f"/v1/demo/runs/{run_id}", headers=VALID_AUTH_HEADERS)
         assert r.status_code == 429
         assert "problem+json" in r.headers.get("content-type", "")
 
     # ── 404 handling ──────────────────────────────────────────────────────────
 
     def test_nonexistent_run_returns_404(self, client, mem_store):
-        r = client.get("/v1/demo/runs/demo_nonexistent_xyz000")
+        r = client.get("/v1/demo/runs/demo_nonexistent_xyz000", headers=VALID_AUTH_HEADERS)
         assert r.status_code == 404
         data = r.json()
         assert data["status"] == 404
         assert "problem+json" in r.headers.get("content-type", "")
 
     def test_404_is_problem_json(self, client, mem_store):
-        r = client.get("/v1/demo/runs/demo_unknown_run")
+        r = client.get("/v1/demo/runs/demo_unknown_run", headers=VALID_AUTH_HEADERS)
         assert r.status_code == 404
         assert "problem+json" in r.headers.get("content-type", "")
 
@@ -572,7 +600,7 @@ class TestGetDemoRunContracts:
 
         # Patch actor_key derivation to match owner
         with patch.object(demo_runs_mod, "_derive_actor_key", return_value="owner-hmac-abc"):
-            r = client.get(f"/v1/demo/runs/{run_id}")
+            r = client.get(f"/v1/demo/runs/{run_id}", headers=VALID_AUTH_HEADERS)
 
         assert r.status_code == 410
         data = r.json()
@@ -603,7 +631,7 @@ class TestGetDemoRunContracts:
 
         # Different actor → non-owner
         with patch.object(demo_runs_mod, "_derive_actor_key", return_value="different-actor-hmac"):
-            r = client.get(f"/v1/demo/runs/{run_id}")
+            r = client.get(f"/v1/demo/runs/{run_id}", headers=VALID_AUTH_HEADERS)
 
         assert r.status_code == 404
         assert "problem+json" in r.headers.get("content-type", "")
