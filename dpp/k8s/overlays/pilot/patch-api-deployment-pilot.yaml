@@ -9,7 +9,7 @@ spec:
       - name: dpp-api
         # Image Pin Policy (Option B: digest) — tag drift 방지
         # 변경 시: aws ecr describe-images --repository-name dpp-api --image-ids imageTag=<tag>
-        image: 783268398937.dkr.ecr.ap-northeast-2.amazonaws.com/dpp-api@sha256:b93c1f2c0cf3c606b55d446b2ffb137a521b0fb69d0a40df343abbb096589ef7
+        image: 783268398937.dkr.ecr.ap-northeast-2.amazonaws.com/dpp-api@sha256:29b5e1c4ee00c7a54d9964733a5b669f2dfc0e307780998aec473377077357fb
         env:
         - name: DP_ENV
           value: "pilot"

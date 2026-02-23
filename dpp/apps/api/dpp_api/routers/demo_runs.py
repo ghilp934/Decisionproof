@@ -5,8 +5,9 @@ Public surface: EXACTLY 2 endpoints.
   GET  /v1/demo/runs/{run_id}   (operationId: demo_run_get)
 
 Auth model (Rapid-only):
-  - X-RapidAPI-Proxy-Secret == env RAPIDAPI_PROXY_SECRET
-  - Authorization: Bearer == env DP_DEMO_SHARED_TOKEN
+  - X-RapidAPI-Proxy-Secret == env RAPIDAPI_PROXY_SECRET  (필수, Fail-Closed)
+  - Authorization: Bearer == env DP_DEMO_SHARED_TOKEN     (선택, 직접 호출 시 검증)
+    → RapidAPI Runtime 경유 시 Bearer 헤더 없음 → Proxy Secret 단독으로 충분
   - On failure → 401 application/problem+json
 
 Plan resolution:
@@ -309,14 +310,17 @@ def _p410(detail: str = "Run has expired and its data has been purged.") -> JSON
 # ─── Auth dependency ───────────────────────────────────────────────────────────
 
 async def _verify_rapid_auth(request: Request) -> None:
-    """Validate X-RapidAPI-Proxy-Secret and Authorization: Bearer.
+    """Validate X-RapidAPI-Proxy-Secret (required) and Authorization: Bearer (optional).
 
     FAIL-CLOSED: If RAPIDAPI_PROXY_SECRET is not configured, all demo
     requests are rejected with 503. This prevents silent bypass when the
     secret is accidentally omitted in deployment. RAPIDAPI_PROXY_SECRET
     must always be set in production — there is no dev-mode bypass.
 
-    DP_DEMO_SHARED_TOKEN is an optional second auth layer (401 if set but wrong).
+    DP_DEMO_SHARED_TOKEN is an optional second auth layer:
+    - RapidAPI Runtime 경유: Bearer 헤더 없음 → Proxy Secret 단독으로 충분 (정상)
+    - 직접 호출: Bearer 헤더 존재 시 검증, 틀리면 401
+    - Bearer 헤더가 없으면 건너뜀 (RapidAPI 프로덕션 플로우)
     """
     expected_proxy = os.getenv("RAPIDAPI_PROXY_SECRET", "").strip()
     if not expected_proxy:
@@ -336,17 +340,18 @@ async def _verify_rapid_auth(request: Request) -> None:
     expected_token = os.getenv("DP_DEMO_SHARED_TOKEN", "")
     if expected_token:
         auth = request.headers.get("Authorization", "")
-        if not auth.startswith("Bearer "):
-            raise HTTPException(
-                status_code=401,
-                detail="Missing Authorization Bearer token",
-            )
-        token = auth[7:]
-        if not hmac.compare_digest(token.encode(), expected_token.encode()):
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid Authorization Bearer token",
-            )
+        if auth:  # RapidAPI Runtime은 Bearer 없음 → 없으면 건너뜀
+            if not auth.startswith("Bearer "):
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid Authorization Bearer token format",
+                )
+            token = auth[7:]
+            if not hmac.compare_digest(token.encode(), expected_token.encode()):
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid Authorization Bearer token",
+                )
 
 
 # ─── Plan resolution ──────────────────────────────────────────────────────────

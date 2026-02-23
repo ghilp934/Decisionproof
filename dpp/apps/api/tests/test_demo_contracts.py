@@ -406,17 +406,6 @@ class TestPostDemoRunsContracts:
         assert r.status_code == 401
         assert r.json()["status"] == 401
 
-    def test_missing_authorization_returns_401(
-        self, client, mem_store, auth_env, valid_body
-    ):
-        """No Authorization header → 401."""
-        r = client.post(
-            "/v1/demo/runs",
-            json=valid_body,
-            headers={"X-RapidAPI-Proxy-Secret": TEST_PROXY_SECRET},
-        )
-        assert r.status_code == 401
-
     # ── Body size enforcement ─────────────────────────────────────────────────
 
     def test_body_over_4096_bytes_returns_413(self, client, mem_store):

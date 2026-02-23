@@ -5,7 +5,7 @@ Decisionproof Mini Demo public API surface:
 
   (1) openapi-demo LOCK     — GET /.well-known/openapi-demo.json invariants
   (2) Fail-Closed           — 503 when RAPIDAPI_PROXY_SECRET is not set
-  (3) Auth enforcement      — 401 for wrong/missing proxy secret or bearer
+  (3) Auth enforcement      — 401 for wrong/missing proxy secret; Bearer optional (present+wrong → 401)
   (4) Poll rate limit       — 429 + Retry-After on immediate double poll
 
 STOP RULES (any failure → CI BLOCKED):
@@ -251,16 +251,6 @@ class TestRC14Auth:
                 "X-RapidAPI-Proxy-Secret": "this-is-wrong",
                 "Authorization": f"Bearer {RC14_BEARER_TOKEN}",
             },
-        )
-        assert r.status_code == 401
-        assert_problem_json(r, 401)
-
-    def test_missing_authorization_returns_401(self, client, demo_env):
-        """Authorization header absent (proxy secret correct) → 401."""
-        r = client.post(
-            "/v1/demo/runs",
-            json={"inputs": {"question": "test"}},
-            headers={"X-RapidAPI-Proxy-Secret": RC14_PROXY_SECRET},
         )
         assert r.status_code == 401
         assert_problem_json(r, 401)
