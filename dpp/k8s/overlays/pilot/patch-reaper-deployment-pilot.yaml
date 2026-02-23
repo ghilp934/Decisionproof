@@ -9,7 +9,9 @@ spec:
     spec:
       containers:
       - name: dpp-reaper
-        image: 783268398937.dkr.ecr.ap-northeast-2.amazonaws.com/dpp-reaper:0.4.2.2
+        # Image Pin Policy (Option B: digest) — tag drift 방지
+        # 변경 시: aws ecr describe-images --repository-name dpp-reaper --image-ids imageTag=<tag>
+        image: 783268398937.dkr.ecr.ap-northeast-2.amazonaws.com/dpp-reaper@sha256:ecd3f17d398480269416f4cb3a26a74821bac98959205a3b9a29eb59c2c48701
         # PILOT: 비용 절감용 리소스 캡 (base: 2Gi/1CPU)
         resources:
           requests:

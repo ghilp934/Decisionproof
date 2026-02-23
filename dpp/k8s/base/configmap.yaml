@@ -26,6 +26,9 @@ data:
   # CRITICAL (P0-2): Do NOT set SQS_ENDPOINT_URL or S3_ENDPOINT_URL
   # Production must use IAM roles via boto3 default credential chain
 
+  # Mini Demo 공개 Base URL (Marketplace) — pilot overlay에서 io.kr로 override됨
+  DP_DEMO_PUBLIC_BASE_URL: "https://api.decisionproof.ai"
+
   # CORS (P1-G)
   CORS_ALLOWED_ORIGINS: "https://app.example.com,https://dashboard.example.com"
 

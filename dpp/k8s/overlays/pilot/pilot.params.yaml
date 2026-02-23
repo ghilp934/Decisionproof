@@ -14,6 +14,8 @@ data:
 
   # Ingress (ALB) — SSOT: sync_pilot_values.sh 로 ingress/configmap 자동 동기화
   PILOT_HOST: "api-pilot.decisionproof.io.kr"
+  # Marketplace Mini Demo 공개 호스트 (쉼표 구분으로 복수 alias 가능)
+  PILOT_HOST_ALIASES: "api.decisionproof.io.kr"
   PILOT_APP_HOST: "app-pilot.decisionproof.io.kr"
   PILOT_ACM_CERT_ARN: "arn:aws:acm:ap-northeast-2:783268398937:certificate/8b0225d0-8ff7-40ea-80fb-2b11167ca77c"
   PILOT_ALB_SECURITY_GROUP_ID: "sg-09caf889f951e4d02"

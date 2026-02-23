@@ -9,7 +9,9 @@ spec:
     spec:
       containers:
       - name: dpp-worker
-        image: 783268398937.dkr.ecr.ap-northeast-2.amazonaws.com/dpp-worker:0.4.2.2
+        # Image Pin Policy (Option B: digest) — tag drift 방지
+        # 변경 시: aws ecr describe-images --repository-name dpp-worker --image-ids imageTag=<tag>
+        image: 783268398937.dkr.ecr.ap-northeast-2.amazonaws.com/dpp-worker@sha256:12cc60dd636a25f66876359cf0055cfc358d70e633125ee983b1e2f7ab48c40d
         # PILOT: 비용 절감용 리소스 캡 (base: 2Gi/1CPU)
         resources:
           requests:

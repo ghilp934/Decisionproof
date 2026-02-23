@@ -39,6 +39,8 @@ RC_TESTS=(
   "apps/api/tests/test_rc10_webhook_error_semantics.py"
   "apps/api/tests/test_rc10_worm_mode_hardening.py"
   "apps/api/tests/test_rc10_p59_fingerprint_hmac_kid.py"
+  "apps/api/tests/test_rc14_demo_marketplace_gate.py"
+  "apps/api/tests/test_rc15_k8s_image_digest_pin.py"
 )
 
 # Auto-dump logs on failure

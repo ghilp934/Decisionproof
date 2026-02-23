@@ -21,7 +21,7 @@ from dpp_api.context import budget_decision_var, plan_key_var, request_id_var, r
 from dpp_api.enforce import PlanViolationError
 from dpp_api.utils.sanitize import sanitize_str
 from dpp_api.rate_limiter import NoOpRateLimiter, RateLimiter
-from dpp_api.routers import admin, auth, health, internal, runs, tokens, usage, webhooks
+from dpp_api.routers import admin, auth, demo_runs, health, internal, runs, tokens, usage, webhooks
 from dpp_api.schemas import ProblemDetail
 from dpp_api.utils import configure_json_logging
 
@@ -70,7 +70,8 @@ app.add_middleware(
     allow_origins=allowed_origins,  # P1-G: Never "*" with credentials
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Explicit methods
-    allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],  # Explicit headers
+    allow_headers=["Authorization", "Content-Type", "Idempotency-Key",
+                   "X-RapidAPI-Proxy-Secret", "X-RapidAPI-Subscription", "X-RapidAPI-User"],
     expose_headers=[
         "X-DPP-Cost-Reserved", "X-DPP-Cost-Actual", "X-DPP-Cost-Minimum-Fee",  # P1-6
         "RateLimit-Policy", "RateLimit", "Retry-After"  # P0 Hotfix: IETF rate limit headers
@@ -499,6 +500,7 @@ app.include_router(internal.router)  # SMTP Smoke Test: Internal endpoints
 app.include_router(admin.router)  # P0-1: Admin endpoints (kill switch)
 app.include_router(webhooks.router)  # P0-2: Billing webhooks (PayPal + Toss)
 app.include_router(tokens.router)  # P0-3: Token lifecycle management
+app.include_router(demo_runs.router)  # Mini Demo: Marketplace 공개 엔드포인트 (hardened)
 
 
 # ============================================================================
@@ -664,6 +666,58 @@ async def well_known_openapi():
     Returns: OpenAPI 3.1.0 JSON schema
     """
     return JSONResponse(content=app.openapi())
+
+
+@app.get("/.well-known/openapi-demo.json")
+async def well_known_openapi_demo():
+    """
+    Mini Demo OpenAPI 3.1.0 specification (Marketplace용).
+
+    LOCK:
+    - servers: 길이 1, url = DP_DEMO_PUBLIC_BASE_URL (default: https://api.decisionproof.io.kr)
+    - paths: 오직 /v1/demo/runs, /v1/demo/runs/{run_id} 만 노출
+    - 다른 path가 섞이면 런타임 에러 (FAIL-FAST)
+
+    Returns: OpenAPI 3.1.0 JSON (allowlist 필터 적용)
+    """
+    import copy
+
+    demo_base_url = os.getenv("DP_DEMO_PUBLIC_BASE_URL", "https://api.decisionproof.io.kr")
+
+    # 전체 스키마를 deep copy하여 원본을 보호
+    schema = copy.deepcopy(app.openapi())
+
+    # servers 강제 덮어쓰기 (길이 = 1, url = demo_base_url)
+    schema["servers"] = [
+        {"url": demo_base_url, "description": "Mini Demo (Marketplace)"}
+    ]
+
+    # paths allowlist 필터 (오직 2개만)
+    allowed_paths = {"/v1/demo/runs", "/v1/demo/runs/{run_id}"}
+    schema["paths"] = {
+        k: v for k, v in schema.get("paths", {}).items() if k in allowed_paths
+    }
+
+    # FAIL-FAST: allowlist 외 path가 하나라도 남으면 500 (버그 신호)
+    leaked = set(schema["paths"].keys()) - allowed_paths
+    if leaked:
+        from dpp_api.schemas import ProblemDetail
+        problem = ProblemDetail(
+            type="https://api.decisionproof.ai/problems/internal-error",
+            title="openapi-demo path leak",
+            status=500,
+            detail=f"Non-allowlist paths leaked into demo spec: {sorted(leaked)}",
+        )
+        return JSONResponse(
+            status_code=500,
+            content=problem.model_dump(exclude_none=True),
+            media_type="application/problem+json",
+        )
+
+    return JSONResponse(
+        content=schema,
+        headers={"Cache-Control": "public, max-age=300"},
+    )
 
 
 @app.get("/pricing/ssot.json")

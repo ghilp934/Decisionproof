@@ -1,0 +1,35 @@
+# patch-ingress-rules-pilot.yaml
+# JSON 6902 Patch: /spec/rules를 pilot 호스트 규칙으로 완전 교체
+#
+# 설계 결정:
+#   SMP의 $patch:replace 는 kustomize 버전에 따라 $patch:null 버그가 발생하므로,
+#   RFC 6902 JSON Patch (op: replace)로 /spec/rules를 명시적으로 교체한다.
+#
+# ⚠️ 이 파일의 value: 구간(BEGIN/END:SYNC_HOST_RULES)을 직접 편집하지 마세요.
+#   pilot.params.yaml의 PILOT_HOST / PILOT_HOST_ALIASES 수정
+#   → ./sync_pilot_values.sh 실행 → BEGIN/END 마커 구간이 자동 치환됩니다.
+- op: replace
+  path: /spec/rules
+  value:
+  # BEGIN:SYNC_HOST_RULES — sync_pilot_values.sh 가 이 구간을 완전 치환합니다. 직접 편집 금지.
+  - host: api-pilot.decisionproof.io.kr
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: dpp-api
+            port:
+              number: 80
+  - host: api.decisionproof.io.kr
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: dpp-api
+            port:
+              number: 80
+  # END:SYNC_HOST_RULES

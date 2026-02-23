@@ -54,8 +54,13 @@ patches:
     target:
       kind: ConfigMap
       name: dpp-config
-  # Ingress: us-east-1 / ${...} 토큰 제거, pilot host/cert/sg 교체
+  # Ingress annotations: us-east-1 / ${...} 토큰 제거, pilot cert/sg/tags 교체
   - path: ingress-pilot.yaml
+    target:
+      kind: Ingress
+      name: dpp-api-ingress
+  # Ingress spec.rules: pilot hosts 완전 교체 (JSON 6902 — $patch:replace SMP 버그 회피)
+  - path: patch-ingress-rules-pilot.yaml
     target:
       kind: Ingress
       name: dpp-api-ingress

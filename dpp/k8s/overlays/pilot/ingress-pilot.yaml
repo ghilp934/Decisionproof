@@ -1,14 +1,16 @@
 # ingress-pilot.yaml
-# Strategic Merge Patch: ingress.yaml의 Ingress 리소스를 pilot 전용으로 완전 교체
+# Strategic Merge Patch: Ingress annotations을 pilot 전용으로 교체
 #
 # 설계 결정:
 #   - metadata.annotations: 키 단위 MERGE (patch 값이 base 값을 덮어씀)
 #     → us-east-1 / ${CERTIFICATE_ID} / ${ALB_SECURITY_GROUP_ID} 토큰 제거
-#   - spec: $patch:replace → base의 host:api.example.com 규칙이 섞이지 않도록
-#     pilot host 하나만 남김
+#   - spec.rules: patch-ingress-rules-pilot.yaml (JSON 6902)에서 별도 관리
+#     → $patch:replace SMP 방식이 kustomize 버전에 따라 $patch:null 버그를 일으켜
+#       JSON 6902 패치 파일로 분리함
 #
-# ⚠️ 이 파일을 직접 편집하지 마세요.
-#   pilot_tls.env 수정 → ./sync_pilot_tls_values.sh 실행 → 자동 업데이트됩니다.
+# ⚠️ spec.rules 는 patch-ingress-rules-pilot.yaml에서 관리합니다.
+#   pilot.params.yaml의 PILOT_HOST / PILOT_HOST_ALIASES 수정
+#   → ./sync_pilot_values.sh 실행 → patch-ingress-rules-pilot.yaml의 BEGIN/END 마커 구간 자동 치환
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -29,16 +31,3 @@ metadata:
     alb.ingress.kubernetes.io/manage-backend-security-group-rules: "true"
 
     alb.ingress.kubernetes.io/tags: Environment=pilot,Application=dpp-api,Version=0.4.2.2
-spec:
-  $patch: replace
-  rules:
-  - host: api-pilot.decisionproof.io.kr
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: dpp-api
-            port:
-              number: 80

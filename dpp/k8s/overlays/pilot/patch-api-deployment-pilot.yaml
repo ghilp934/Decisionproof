@@ -7,7 +7,9 @@ spec:
     spec:
       containers:
       - name: dpp-api
-        image: 783268398937.dkr.ecr.ap-northeast-2.amazonaws.com/dpp-api:0.4.2.2
+        # Image Pin Policy (Option B: digest) — tag drift 방지
+        # 변경 시: aws ecr describe-images --repository-name dpp-api --image-ids imageTag=<tag>
+        image: 783268398937.dkr.ecr.ap-northeast-2.amazonaws.com/dpp-api@sha256:29b5e1c4ee00c7a54d9964733a5b669f2dfc0e307780998aec473377077357fb
         env:
         - name: DP_ENV
           value: "pilot"
@@ -15,6 +17,37 @@ spec:
           value: "dpp-evidence-worm-783268398937"
         - name: DPP_BILLING_PREFLIGHT_REQUIRED
           value: "0"
+        # Mini Demo 공개 Base URL — configMapKeyRef로 주입 (하드코딩 금지)
+        - name: DP_DEMO_PUBLIC_BASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: dpp-config
+              key: DP_DEMO_PUBLIC_BASE_URL
+        # Mini Demo Rapid-only auth secrets — REQUIRED (Fail-Closed)
+        # 사전 생성 필요 (3키 모두 필수):
+        #   kubectl -n dpp-pilot create secret generic dpp-demo-secrets \
+        #     --from-literal=RAPIDAPI_PROXY_SECRET=<값> \
+        #     --from-literal=DP_DEMO_SHARED_TOKEN=<값> \
+        #     --from-literal=DEMO_ACTOR_KEY_SALT=<값>
+        # optional: false → Secret 미생성 시 Pod 기동 실패 (의도적 Fail-Closed)
+        - name: RAPIDAPI_PROXY_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: dpp-demo-secrets
+              key: RAPIDAPI_PROXY_SECRET
+              optional: false
+        - name: DP_DEMO_SHARED_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: dpp-demo-secrets
+              key: DP_DEMO_SHARED_TOKEN
+              optional: false
+        - name: DEMO_ACTOR_KEY_SALT
+          valueFrom:
+            secretKeyRef:
+              name: dpp-demo-secrets
+              key: DEMO_ACTOR_KEY_SALT
+              optional: false
         livenessProbe:
           httpGet:
             path: /health
