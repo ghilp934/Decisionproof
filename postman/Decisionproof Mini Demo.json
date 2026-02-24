@@ -20,6 +20,10 @@
 						"method": "POST",
 						"header": [
 							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
 								"key": "Accept",
 								"value": "application/json"
 							}
@@ -71,147 +75,7 @@
 								}
 							],
 							"cookie": [],
-							"body": ""
-						},
-						{
-							"id": "e778ac02-d140-49f8-a953-1f460a950850",
-							"name": "Missing or invalid authentication credentials",
-							"originalRequest": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Accept",
-										"value": "application/problem+json"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/demo/runs",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"demo",
-										"runs"
-									]
-								}
-							},
-							"status": "Unauthorized",
-							"code": 401,
-							"_postman_previewlanguage": "json",
-							"header": [
-								{
-									"key": "Content-Type",
-									"value": "application/problem+json"
-								}
-							],
-							"cookie": [],
-							"body": "{\n  \"type\": \"https://api.decisionproof.io.kr/problems/unauthorized\",\n  \"title\": \"Unauthorized\",\n  \"status\": 401,\n  \"detail\": \"Invalid or missing X-RapidAPI-Proxy-Secret\"\n}"
-						},
-						{
-							"id": "5f772e02-6b8a-40a6-bc22-4d13d8ad838e",
-							"name": "Request body exceeds 4096 bytes",
-							"originalRequest": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Accept",
-										"value": "application/problem+json"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/demo/runs",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"demo",
-										"runs"
-									]
-								}
-							},
-							"status": "Request Entity Too Large",
-							"code": 413,
-							"_postman_previewlanguage": "json",
-							"header": [
-								{
-									"key": "Content-Type",
-									"value": "application/problem+json"
-								}
-							],
-							"cookie": [],
-							"body": "{\n  \"type\": \"...\",\n  \"title\": \"Request Entity Too Large\",\n  \"status\": 413\n}"
-						},
-						{
-							"id": "6f0e4fcb-1b3d-4f29-a159-c4b0721a10e7",
-							"name": "Request validation failed (extra key, question too long, etc.)",
-							"originalRequest": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Accept",
-										"value": "application/problem+json"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/demo/runs",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"demo",
-										"runs"
-									]
-								}
-							},
-							"status": "Unprocessable Entity (WebDAV) (RFC 4918)",
-							"code": 422,
-							"_postman_previewlanguage": "json",
-							"header": [
-								{
-									"key": "Content-Type",
-									"value": "application/problem+json"
-								}
-							],
-							"cookie": [],
-							"body": "{\n  \"type\": \"https://api.decisionproof.io.kr/problems/validation-error\",\n  \"title\": \"Unprocessable Entity\",\n  \"status\": 422,\n  \"detail\": \"Extra inputs are not permitted\"\n}"
-						},
-						{
-							"id": "d1106931-408b-4987-90fd-f4c95d385810",
-							"name": "Rate limit exceeded",
-							"originalRequest": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Accept",
-										"value": "application/problem+json"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/v1/demo/runs",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"v1",
-										"demo",
-										"runs"
-									]
-								}
-							},
-							"status": "Too Many Requests",
-							"code": 429,
-							"_postman_previewlanguage": "json",
-							"header": [
-								{
-									"key": "Content-Type",
-									"value": "application/problem+json"
-								}
-							],
-							"cookie": [],
-							"body": "{\n  \"type\": \"https://iana.org/assignments/http-problem-types#quota-exceeded\",\n  \"title\": \"Too Many Requests\",\n  \"status\": 429,\n  \"detail\": \"POST rate limit exceeded (6/min BASIC)\"\n}"
+							"body": "{\n  \"run_id\": \"string\",\n  \"status\": \"QUEUED\",\n  \"poll_url\": \"string\",\n  \"created_at\": \"1948-03-18T14:26:30.702Z\",\n  \"poll\": {\n    \"recommended_delay_ms\": 2610\n  },\n  \"meta\": {\n    \"ai_generated\": true,\n    \"ai_disclosure\": \"string\",\n    \"plan\": \"BASIC\"\n  }\n}"
 						}
 					]
 				},
@@ -290,7 +154,7 @@
 								}
 							],
 							"cookie": [],
-							"body": ""
+							"body": "{\n  \"run_id\": \"string\",\n  \"status\": \"TIMEOUT\",\n  \"created_at\": \"1975-04-10T05:15:05.069Z\",\n  \"meta\": {\n    \"ai_generated\": false,\n    \"ai_disclosure\": \"string\",\n    \"plan\": \"PRO\"\n  },\n  \"result_inline\": {},\n  \"result_download\": {\n    \"presigned_url\": \"string\",\n    \"sha256\": \"string\",\n    \"expires_at\": \"1947-02-24T00:44:34.281Z\"\n  },\n  \"poll\": {\n    \"recommended_delay_ms\": 9403\n  }\n}"
 						},
 						{
 							"id": "aa41bf42-c7f1-47e0-9295-7387cd009b1e",
@@ -548,7 +412,8 @@
 		{
 			"id": "0398ef0e-c0c8-4998-9eb6-cc87f679f166",
 			"key": "baseUrl",
-			"value": "https://api.decisionproof.io.kr"
+			"value": "https://api.decisionproof.io.kr",
+			"type": "any"
 		}
 	]
 }

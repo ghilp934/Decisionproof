@@ -14,6 +14,8 @@ files[] = {"id":"52590545-6f2d2a87-1199-4bcb-a2a2-c787f5b6c8b8","path":"Decision
 [config.relations.collections.metaData]
 
 [config.relations.apiDefinition]
+files[] = {"path":"decisionproof-mini-demo.openapi.json","metaData":{}}
 
 [config.relations.apiDefinition.metaData]
 type = openapi:3_1
+rootFiles[] = decisionproof-mini-demo.openapi.json
