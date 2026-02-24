@@ -154,55 +154,55 @@
                 }
               }
             }
-          }
-        },
-        "401": {
-          "description": "Missing or invalid authentication credentials",
-          "content": {
-            "application/problem+json": {
-              "example": {
-                "type": "https://api.decisionproof.io.kr/problems/unauthorized",
-                "title": "Unauthorized",
-                "status": 401,
-                "detail": "Invalid or missing X-RapidAPI-Proxy-Secret"
+          },
+          "401": {
+            "description": "Missing or invalid authentication credentials",
+            "content": {
+              "application/json": {
+                "example": {
+                  "type": "https://api.decisionproof.io.kr/problems/unauthorized",
+                  "title": "Unauthorized",
+                  "status": 401,
+                  "detail": "Invalid or missing X-RapidAPI-Proxy-Secret"
+                }
               }
             }
-          }
-        },
-        "413": {
-          "description": "Request body exceeds 4096 bytes",
-          "content": {
-            "application/problem+json": {
-              "example": {
-                "type": "...",
-                "title": "Request Entity Too Large",
-                "status": 413
+          },
+          "413": {
+            "description": "Request body exceeds 4096 bytes",
+            "content": {
+              "application/json": {
+                "example": {
+                  "type": "...",
+                  "title": "Request Entity Too Large",
+                  "status": 413
+                }
               }
             }
-          }
-        },
-        "422": {
-          "description": "Request validation failed (extra key, question too long, etc.)",
-          "content": {
-            "application/problem+json": {
-              "example": {
-                "type": "https://api.decisionproof.io.kr/problems/validation-error",
-                "title": "Unprocessable Entity",
-                "status": 422,
-                "detail": "Extra inputs are not permitted"
+          },
+          "422": {
+            "description": "Request validation failed (extra key, question too long, etc.)",
+            "content": {
+              "application/json": {
+                "example": {
+                  "type": "https://api.decisionproof.io.kr/problems/validation-error",
+                  "title": "Unprocessable Entity",
+                  "status": 422,
+                  "detail": "Extra inputs are not permitted"
+                }
               }
             }
-          }
-        },
-        "429": {
-          "description": "Rate limit exceeded",
-          "content": {
-            "application/problem+json": {
-              "example": {
-                "type": "https://iana.org/assignments/http-problem-types#quota-exceeded",
-                "title": "Too Many Requests",
-                "status": 429,
-                "detail": "POST rate limit exceeded (6/min BASIC)"
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "example": {
+                  "type": "https://iana.org/assignments/http-problem-types#quota-exceeded",
+                  "title": "Too Many Requests",
+                  "status": 429,
+                  "detail": "POST rate limit exceeded (6/min BASIC)"
+                }
               }
             }
           }
@@ -368,7 +368,7 @@
           "401": {
             "description": "Missing or invalid authentication credentials",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "example": {
                   "type": "https://api.decisionproof.io.kr/problems/unauthorized",
                   "title": "Unauthorized",
@@ -381,7 +381,7 @@
           "404": {
             "description": "Run not found (or expired tombstone purged)",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "example": {
                   "type": "...",
                   "title": "Not Found",
@@ -393,7 +393,7 @@
           "410": {
             "description": "Run has expired and data has been purged (owner only)",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "example": {
                   "type": "...",
                   "title": "Gone",
@@ -405,7 +405,7 @@
           "429": {
             "description": "Rate limit exceeded",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "example": {
                   "type": "https://iana.org/assignments/http-problem-types#quota-exceeded",
                   "title": "Too Many Requests",
