@@ -75,3 +75,6 @@ supabase-ca*.pem
 # Phase 6 env secrets (template is tracked; actual file is NOT)
 dpp/ops/scripts/phase6_env.sh
 ops/scripts/phase6_env.sh
+
+# Postman CLI auto-generated metadata (intentional assets live under postman/)
+.postman/
