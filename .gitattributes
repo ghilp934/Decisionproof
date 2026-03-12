@@ -14,6 +14,10 @@
 *.env text eol=lf
 *.sql text eol=lf
 *.template text eol=lf
+*.txt text eol=lf
+*.xml text eol=lf
+robots.txt text eol=lf
+sitemap.xml text eol=lf
 Dockerfile text eol=lf
 Makefile text eol=lf
 
