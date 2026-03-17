@@ -1121,18 +1121,6 @@ def create_app(
         """Test endpoint for RC-7 OTel verification."""
         return {"status": "ok", "test": "ratelimit"}
 
-    # RC-7: Instrument FastAPI app with OTel FIRST (before other middlewares)
-    # This ensures FastAPIInstrumentor wraps all middlewares for proper span closure
-    if otel_enabled:
-        from opentelemetry import metrics, trace
-        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-
-        FastAPIInstrumentor.instrument_app(
-            new_app,
-            tracer_provider=trace.get_tracer_provider(),
-            meter_provider=metrics.get_meter_provider(),
-        )
-
     # Store OTel enabled flag for middleware
     new_app.state.otel_enabled = otel_enabled
 
@@ -1218,17 +1206,23 @@ def create_app(
             duration_ms = duration_seconds * 1000
             log = logging.getLogger(__name__)
 
-            # RC-7: This log will automatically include trace_id/span_id via LoggingInstrumentor
-            log.info(
-                "http.request.completed",
-                extra={
-                    "event": "http.request.completed",  # RC-7: For test compatibility
-                    "method": request.method,
-                    "path": request.url.path,
-                    "status_code": status_code,
-                    "duration_ms": round(duration_ms, 2),
-                },
-            )
+            # RC-7: Explicitly inject trace/span IDs from the active span.
+            # OTel is outermost middleware (added last), so the SERVER span is
+            # still active here. Belt-and-suspenders over LoggingInstrumentor.
+            from opentelemetry import trace as _otel_trace
+
+            _ctx = _otel_trace.get_current_span().get_span_context()
+            _extra: dict = {
+                "event": "http.request.completed",  # RC-7: For test compatibility
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": status_code,
+                "duration_ms": round(duration_ms, 2),
+            }
+            if _ctx.is_valid:
+                _extra["trace_id"] = f"{_ctx.trace_id:032x}"
+                _extra["span_id"] = f"{_ctx.span_id:016x}"
+            log.info("http.request.completed", extra=_extra)
 
             # RC-7 Gate-3: Record http.server.request.duration metric
             # Get histogram on-demand to survive meter_provider resets (test fixture isolation)
@@ -1267,5 +1261,19 @@ def create_app(
 
     # Initialize rate limiter
     new_app.state.rate_limiter = NoOpRateLimiter(quota=60, window=60)
+
+    # RC-7: Instrument FastAPI app with OTel LAST (after all middlewares).
+    # Starlette middleware stack is LIFO: last-added = outermost.
+    # OTel must be outermost so completion_logging_mw executes inside the
+    # active SERVER span and can read trace/span IDs at log emission time.
+    if otel_enabled:
+        from opentelemetry import metrics, trace
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+        FastAPIInstrumentor.instrument_app(
+            new_app,
+            tracer_provider=trace.get_tracer_provider(),
+            meter_provider=metrics.get_meter_provider(),
+        )
 
     return new_app
