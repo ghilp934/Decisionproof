@@ -6,7 +6,7 @@
 [![Money](https://img.shields.io/badge/Money-Zero%20leak%20design-critical)](#money-flow-zero-leak-design)
 [![License](https://img.shields.io/badge/License-Apache--2.0-blue)](#license)
 
-**Payment-based API platform for supporting decision-making processes of AI agents** — run multi-step workloads with **spend caps, receipts, and automatic reconciliation**.
+Payment-based API platform for **supporting decision-making processes of AI agents** — run multi-step workloads with **spend caps, receipts, and automatic reconciliation**.
 
 ---
 
