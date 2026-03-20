@@ -27,9 +27,9 @@ Repository: https://github.com/ghilp934/Decisionproof
 
 Decisionproof runs *decision packs* (units of work) as **runs** through a distributed pipeline:
 
-1) **API** validates the request, enforces plan/budget limits, and enqueues work.
-2) **Worker** executes the pack from a queue, producing a result artifact. Depending on the pack type, a worker may perform structured scoring, URL screening, OCR/document extraction, or research-oriented processing. The output is stored as a result artifact so downstream systems can review outcomes in a more controlled and auditable way.
-3) **Reaper** continuously reconciles edge cases (stuck runs, lease expiry, partial commits).
+1. **API** validates the request, enforces plan/budget limits, and enqueues work.
+2. **Worker** executes the pack from a queue, producing a result artifact. Depending on the pack type, a worker may perform structured scoring, URL screening, OCR/document extraction, or research-oriented processing. The output is stored as a result artifact so downstream systems can review outcomes in a more controlled and auditable way.
+3. **Reaper** continuously reconciles edge cases (stuck runs, lease expiry, partial commits).
 
 The core design goal is to remain **failure-safe** under retries, timeouts, and worker crashes by combining:
 - **Idempotency** at the API boundary (per-tenant idempotency key).
