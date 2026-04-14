@@ -128,11 +128,27 @@ def otel_testkit() -> OtelTestKit:
     metrics.set_meter_provider(meter_provider)
 
     def _restore():
-        # Reset locks before restoring to allow re-set
+        # Reset Once-locks so subsequent tests can re-install providers.
         trace._TRACER_PROVIDER_SET_ONCE._done = False
         metrics_internal._METER_PROVIDER_SET_ONCE._done = False
+
+        # Restore tracer provider (TracerProvider has no self-referential lock issue).
         trace.set_tracer_provider(old_tracer_provider)
-        metrics.set_meter_provider(old_meter_provider)
+
+        # DO NOT call metrics.set_meter_provider(old_meter_provider) here.
+        #
+        # Root cause of 300 s CI deadlock:
+        #   old_meter_provider is _PROXY_METER_PROVIDER (the global proxy).
+        #   metrics.set_meter_provider() calls
+        #     _PROXY_METER_PROVIDER.on_set_meter_provider()  -> acquires _lock
+        #       -> for each proxy meter: meter.on_set_meter_provider(old)
+        #          -> old_meter_provider.get_meter()          -> tries to acquire _lock
+        #   threading.Lock() is non-reentrant -> permanent deadlock.
+        #
+        # _METER_PROVIDER_SET_ONCE._done = False (above) is sufficient:
+        # the next test's otel_testkit fixture will call set_meter_provider()
+        # with a fresh SDK MeterProvider, which is not the proxy and does not
+        # trigger the self-referential lock path.
 
     try:
         yield OtelTestKit(
