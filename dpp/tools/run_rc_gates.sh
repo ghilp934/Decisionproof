@@ -123,23 +123,28 @@ echo -e "${YELLOW}[1/6] Collecting environment snapshot...${NC}"
 } > "$EVIDENCE_DIR/rc_run_env.txt"
 
 # Step 2: Start dependencies
-echo -e "${YELLOW}[2/6] Starting docker dependencies (postgres/redis/localstack)...${NC}"
+echo -e "${YELLOW}[2/5] Starting docker dependencies (postgres/redis/localstack)...${NC}"
 cd "$REPO_ROOT/infra"
-docker compose up -d
+# timeout 300s: localstack/localstack:latest is ~1.5 GB; pull can be slow in CI.
+# Non-fatal (|| true) so tests still run even if compose fails — gate will catch it.
+timeout 300s docker compose up -d || {
+  echo -e "${RED}Warning: docker compose up did not complete within 300s — continuing${NC}"
+}
 echo "Waiting for services to be healthy (max 60s)..."
 timeout 60s bash -c 'until docker compose ps | grep -q "(healthy)"; do sleep 2; done' || {
   echo -e "${RED}Warning: Services may not be fully healthy${NC}"
 }
 cd "$REPO_ROOT"
 
-# Step 3: Build docker images (RC-5 requirement)
-echo -e "${YELLOW}[3/6] Building docker images for RC-5 gate...${NC}"
-docker build -f Dockerfile.api -t dpp-api:rc-test .
-docker build -f Dockerfile.worker -t dpp-worker:rc-test .
-docker build -f Dockerfile.reaper -t dpp-reaper:rc-test .
+# Step 3 (Docker image build) is intentionally omitted here.
+# In CI the workflow already builds decisionproof-{api,worker,reaper}:rc5 before
+# this script runs (Phase 4.2 — Trivy gate). Rebuilding with a different tag
+# wastes 3–10 min and adds a second apt-get upgrade download per image.
+# For local runs: images are expected to be pre-built or will be built on demand
+# by docker compose. RC-5 gate tests reference the compose service, not a bare tag.
 
 # Step 4: Set environment variables
-echo -e "${YELLOW}[4/6] Setting environment variables...${NC}"
+echo -e "${YELLOW}[3/5] Setting environment variables...${NC}"
 export DATABASE_URL="postgresql://dpp_user:dpp_pass@localhost:5432/dpp"
 export REDIS_URL="redis://localhost:6379/0"
 export AWS_ENDPOINT_URL="http://localhost:4566"
@@ -154,7 +159,7 @@ export S3_RESULT_BUCKET="dpp-results-test"
 export SQS_QUEUE_URL="http://localhost:4566/000000000000/dpp-runs"
 
 # Step 5: Construct pytest command
-echo -e "${YELLOW}[5/6] Constructing pytest command...${NC}"
+echo -e "${YELLOW}[4/5] Constructing pytest command...${NC}"
 PYTEST_CMD="pytest -q -o addopts= --maxfail=1"
 for test_file in "${RC_TESTS[@]}"; do
   PYTEST_CMD="$PYTEST_CMD $test_file"
@@ -165,7 +170,7 @@ echo "Command: $PYTEST_CMD"
 echo ""
 
 # Step 6: Execute RC gates
-echo -e "${YELLOW}[6/6] Executing RC gates...${NC}"
+echo -e "${YELLOW}[5/5] Executing RC gates...${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 # Run pytest and capture output
