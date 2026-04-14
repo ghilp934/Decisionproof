@@ -143,6 +143,8 @@ def redis_client() -> redis.Redis:
         port=REDIS_TEST_PORT,
         db=REDIS_TEST_DB,
         decode_responses=True,
+        socket_connect_timeout=10,
+        socket_timeout=10,
     )
 
     # Flush test database before each test

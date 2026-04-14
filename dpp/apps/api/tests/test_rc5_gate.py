@@ -136,6 +136,7 @@ class TestRC5RedTeamTraps:
                 cwd=repo_root,
                 check=True,
                 capture_output=True,
+                timeout=30,
             )
 
             # Run release hygiene check - MUST FAIL
@@ -159,6 +160,7 @@ class TestRC5RedTeamTraps:
                 ["git", "reset", "HEAD", str(trap_file)],
                 cwd=repo_root,
                 capture_output=True,
+                timeout=30,
             )
             if trap_file.exists():
                 trap_file.unlink()
@@ -182,6 +184,7 @@ class TestRC5RedTeamTraps:
         inspect_result = subprocess.run(
             ["docker", "image", "inspect", base_image],
             capture_output=True,
+            timeout=30,
         )
 
         if inspect_result.returncode != 0:
@@ -219,6 +222,7 @@ RUN echo "FAKE CERTIFICATE TRAP FOR RC5 TESTING" > /tmp/secret_trap.pem
                 ["docker", "run", "--rm", trap_image, "ls", "-la", "/tmp/secret_trap.pem"],
                 capture_output=True,
                 text=True,
+                timeout=60,
             )
 
             if verify_result.returncode != 0:
@@ -269,5 +273,6 @@ RUN echo "FAKE CERTIFICATE TRAP FOR RC5 TESTING" > /tmp/secret_trap.pem
             subprocess.run(
                 ["docker", "rmi", "-f", trap_image],
                 capture_output=True,
+                timeout=60,
             )
             print(f"[TRAP 2] Cleanup complete")

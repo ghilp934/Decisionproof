@@ -160,7 +160,7 @@ export SQS_QUEUE_URL="http://localhost:4566/000000000000/dpp-runs"
 
 # Step 5: Construct pytest command
 echo -e "${YELLOW}[4/5] Constructing pytest command...${NC}"
-PYTEST_CMD="pytest -q -o addopts= --maxfail=1"
+PYTEST_CMD="pytest -q -o addopts= --maxfail=1 --timeout=300"
 for test_file in "${RC_TESTS[@]}"; do
   PYTEST_CMD="$PYTEST_CMD $test_file"
 done
