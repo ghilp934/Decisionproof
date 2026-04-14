@@ -143,7 +143,7 @@ jobs:
         run: mkdir -p dpp/evidence/01_ci/security
 
       - name: Trivy scan — decisionproof-api:rc5
-        uses: aquasecurity/trivy-action@0.34.1
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: decisionproof-api:rc5
           format: json
@@ -153,7 +153,7 @@ jobs:
           ignore-unfixed: true
 
       - name: Trivy scan — decisionproof-worker:rc5
-        uses: aquasecurity/trivy-action@0.34.1
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: decisionproof-worker:rc5
           format: json
@@ -163,7 +163,7 @@ jobs:
           ignore-unfixed: true
 
       - name: Trivy scan — decisionproof-reaper:rc5
-        uses: aquasecurity/trivy-action@0.34.1
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: decisionproof-reaper:rc5
           format: json
