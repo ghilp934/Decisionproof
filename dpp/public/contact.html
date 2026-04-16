@@ -104,15 +104,23 @@
 
   <script>
     /**
-     * Contact form — client-side only.
-     * Shows success message on submit. POST /v1/contact wiring deferred to Phase 6.
-     * Direct fallback: ghilplip934@gmail.com
+     * Contact form — mailto fallback.
+     * Opens the user's default mail client pre-filled with form data,
+     * addressed to the Decisionproof support inbox.
      */
-    window.handleSubmit = async function(e) {
+    var SUPPORT_EMAIL = 'ghilplip934@gmail.com';
+
+    var SUBJECT_LABELS = {
+      billing:   'Billing / payment',
+      access:    'Account access',
+      technical: 'Technical issue',
+      refund:    'Refund request',
+      other:     'Other'
+    };
+
+    window.handleSubmit = function(e) {
       e.preventDefault();
       const btn = document.getElementById('submitBtn');
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span> Sending…';
       document.getElementById('formError').classList.add('hidden');
 
       const name    = document.getElementById('cfName').value.trim();
@@ -123,13 +131,22 @@
       if (!name || !email || !subject || !message) {
         document.getElementById('formError').textContent = 'Please fill in all fields.';
         document.getElementById('formError').classList.remove('hidden');
-        btn.disabled = false;
-        btn.textContent = 'Send Message';
         return;
       }
 
-      // Phase 6: replace with POST /v1/contact → email forwarding
-      console.info('contact form submit:', { name, email, subject });
+      var subjectLabel = SUBJECT_LABELS[subject] || subject;
+      var mailSubject  = '[Decisionproof] ' + subjectLabel;
+      var mailBody     =
+        'Name: ' + name + '\n' +
+        'Email: ' + email + '\n' +
+        'Topic: ' + subjectLabel + '\n\n' +
+        message;
+
+      var mailto = 'mailto:' + SUPPORT_EMAIL +
+        '?subject=' + encodeURIComponent(mailSubject) +
+        '&body='    + encodeURIComponent(mailBody);
+
+      window.location.href = mailto;
 
       document.getElementById('contactForm').classList.add('hidden');
       document.getElementById('formSuccess').classList.remove('hidden');
