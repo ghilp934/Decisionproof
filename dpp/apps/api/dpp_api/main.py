@@ -21,7 +21,7 @@ from dpp_api.context import budget_decision_var, plan_key_var, request_id_var, r
 from dpp_api.enforce import PlanViolationError
 from dpp_api.utils.sanitize import sanitize_str
 from dpp_api.rate_limiter import NoOpRateLimiter, RateLimiter
-from dpp_api.routers import admin, auth, billing, health, internal, onboarding, runs, tokens, usage, webhooks
+from dpp_api.routers import admin, auth, billing, demo_runs, health, internal, onboarding, runs, tokens, usage, webhooks
 from dpp_api.schemas import ProblemDetail
 from dpp_api.utils import configure_json_logging
 
@@ -520,6 +520,7 @@ app.include_router(webhooks.router)  # P0-2: Billing webhooks (PayPal + Toss)
 app.include_router(tokens.router)  # P0-3: Token lifecycle management
 app.include_router(billing.router)  # Phase 2: Payment front door (checkout, PayPal, capture)
 app.include_router(onboarding.router)  # Phase 2: Onboarding status
+app.include_router(demo_runs.router)  # RC-14: Mini Demo Marketplace endpoints
 
 
 # ============================================================================
@@ -685,6 +686,101 @@ async def well_known_openapi():
     Returns: OpenAPI 3.1.0 JSON schema
     """
     return JSONResponse(content=app.openapi())
+
+
+# RC-14: Locked mini OpenAPI spec — only the 2 demo endpoints, exactly 1 server.
+# This document is used for marketplace listings (e.g. RapidAPI).
+# STOP RULE: paths must never drift from {/v1/demo/runs, /v1/demo/runs/{run_id}}.
+_OPENAPI_DEMO_SPEC: dict = {
+    "openapi": "3.1.0",
+    "info": {
+        "title": "Decisionproof Demo API",
+        "version": "1.0.0",
+        "description": (
+            "Public demo surface for Decisionproof. "
+            "Exactly 2 endpoints: submit a demo decision run and poll its result."
+        ),
+    },
+    "servers": [{"url": "https://api.decisionproof.io.kr"}],
+    "paths": {
+        "/v1/demo/runs": {
+            "post": {
+                "operationId": "demo_run_create",
+                "summary": "Submit a Demo Decision Run",
+                "description": (
+                    "Submit a question for AI-powered decision evaluation. "
+                    "Returns a run_id for polling. "
+                    "Auth: X-RapidAPI-Proxy-Secret required. "
+                    "Plans: BASIC (6 POST/min) | PRO (24 POST/min)."
+                ),
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["inputs"],
+                                "properties": {
+                                    "inputs": {
+                                        "type": "object",
+                                        "required": ["question"],
+                                        "properties": {
+                                            "question": {
+                                                "type": "string",
+                                                "maxLength": 512,
+                                                "description": "The decision question to evaluate.",
+                                            }
+                                        },
+                                    }
+                                },
+                            }
+                        }
+                    },
+                },
+                "responses": {
+                    "202": {"description": "Run accepted — use run_id to poll status."},
+                    "401": {"description": "Missing or invalid authentication credentials."},
+                    "429": {"description": "Rate limit exceeded."},
+                },
+            }
+        },
+        "/v1/demo/runs/{run_id}": {
+            "get": {
+                "operationId": "demo_run_get",
+                "summary": "Poll Demo Run Status",
+                "description": (
+                    "Poll the status of a demo run. "
+                    "Returns COMPLETED with inline result. "
+                    "Min polling interval: BASIC 3s | PRO 2s."
+                ),
+                "parameters": [
+                    {
+                        "name": "run_id",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                    }
+                ],
+                "responses": {
+                    "200": {"description": "Run status (COMPLETED, QUEUED, PROCESSING, TIMEOUT)."},
+                    "401": {"description": "Missing or invalid authentication credentials."},
+                    "404": {"description": "Run not found or expired."},
+                    "429": {"description": "Polling too fast or rate limit exceeded."},
+                },
+            }
+        },
+    },
+}
+
+
+@app.get("/.well-known/openapi-demo.json", include_in_schema=False)
+async def well_known_openapi_demo():
+    """RC-14: Locked OpenAPI spec for demo marketplace listing.
+
+    Returns a minimal spec with exactly 2 paths and 1 server.
+    No auth required. Used by marketplace integrations (e.g. RapidAPI).
+    """
+    return JSONResponse(content=_OPENAPI_DEMO_SPEC)
 
 
 @app.get("/pricing/ssot.json")
