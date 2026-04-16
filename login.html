@@ -114,40 +114,6 @@
     import { saveSession, redirectIfLoggedIn } from '/js/auth-state.js';
     import { api, ApiError } from '/js/dpp-api.js';
 
-    // Redirect logged-in users away
-    redirectIfLoggedIn();
-
-    // Parse query params
-    const params = new URLSearchParams(window.location.search);
-
-    if (params.get('confirmed') === '1') {
-      document.getElementById('confirmedBanner').classList.remove('hidden');
-    }
-    if (params.get('reason') === 'session_expired') {
-      document.getElementById('expiredBanner').classList.remove('hidden');
-    }
-
-    // Restore tab from URL if present
-    if (params.get('tab') === 'signup') {
-      switchTab('signup');
-    }
-
-    // ── Tab switching ───────────────────────────────────────────────
-    window.switchTab = function(tab) {
-      const isLogin = tab === 'login';
-      document.getElementById('loginForm').classList.toggle('hidden', !isLogin);
-      document.getElementById('signupForm').classList.toggle('hidden', isLogin);
-      document.getElementById('signupSuccess').classList.add('hidden');
-      clearAlert();
-
-      const loginTab  = document.getElementById('tabLogin');
-      const signupTab = document.getElementById('tabSignup');
-      loginTab.style.borderBottomColor  = isLogin  ? 'var(--brand-primary)' : 'transparent';
-      signupTab.style.borderBottomColor = !isLogin ? 'var(--brand-primary)' : 'transparent';
-      loginTab.style.color  = isLogin  ? 'var(--brand-primary)' : '';
-      signupTab.style.color = !isLogin ? 'var(--brand-primary)' : '';
-    };
-
     // ── Alert helpers ───────────────────────────────────────────────
     function showAlert(msg) {
       const el = document.getElementById('alertMsg');
@@ -166,9 +132,23 @@
         : btn.dataset.label;
     }
 
-    // Save original labels
-    document.getElementById('loginBtn').dataset.label  = 'Log In';
-    document.getElementById('signupBtn').dataset.label = 'Create Account';
+    // ── Tab switching ───────────────────────────────────────────────
+    // Defined before any call site (including the ?tab=signup init below
+    // and the onclick="switchTab(...)" attributes on the tab buttons).
+    window.switchTab = function(tab) {
+      const isLogin = tab === 'login';
+      document.getElementById('loginForm').classList.toggle('hidden', !isLogin);
+      document.getElementById('signupForm').classList.toggle('hidden', isLogin);
+      document.getElementById('signupSuccess').classList.add('hidden');
+      clearAlert();
+
+      const loginTab  = document.getElementById('tabLogin');
+      const signupTab = document.getElementById('tabSignup');
+      loginTab.style.borderBottomColor  = isLogin  ? 'var(--brand-primary)' : 'transparent';
+      signupTab.style.borderBottomColor = !isLogin ? 'var(--brand-primary)' : 'transparent';
+      loginTab.style.color  = isLogin  ? 'var(--brand-primary)' : '';
+      signupTab.style.color = !isLogin ? 'var(--brand-primary)' : '';
+    };
 
     // ── Login ────────────────────────────────────────────────────────
     window.handleLogin = async function(e) {
@@ -221,6 +201,29 @@
         setLoading('signupBtn', false);
       }
     };
+
+    // ── Initialization (runs after all functions are defined) ────────
+    // Redirect logged-in users away
+    redirectIfLoggedIn();
+
+    // Save original button labels for setLoading restore
+    document.getElementById('loginBtn').dataset.label  = 'Log In';
+    document.getElementById('signupBtn').dataset.label = 'Create Account';
+
+    // Parse query params
+    const params = new URLSearchParams(window.location.search);
+
+    if (params.get('confirmed') === '1') {
+      document.getElementById('confirmedBanner').classList.remove('hidden');
+    }
+    if (params.get('reason') === 'session_expired') {
+      document.getElementById('expiredBanner').classList.remove('hidden');
+    }
+
+    // Restore tab from URL — switchTab is now defined above, safe to call
+    if (params.get('tab') === 'signup') {
+      switchTab('signup');
+    }
   </script>
 
 </body>
