@@ -124,6 +124,14 @@ class WorkerLoop:
 
             except Exception as e:
                 logger.error(f"Failed to process message: {e}", exc_info=True)
+                # Rollback any failed transaction so the session is reusable
+                # for the next SQS message. Without this, SQLAlchemy raises
+                # "Can't reconnect until invalid transaction is rolled back"
+                # on the next run_once() iteration.
+                try:
+                    self.db.rollback()
+                except Exception:
+                    pass
                 # Message will become visible again after visibility timeout
                 # or go to DLQ after max receives
 

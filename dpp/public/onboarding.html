@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>Onboarding — Decisionproof</title>
+  <link rel="stylesheet" href="/css/dpp.css">
+</head>
+<body class="page-wrap">
+
+  <nav class="nav">
+    <div class="container nav__inner">
+      <a class="nav__logo" href="/index.html">Decision<span>proof</span></a>
+      <ul class="nav__links">
+        <li><a href="/docs/quickstart.html">Docs</a></li>
+        <li><a href="/contact.html">Support</a></li>
+        <li><button id="logoutBtn" class="btn btn--ghost btn--sm">Log out</button></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main class="section">
+    <div class="container" style="max-width:720px;">
+
+      <!-- Loading state -->
+      <div id="loadingView" class="text-center" style="padding:48px 0;">
+        <span class="spinner" style="color:var(--brand-primary); width:32px; height:32px; border-width:3px;"></span>
+        <p class="text-muted mt-16">Loading your dashboard…</p>
+      </div>
+
+      <!-- Error state -->
+      <div id="errorView" class="hidden">
+        <div class="alert alert--error" id="errorMsg"></div>
+        <button class="btn btn--outline" onclick="loadStatus()">Retry</button>
+      </div>
+
+      <!-- Dashboard content -->
+      <div id="dashboardView" class="hidden">
+
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:16px; margin-bottom:32px;">
+          <div>
+            <h1 style="font-size:28px; font-weight:800; margin:0 0 6px;">Get started</h1>
+            <p class="text-muted mb-0">Complete each step to start using Decisionproof.</p>
+          </div>
+          <div id="entitlementBadge"></div>
+        </div>
+
+        <!-- Progress bar -->
+        <div style="background:var(--border); border-radius:20px; height:8px; margin-bottom:32px; overflow:hidden;">
+          <div id="progressBar" style="height:100%; background:var(--brand-primary); border-radius:20px; transition:width .4s;"></div>
+        </div>
+
+        <!-- Step list -->
+        <ul class="step-list" id="stepList"></ul>
+
+        <!-- CTA section -->
+        <div id="ctaSection" class="mt-32"></div>
+
+      </div><!-- /dashboardView -->
+
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__inner">
+      <p class="footer__copy">&copy; 2026 D_FFERENT. All rights reserved.</p>
+      <ul class="footer__links">
+        <li><a href="/docs/quickstart.html">Docs</a></li>
+        <li><a href="/contact.html">Support</a></li>
+      </ul>
+    </div>
+  </footer>
+
+  <script type="module">
+    import { requireAuth, clearSession, getSession } from '/js/auth-state.js';
+    import { api, ApiError } from '/js/dpp-api.js';
+
+    requireAuth('/onboarding.html');
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      clearSession();
+      window.location.href = '/login.html';
+    });
+
+    const STEPS_META = [
+      { key: 'signup_complete',    label: 'Create account',           desc: 'Your account is active.',                                     action: null },
+      { key: 'email_confirmed',    label: 'Confirm your email',        desc: 'Click the link we sent to your inbox.',                        action: { label: 'Resend email', href: null, fn: 'resendConfirmation' } },
+      { key: 'tenant_resolved',    label: 'Workspace ready',           desc: 'Your workspace has been provisioned.',                         action: null },
+      { key: 'payment_complete',   label: 'Activate subscription',     desc: 'Subscribe to get full API access.',                            action: { label: 'Go to checkout', href: '/checkout.html' } },
+      { key: 'entitlement_active', label: 'Subscription active',       desc: 'Your 30-day access window is running.',                        action: { label: 'Go to checkout', href: '/checkout.html' } },
+      { key: 'token_issued',       label: 'Create your first API key', desc: 'You need an API key to authenticate requests.',                action: { label: 'Create API key', href: null, fn: 'createApiKey' } },
+      { key: 'first_run_complete', label: 'Make your first API call',  desc: 'Run a decision and see the results.',                          action: { label: 'Read quickstart', href: '/docs/quickstart.html' } },
+    ];
+
+    window.resendConfirmation = async function() {
+      try {
+        const { email } = getSession();
+        // POST /v1/auth/signup acts as resend when email already exists (Supabase handles it)
+        alert(`Check ${email} for a confirmation link.`);
+      } catch (_) {
+        alert('Could not resend confirmation. Try signing up again.');
+      }
+    };
+
+    window.createApiKey = async function() {
+      try {
+        const res = await api.post('/v1/tokens', { label: 'Default key' });
+        alert(`API key created!\n\nKey: ${res.token}\n\nCopy this now — it won't be shown again.`);
+        await loadStatus(); // Refresh
+      } catch (err) {
+        const msg = err instanceof ApiError ? err.detail : err.message;
+        alert(`Failed to create key: ${msg}`);
+      }
+    };
+
+    function stepIcon(done, active, num) {
+      if (done) return `<span class="step-icon step-icon--done">✓</span>`;
+      if (active) return `<span class="step-icon step-icon--active">${num}</span>`;
+      return `<span class="step-icon step-icon--pending">${num}</span>`;
+    }
+
+    function renderSteps(steps, currentStep) {
+      const list   = document.getElementById('stepList');
+      const total  = STEPS_META.length;
+      let   doneN  = 0;
+      list.innerHTML = '';
+
+      STEPS_META.forEach((meta, idx) => {
+        const done   = steps[meta.key] === true;
+        const active = meta.key === currentStep;
+        if (done) doneN++;
+
+        const actionHtml = (!done && meta.action)
+          ? meta.action.fn
+            ? `<button class="btn btn--primary btn--sm mt-8" onclick="${meta.action.fn}()">${meta.action.label}</button>`
+            : `<a href="${meta.action.href}" class="btn btn--primary btn--sm mt-8">${meta.action.label}</a>`
+          : '';
+
+        const li = document.createElement('li');
+        li.className = 'step-item';
+        li.innerHTML = `
+          ${stepIcon(done, active, idx + 1)}
+          <div class="step-content">
+            <p class="step-title" style="color:${done ? 'var(--text-secondary)' : 'var(--text-primary)'}; ${done ? 'text-decoration:line-through;' : ''}">
+              ${meta.label}
+            </p>
+            <p class="step-desc">${done ? '&nbsp;' : meta.desc}</p>
+            ${actionHtml}
+          </div>
+        `;
+        list.appendChild(li);
+      });
+
+      // Progress bar
+      document.getElementById('progressBar').style.width = `${Math.round((doneN / total) * 100)}%`;
+
+      // CTA
+      const cta = document.getElementById('ctaSection');
+      if (currentStep === 'complete') {
+        cta.innerHTML = `
+          <div class="card card--accent text-center" style="padding:28px;">
+            <div style="font-size:40px; margin-bottom:12px;">🚀</div>
+            <h2 style="margin:0 0 8px; font-size:20px; font-weight:800;">You're all set!</h2>
+            <p class="text-muted mb-16">Start making API calls with your key.</p>
+            <a href="/docs/quickstart.html" class="btn btn--primary">View quickstart guide</a>
+          </div>`;
+      } else {
+        cta.innerHTML = '';
+      }
+    }
+
+    function renderEntitlementBadge(entitlementStatus) {
+      const el = document.getElementById('entitlementBadge');
+      const map = {
+        ACTIVE:    ['badge--success', 'Active'],
+        SUSPENDED: ['badge--warning', 'Suspended'],
+        FREE:      ['badge--neutral', 'Free'],
+      };
+      const [cls, label] = map[entitlementStatus] ?? ['badge--neutral', entitlementStatus];
+      el.innerHTML = `<span class="badge ${cls}">${label}</span>`;
+    }
+
+    window.loadStatus = async function() {
+      document.getElementById('loadingView').classList.remove('hidden');
+      document.getElementById('dashboardView').classList.add('hidden');
+      document.getElementById('errorView').classList.add('hidden');
+
+      try {
+        const data = await api.get('/v1/onboarding/status');
+        renderSteps(data.steps, data.current_step);
+        renderEntitlementBadge(data.entitlement_status);
+        document.getElementById('loadingView').classList.add('hidden');
+        document.getElementById('dashboardView').classList.remove('hidden');
+
+        // Auto-refresh if waiting for payment confirmation
+        const cs = data.checkout_session_status;
+        if (cs === 'CAPTURE_SUBMITTED' || cs === 'PAYPAL_ORDER_CREATED') {
+          setTimeout(window.loadStatus, 4000);
+        }
+
+      } catch (err) {
+        const msg = err instanceof ApiError ? err.detail : err.message;
+        document.getElementById('errorMsg').textContent = msg;
+        document.getElementById('loadingView').classList.add('hidden');
+        document.getElementById('errorView').classList.remove('hidden');
+      }
+    };
+
+    loadStatus();
+  </script>
+
+</body>
+</html>

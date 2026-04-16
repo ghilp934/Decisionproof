@@ -1,0 +1,27 @@
+# patch-api-deployment-production-ack1.yaml
+# Strategic Merge Patch: dpp-api Deployment 에 DPP_ACK_SUPABASE_BACKUP_POLICY env 참조 추가
+#
+# 이 패치가 필요한 이유:
+#   base Deployment 는 configMapKeyRef 방식으로 env 를 1:1 선언함.
+#   ConfigMap 에 키를 추가해도 Deployment env 섹션에 참조가 없으면 파드에 주입되지 않음.
+#   → patch-configmap-production-ack1.yaml 과 반드시 쌍으로 적용해야 함.
+#
+# ⚠️ ops/runbooks/db_backup_restore.md 체크리스트 완료 후에만 이 오버레이를 적용하세요.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dpp-api
+  namespace: dpp-production
+spec:
+  template:
+    spec:
+      containers:
+      - name: dpp-api
+        env:
+        # Phase 5: Supabase 백업 정책 ACK
+        # ⚠️ ops/runbooks/db_backup_restore.md 체크리스트 완료 후에만 이 오버레이를 적용
+        - name: DPP_ACK_SUPABASE_BACKUP_POLICY
+          valueFrom:
+            configMapKeyRef:
+              name: dpp-config
+              key: DPP_ACK_SUPABASE_BACKUP_POLICY

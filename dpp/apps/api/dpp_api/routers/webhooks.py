@@ -21,9 +21,12 @@ import hmac
 import json as _json
 import logging
 import os
+from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from typing import Optional
 
 import httpx
+import redis
 from fastapi import APIRouter, Header, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -37,13 +40,33 @@ from dpp_api.billing.webhook_dedup import (
     mark_dedup_failed,
     try_acquire_dedup,
 )
+from dpp_api.budget.redis_scripts import BudgetScripts
 from dpp_api.context import request_id_var
-from dpp_api.db.models import BillingEvent, BillingOrder, Entitlement, BillingAuditLog, APIKey
+from dpp_api.db.models import (
+    BillingAuditLog,
+    BillingEvent,
+    BillingOrder,
+    Entitlement,
+    APIKey,
+    TenantPlan,
+)
+from dpp_api.db.redis_client import RedisClient
+from dpp_api.db.repo_checkout import CheckoutRepository
 from dpp_api.db.session import get_db
 from dpp_api.utils.sanitize import payload_hash_bytes, sanitize_str
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 logger = logging.getLogger(__name__)
+
+# Pilot/sandbox only: skip PayPal signature verification so that PayPal's
+# resend API (which omits signature headers) can be used to replay events.
+# The handler still re-verifies the order status via PayPal REST API (DEC-P02-2),
+# so this bypass does NOT weaken the business-logic gate.
+# MUST NOT be set in production (DP_ENV=production blocks it at startup).
+_SKIP_SIG_VERIFY = (
+    os.getenv("PAYPAL_SANDBOX_SKIP_SIG_VERIFY", "0") == "1"
+    and os.getenv("DP_ENV", "production") != "production"
+)
 
 
 # ============================================================================
@@ -170,14 +193,25 @@ async def paypal_webhook(
         ] if not val
     ]
     if _missing:
-        return _webhook_problem(
-            request, 400,
-            code="WEBHOOK_MISSING_HEADERS",
-            title="Missing required webhook headers",
-            detail="One or more PayPal verification headers are absent",
-            provider="paypal",
-            payload_hash=payload_hash,
-        )
+        if _SKIP_SIG_VERIFY:
+            logger.warning(
+                "WEBHOOK_SIG_VERIFY_BYPASSED",
+                extra={
+                    "provider": "paypal",
+                    "reason": "PAYPAL_SANDBOX_SKIP_SIG_VERIFY=1 (pilot/sandbox only)",
+                    "missing_headers": _missing,
+                    "payload_hash": payload_hash,
+                },
+            )
+        else:
+            return _webhook_problem(
+                request, 400,
+                code="WEBHOOK_MISSING_HEADERS",
+                title="Missing required webhook headers",
+                detail="One or more PayPal verification headers are absent",
+                provider="paypal",
+                payload_hash=payload_hash,
+            )
 
     # ── Step 3: Body field validation (A → 400) ─────────────────────────────
     event_id = webhook_body.get("id")
@@ -209,56 +243,61 @@ async def paypal_webhook(
     # (D → 500 misconfig, E → 500 upstream, B → 401 invalid sig)
     # NOTE: HTTPException must NOT be raised inside this try block to avoid
     # the outer except swallowing 4xx responses as 5xx.
-    try:
-        verification = await paypal_client.verify_webhook_signature(
-            transmission_id=x_paypal_transmission_id,
-            transmission_time=x_paypal_transmission_time,
-            cert_url=x_paypal_cert_url,
-            auth_algo=x_paypal_auth_algo,
-            transmission_sig=x_paypal_transmission_sig,
-            webhook_event=webhook_body,
-        )
-    except ValueError:
-        # Missing PAYPAL_WEBHOOK_ID (D → 500 misconfig)
-        return _webhook_problem(
-            request, 500,
-            code="WEBHOOK_PROVIDER_MISCONFIG",
-            title="Webhook provider misconfiguration",
-            detail="Webhook verification is not properly configured",
-            provider="paypal",
-            payload_hash=payload_hash,
-        )
-    except httpx.RequestError:
-        # Network / timeout (E → 500 upstream)
-        return _webhook_problem(
-            request, 500,
-            code="WEBHOOK_VERIFY_UPSTREAM_FAILED",
-            title="Webhook verification upstream failure",
-            detail="Unable to verify webhook signature due to upstream error",
-            provider="paypal",
-            payload_hash=payload_hash,
-        )
-    except httpx.HTTPStatusError:
-        # PayPal API returned error (E → 500 upstream)
-        return _webhook_problem(
-            request, 500,
-            code="WEBHOOK_VERIFY_UPSTREAM_FAILED",
-            title="Webhook verification upstream failure",
-            detail="PayPal verification API returned an error",
-            provider="paypal",
-            payload_hash=payload_hash,
-        )
+    if _SKIP_SIG_VERIFY:
+        # Pilot/sandbox bypass: skip PayPal signature API call.
+        # Business-logic re-verification (show_order_details) still runs below.
+        verification = {"verification_status": "SUCCESS", "bypassed": True}
+    else:
+        try:
+            verification = await paypal_client.verify_webhook_signature(
+                transmission_id=x_paypal_transmission_id,
+                transmission_time=x_paypal_transmission_time,
+                cert_url=x_paypal_cert_url,
+                auth_algo=x_paypal_auth_algo,
+                transmission_sig=x_paypal_transmission_sig,
+                webhook_event=webhook_body,
+            )
+        except ValueError:
+            # Missing PAYPAL_WEBHOOK_ID (D → 500 misconfig)
+            return _webhook_problem(
+                request, 500,
+                code="WEBHOOK_PROVIDER_MISCONFIG",
+                title="Webhook provider misconfiguration",
+                detail="Webhook verification is not properly configured",
+                provider="paypal",
+                payload_hash=payload_hash,
+            )
+        except httpx.RequestError:
+            # Network / timeout (E → 500 upstream)
+            return _webhook_problem(
+                request, 500,
+                code="WEBHOOK_VERIFY_UPSTREAM_FAILED",
+                title="Webhook verification upstream failure",
+                detail="Unable to verify webhook signature due to upstream error",
+                provider="paypal",
+                payload_hash=payload_hash,
+            )
+        except httpx.HTTPStatusError:
+            # PayPal API returned error (E → 500 upstream)
+            return _webhook_problem(
+                request, 500,
+                code="WEBHOOK_VERIFY_UPSTREAM_FAILED",
+                title="Webhook verification upstream failure",
+                detail="PayPal verification API returned an error",
+                provider="paypal",
+                payload_hash=payload_hash,
+            )
 
-    # Verification status check is OUTSIDE the try block (B → 401, never 500)
-    if verification.get("verification_status") != "SUCCESS":
-        return _webhook_problem(
-            request, 401,
-            code="WEBHOOK_SIGNATURE_INVALID",
-            title="Webhook signature verification failed",
-            detail="PayPal verification_status is not SUCCESS",
-            provider="paypal",
-            payload_hash=payload_hash,
-        )
+        # Verification status check is OUTSIDE the try block (B → 401, never 500)
+        if verification.get("verification_status") != "SUCCESS":
+            return _webhook_problem(
+                request, 401,
+                code="WEBHOOK_SIGNATURE_INVALID",
+                title="Webhook signature verification failed",
+                detail="PayPal verification_status is not SUCCESS",
+                provider="paypal",
+                payload_hash=payload_hash,
+            )
 
     # ── Step 6: Dedup gate (P6.3: atomic, concurrent-safe) ──────────────────
     # get_paypal_dedup_key: event_id from payload (already validated above)
@@ -358,7 +397,11 @@ async def _process_paypal_event(db: Session, billing_event: BillingEvent, webhoo
 async def _handle_paypal_capture_completed(db: Session, resource: dict):
     """Handle PayPal PAYMENT.CAPTURE.COMPLETED event.
 
+    [EC-AUTH] This is the ONLY place entitlement may be activated (DEC-V1-07).
+
     DEC-P02-2: 권한 부여 타이밍 (재조회 검증 후에만 활성화)
+    DEC-V1-07: Webhook-only entitlement activation (sync capture MUST NOT grant).
+    DEC-V1-08: BillingOrder status 'PAID_VERIFIED' set here only.
     """
     capture_id = resource.get("id")
     order_id = resource.get("supplementary_data", {}).get("related_ids", {}).get("order_id")
@@ -388,15 +431,30 @@ async def _handle_paypal_capture_completed(db: Session, resource: dict):
             logger.warning(f"Internal order not found for PayPal order: {order_id}")
             return
 
-        # Update order status
-        billing_order.status = "PAID"
+        # [EC-AUTH] Update BillingOrder to PAID_VERIFIED (DEC-V1-08)
+        # PAID_VERIFIED MUST ONLY be written from this webhook handler.
+        billing_order.status = "PAID_VERIFIED"
         billing_order.provider_capture_id = capture_id
 
-        # Grant entitlement (DEC-P02-2)
-        _grant_entitlement(db, billing_order)
+        # [EC-AUTH] Transition linked CheckoutSession to PAID_VERIFIED (if present)
+        if billing_order.checkout_session_id:
+            repo = CheckoutRepository(db)
+            checkout_session = repo.get_by_id(billing_order.checkout_session_id)
+            if checkout_session:
+                repo.mark_paid_verified(checkout_session)
+
+        # [EC-AUTH] Grant entitlement (DEC-P02-2, DEC-V1-07)
+        _grant_entitlement(db, billing_order, RedisClient.get_client())
 
         db.commit()
-        logger.info(f"PayPal payment captured and entitlement granted: {order_id}")
+        logger.info(
+            "paypal.capture.completed.entitlement_granted",
+            extra={
+                "paypal_order_id": order_id,
+                "capture_id": capture_id,
+                "checkout_session_id": billing_order.checkout_session_id,
+            },
+        )
 
     except Exception as e:
         logger.error(
@@ -752,7 +810,7 @@ async def _handle_toss_payment_done(db: Session, payment_details: dict):
     billing_order.provider_payment_key = payment_key
 
     # Grant entitlement (DEC-P02-2)
-    _grant_entitlement(db, billing_order)
+    _grant_entitlement(db, billing_order, RedisClient.get_client())
 
     db.commit()
     logger.info(f"TossPayments payment completed and entitlement granted: {order_id}")
@@ -806,12 +864,30 @@ async def _handle_toss_payment_failed(db: Session, payment_details: dict):
 # ============================================================================
 
 
-def _grant_entitlement(db: Session, billing_order: BillingOrder):
-    """Grant entitlement for paid order.
+ENTITLEMENT_VALIDITY_DAYS: int = int(os.getenv("ENTITLEMENT_VALIDITY_DAYS", "30"))
+
+
+def _grant_entitlement(
+    db: Session, billing_order: BillingOrder, redis_client: redis.Redis
+):
+    """[EC-AUTH] Grant entitlement for a verified payment.
 
     DEC-P02-2: 권한 부여 타이밍 (결제 확정 후에만)
+    DEC-V1-07: WEBHOOK ONLY — this function MUST NOT be called from the sync
+               capture path. Entitlement activation is authoritative here.
+
+    Validity window: valid_from=now, valid_until=now+ENTITLEMENT_VALIDITY_DAYS (default 30).
+    On renewal (existing entitlement), both valid_from and valid_until are refreshed.
+
+    Also handles:
+    - tenant_plans upsert: ensures plan_enforcer.get_active_plan() always finds a record.
+    - Redis budget initialization (USD orders only): sets balance so BudgetManager.reserve()
+      succeeds immediately after entitlement is granted.
     """
-    # Find or create entitlement
+    now = datetime.now(timezone.utc)
+    valid_until = now + timedelta(days=ENTITLEMENT_VALIDITY_DAYS)
+
+    # ── 1. Entitlement upsert ─────────────────────────────────────────────────
     entitlement = (
         db.query(Entitlement)
         .filter_by(tenant_id=billing_order.tenant_id, plan_id=billing_order.plan_id)
@@ -824,13 +900,73 @@ def _grant_entitlement(db: Session, billing_order: BillingOrder):
             plan_id=billing_order.plan_id,
             status="ACTIVE",
             order_id=billing_order.id,
+            valid_from=now,
+            valid_until=valid_until,
         )
         db.add(entitlement)
     else:
+        # Renewal: refresh validity window from now
         entitlement.status = "ACTIVE"
         entitlement.order_id = billing_order.id
+        entitlement.valid_from = now
+        entitlement.valid_until = valid_until
 
-    # Audit log
+    # ── 2. TenantPlan upsert ──────────────────────────────────────────────────
+    # plan_enforcer.get_active_plan() requires an ACTIVE row in tenant_plans.
+    # _grant_entitlement is the only authoritative place this gets written.
+    tenant_plan = (
+        db.query(TenantPlan)
+        .filter_by(
+            tenant_id=billing_order.tenant_id,
+            plan_id=billing_order.plan_id,
+            status="ACTIVE",
+        )
+        .first()
+    )
+
+    if tenant_plan:
+        # Renewal: extend the validity window.
+        tenant_plan.effective_from = now
+        tenant_plan.effective_to = valid_until
+        tenant_plan.change_reason = "RENEWAL"
+    else:
+        # Expire any other ACTIVE plan rows for this tenant (plan change or first grant).
+        db.query(TenantPlan).filter_by(
+            tenant_id=billing_order.tenant_id, status="ACTIVE"
+        ).update(
+            {"status": "EXPIRED", "effective_to": now, "change_reason": "REPLACED"},
+            synchronize_session=False,
+        )
+        db.add(
+            TenantPlan(
+                tenant_id=billing_order.tenant_id,
+                plan_id=billing_order.plan_id,
+                status="ACTIVE",
+                effective_from=now,
+                effective_to=valid_until,
+                changed_by="WEBHOOK",
+                change_reason="PAYMENT_VERIFIED",
+            )
+        )
+
+    # ── 3. Redis budget initialization (USD orders only) ─────────────────────
+    # Sets balance_usd_micros and initial_balance_usd_micros so that
+    # BudgetManager.reserve() succeeds immediately after this webhook returns.
+    # KRW (Toss) orders are skipped; their budget is managed separately.
+    if billing_order.currency == "USD":
+        amount_usd_micros = int(Decimal(billing_order.amount) * 1_000_000)
+        scripts = BudgetScripts(redis_client)
+        scripts.set_balance(billing_order.tenant_id, amount_usd_micros)
+        scripts.set_initial_balance(billing_order.tenant_id, amount_usd_micros)
+        logger.info(
+            "Budget initialized",
+            extra={
+                "tenant_id": billing_order.tenant_id,
+                "amount_usd_micros": amount_usd_micros,
+            },
+        )
+
+    # ── 4. Audit log ──────────────────────────────────────────────────────────
     audit_log = BillingAuditLog(
         event_type="ENTITLEMENT_ACTIVATED",
         tenant_id=billing_order.tenant_id,

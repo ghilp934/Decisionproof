@@ -3,6 +3,7 @@
 Ops Hardening v2: Use centralized env helpers.
 """
 
+import asyncio
 import logging
 import os
 
@@ -139,21 +140,18 @@ def check_s3() -> str:
 @router.get("/health", response_model=HealthResponse)
 async def health_check() -> HealthResponse:
     """
-    Health check endpoint.
+    Liveness and startup probe endpoint.
 
-    Returns service status and dependency health.
-    Always returns 200 OK (use /readyz for dependency checks).
+    Returns 200 immediately with NO dependency checks.
+    Calling sync check_* functions from an async handler blocks the event loop,
+    causing startup probe (timeout=5s) to hit context deadline exceeded even
+    when the app itself is healthy.
+    Use /readyz for full dependency health (readiness probe only).
     """
     return HealthResponse(
         status="healthy",
         version="0.4.2.2",
-        services={
-            "api": "up",
-            "database": check_database(),
-            "redis": check_redis(),
-            "s3": check_s3(),
-            "sqs": check_sqs(),
-        },
+        services={"api": "up"},
     )
 
 
@@ -164,9 +162,20 @@ async def readiness_check(response: Response) -> HealthResponse:
 
     Returns whether the service is ready to accept requests.
     Returns 503 if any dependency is down.
+
+    Sync check_* functions run in a thread pool via asyncio.to_thread so they
+    do not block the event loop. Without this, a 15s Redis timeout would freeze
+    the entire server for the duration of the probe.
     """
-    # P1-J: Check all critical dependencies
+    # P1-J: Check all critical dependencies concurrently, off the event loop
     # P6.1: billing_secrets reads cached preflight result — NO network call
+    db_status, redis_status, s3_status, sqs_status = await asyncio.gather(
+        asyncio.to_thread(check_database),
+        asyncio.to_thread(check_redis),
+        asyncio.to_thread(check_s3),
+        asyncio.to_thread(check_sqs),
+    )
+
     billing_cache = get_billing_preflight_status()
     if "status" in billing_cache and billing_cache["status"] == "skipped":
         billing_status = "skipped"
@@ -178,10 +187,10 @@ async def readiness_check(response: Response) -> HealthResponse:
 
     services = {
         "api": "up",
-        "database": check_database(),
-        "redis": check_redis(),
-        "s3": check_s3(),
-        "sqs": check_sqs(),
+        "database": db_status,
+        "redis": redis_status,
+        "s3": s3_status,
+        "sqs": sqs_status,
         "billing_secrets": billing_status,
     }
 

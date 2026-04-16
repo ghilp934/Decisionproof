@@ -98,3 +98,13 @@ supabase-ca*.pem
 # Release evidence artifacts (generated at release time, stored as GitHub release assets)
 # Scripts/templates that generate evidence remain in ops/scripts/ and ops/runbooks/
 ops/evidence/
+
+# Internal phase planning residue (never tracked)
+PHASE1_*.txt
+PHASE1_*.md
+PHASE2_*.md
+PHASE_*_VERIFICATION_REPORT.md
+SUPABASE_MIGRATION_GUIDE.md
+phase7_evidence_*/
+phase7_fix_queue_mismatch_*/
+run_migration.py

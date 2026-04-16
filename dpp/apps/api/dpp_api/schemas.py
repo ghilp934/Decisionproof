@@ -265,3 +265,117 @@ class TokenRevokeAllResponse(BaseModel):
 
     revoked_count: int = Field(..., description="Number of tokens revoked")
     revoked_token_ids: list[str] = Field(..., description="List of revoked token UUIDs")
+
+
+# ============================================================================
+# Phase 2: Billing / Checkout / Onboarding schemas (DP-V1-P1-SOW §6)
+# ============================================================================
+
+
+class CheckoutSessionCreateRequest(BaseModel):
+    """Request body for POST /v1/billing/checkout-sessions."""
+
+    plan_id: str = Field(..., description="Plan ID (e.g. beta_private_starter_v1)")
+
+
+class CheckoutSessionResponse(BaseModel):
+    """Response for POST /v1/billing/checkout-sessions.
+
+    NEVER includes: paypal_request_id_create, paypal_request_id_capture, nonce, user_id.
+    """
+
+    session_id: str
+    status: str
+    plan_id: str
+    amount: str = Field(..., description="Amount as decimal string e.g. '29.00'")
+    currency: str
+    expires_at: datetime
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+
+class PayPalOrderCreateRequest(BaseModel):
+    """Request body for POST /v1/billing/paypal/orders."""
+
+    session_id: str
+
+
+class PayPalOrderCreateResponse(BaseModel):
+    """Response for POST /v1/billing/paypal/orders."""
+
+    session_id: str
+    paypal_order_id: str
+    approval_url: str = Field(..., description="PayPal buyer approval URL")
+    status: str
+    expires_at: datetime
+
+
+class PayPalCaptureRequest(BaseModel):
+    """Request body for POST /v1/billing/paypal/capture."""
+
+    session_id: str
+
+
+class PayPalCaptureResponse(BaseModel):
+    """Response for POST /v1/billing/paypal/capture.
+
+    202 = first-time capture submitted, awaiting webhook.
+    200 = idempotent replay, already submitted.
+    Entitlement is NEVER activated here — webhook-only (DEC-V1-07, DEC-V1-08).
+    """
+
+    session_id: str
+    status: str
+    paypal_order_id: str
+    paypal_capture_id: Optional[str] = None
+    message: str
+
+
+class EntitlementInfo(BaseModel):
+    """Entitlement state embedded in BillingMeResponse."""
+
+    status: str = Field(..., description="FREE | ACTIVE | SUSPENDED")
+    plan_id: Optional[str] = None
+    valid_from: Optional[datetime] = None
+    valid_until: Optional[datetime] = None
+
+
+class LatestCheckoutSessionInfo(BaseModel):
+    """Summary of latest checkout session embedded in BillingMeResponse."""
+
+    session_id: str
+    status: str
+    plan_id: str
+    amount: str
+    currency: str
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+
+class BillingMeResponse(BaseModel):
+    """Response for GET /v1/billing/me."""
+
+    tenant_id: str
+    entitlement: EntitlementInfo
+    latest_checkout_session: Optional[LatestCheckoutSessionInfo] = None
+
+
+class OnboardingSteps(BaseModel):
+    """Per-step completion flags for GET /v1/onboarding/status."""
+
+    signup_complete: bool = False
+    email_confirmed: bool = False
+    tenant_resolved: bool = False
+    payment_complete: bool = False
+    entitlement_active: bool = False
+    token_issued: bool = False
+    first_run_complete: bool = False
+
+
+class OnboardingStatusResponse(BaseModel):
+    """Response for GET /v1/onboarding/status."""
+
+    steps: OnboardingSteps
+    current_step: str = Field(..., description="First incomplete step key")
+    entitlement_status: str = Field(..., description="FREE | ACTIVE | SUSPENDED")
+    checkout_session_status: Optional[str] = None

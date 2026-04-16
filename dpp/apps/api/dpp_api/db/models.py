@@ -3,8 +3,18 @@
 from datetime import date, datetime, timezone
 from typing import Optional
 
-from sqlalchemy import BIGINT, DATE, FLOAT, JSON, TEXT, TIMESTAMP, UUID, Index, UniqueConstraint
+from sqlalchemy import ARRAY, BIGINT, DATE, FLOAT, JSON, TEXT, TIMESTAMP, UUID, Index, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+# ---------------------------------------------------------------------------
+# Phase 2 additions: CheckoutSession terminal states constant
+# ---------------------------------------------------------------------------
+CHECKOUT_SESSION_TERMINAL_STATUSES: tuple[str, ...] = (
+    "PAID_VERIFIED",
+    "CANCELED",
+    "EXPIRED",
+    "FAILED",
+)
 
 
 class Base(DeclarativeBase):
@@ -290,11 +300,20 @@ class BillingOrder(Base):
     amount: Mapped[str] = mapped_column(TEXT, nullable=False)  # Decimal string for precision
 
     # Status tracking
+    # PENDING            — initial state when BillingOrder row created
+    # CAPTURE_SUBMITTED  — sync capture accepted by PayPal (non-authoritative)
+    # PAID_VERIFIED      — webhook PAYMENT.CAPTURE.COMPLETED confirmed (authoritative)
+    # PAID               — LEGACY pilot data only; do not use for new orders
+    # FAILED / REFUNDED / CANCELLED / PARTIAL_REFUNDED
     status: Mapped[str] = mapped_column(TEXT, nullable=False, default="PENDING")
-    # PENDING, PAID, FAILED, REFUNDED, CANCELLED, PARTIAL_REFUNDED
 
     # Order metadata (renamed from 'metadata' to avoid SQLAlchemy reserved keyword)
     order_metadata: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+
+    # Phase 2: FK to checkout_sessions (nullable for legacy pilot orders)
+    checkout_session_id: Mapped[Optional[str]] = mapped_column(
+        UUID(as_uuid=False), nullable=True
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
@@ -313,6 +332,7 @@ class BillingOrder(Base):
         UniqueConstraint("provider", "provider_order_id", name="uq_billing_orders_provider_order"),
         Index("idx_billing_orders_tenant", "tenant_id"),
         Index("idx_billing_orders_status", "status"),
+        Index("idx_billing_orders_cs", "checkout_session_id"),
     )
 
 
@@ -504,7 +524,7 @@ class APIToken(Base):
     last4: Mapped[str] = mapped_column(TEXT, nullable=False)
 
     # Authorization
-    scopes: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    scopes: Mapped[Optional[list]] = mapped_column(ARRAY(TEXT), nullable=True)
 
     # Lifecycle state
     status: Mapped[str] = mapped_column(TEXT, nullable=False)
@@ -652,4 +672,113 @@ class UserTenant(Base):
         Index("idx_user_tenants_user_id", "user_id"),
         Index("idx_user_tenants_tenant_id", "tenant_id"),
         Index("idx_user_tenants_user_status", "user_id", "status"),
+    )
+
+
+# =============================================================================
+# Phase 2: Checkout Session models (DP-V1-P1-SOW §5.1, §5.2)
+# =============================================================================
+
+
+class CheckoutSession(Base):
+    """Checkout session — payment front door for Decisionproof v1.0.
+
+    Binds user_id + tenant_id + plan + amount before any PayPal order is created.
+    Guest checkout is forbidden: every session must have a resolved tenant.
+
+    State machine:
+        DRAFT → CHECKOUT_SESSION_CREATED → PAYPAL_ORDER_CREATED
+        → [APPROVED] → CAPTURE_SUBMITTED → PAID_VERIFIED
+        Any non-terminal → EXPIRED | CANCELED | FAILED
+
+    Immutable after creation:
+        user_id, tenant_id, plan_id, amount_usd_cents, currency,
+        paypal_request_id_create, paypal_request_id_capture, nonce, expires_at
+    """
+
+    __tablename__ = "checkout_sessions"
+
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True)
+
+    # Identity binding (DEC-V1-05, DEC-V1-06)
+    user_id: Mapped[str] = mapped_column(UUID(as_uuid=False), nullable=False)
+    tenant_id: Mapped[str] = mapped_column(TEXT, nullable=False)
+
+    # Purchase intent (immutable after creation)
+    plan_id: Mapped[str] = mapped_column(TEXT, nullable=False)
+    amount_usd_cents: Mapped[int] = mapped_column(BIGINT, nullable=False)
+    currency: Mapped[str] = mapped_column(TEXT, nullable=False, default="USD")
+
+    # State machine (see CHECKOUT_SESSION_TERMINAL_STATUSES)
+    status: Mapped[str] = mapped_column(
+        TEXT, nullable=False, default="CHECKOUT_SESSION_CREATED"
+    )
+
+    # PayPal-Request-Id (DEC-V1-14, DEC-V1-15): generated once at creation, never regenerated
+    paypal_request_id_create: Mapped[str] = mapped_column(TEXT, nullable=False)
+    paypal_request_id_capture: Mapped[str] = mapped_column(TEXT, nullable=False)
+
+    # PayPal order binding (null until create-order step succeeds)
+    paypal_order_id: Mapped[Optional[str]] = mapped_column(TEXT, nullable=True)
+
+    # Anti-replay nonce: 32-byte hex, never returned in API responses
+    nonce: Mapped[str] = mapped_column(TEXT, nullable=False)
+
+    # Expiry: 30-minute TTL (OI-04 LOCKED, CHECKOUT_SESSION_TTL_MINUTES=30)
+    expires_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False
+    )
+
+    # Failure tracking (populated only when status = FAILED)
+    failed_reason: Mapped[Optional[str]] = mapped_column(TEXT, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    __table_args__ = (
+        Index("idx_cs_tenant", "tenant_id"),
+        Index("idx_cs_user", "user_id"),
+        Index("idx_cs_status", "status"),
+        UniqueConstraint("paypal_request_id_create", name="uq_cs_paypal_req_create"),
+        UniqueConstraint("paypal_request_id_capture", name="uq_cs_paypal_req_capture"),
+        UniqueConstraint("paypal_order_id", name="uq_cs_paypal_order_id"),
+    )
+
+
+class CheckoutSessionEvent(Base):
+    """Immutable audit trail for checkout session state transitions.
+
+    Event types: CS_CREATED, ORDER_CREATED, CAPTURE_SUBMITTED, PAID_VERIFIED,
+                 EXPIRED, CANCELED, FAILED, REPLAY_BLOCKED
+    Actors:      SYSTEM | USER | PAYPAL_WEBHOOK
+
+    IMPORTANT: details dict must NOT contain paypal_request_id_*, nonce,
+    or any raw secret value.
+    """
+
+    __tablename__ = "checkout_session_events"
+
+    id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
+    session_id: Mapped[str] = mapped_column(UUID(as_uuid=False), nullable=False)
+    event_type: Mapped[str] = mapped_column(TEXT, nullable=False)
+    actor: Mapped[str] = mapped_column(TEXT, nullable=False, default="SYSTEM")
+    details: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    __table_args__ = (
+        Index("idx_cse_session", "session_id"),
+        Index("idx_cse_created", "created_at"),
     )

@@ -144,17 +144,22 @@ spec:
             secretKeyRef:
               name: dpp-secrets
               key: paypal-webhook-id
+        # Phase 4: Toss is DORMANT for v1.0 PayPal-only beta.
+        # optional: true prevents Pod startup failure if dpp-secrets lacks these keys.
+        # Pilot overlay overrides both to literal "" via strategic merge patch.
+        # Re-enable (remove optional + restore real secretKeyRef) when Toss reactivated.
         - name: TOSS_SECRET_KEY
           valueFrom:
             secretKeyRef:
               name: dpp-secrets
               key: toss-secret-key
+              optional: true  # Phase 4: dormant — not in dpp-secrets for v1.0 beta
         - name: TOSS_WEBHOOK_SECRET
           valueFrom:
             secretKeyRef:
               name: dpp-secrets
               key: toss-webhook-secret
-              optional: true  # TOSS_WEBHOOK_SECRET is optional (signature verification)
+              optional: true  # Phase 4: dormant — not in dpp-secrets for v1.0 beta
         # Phase 6.1: HMAC pepper for kill-switch audit fingerprinting (P5.9)
         - name: KILL_SWITCH_AUDIT_FINGERPRINT_PEPPER_B64
           valueFrom:

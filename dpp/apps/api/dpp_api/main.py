@@ -21,7 +21,7 @@ from dpp_api.context import budget_decision_var, plan_key_var, request_id_var, r
 from dpp_api.enforce import PlanViolationError
 from dpp_api.utils.sanitize import sanitize_str
 from dpp_api.rate_limiter import NoOpRateLimiter, RateLimiter
-from dpp_api.routers import admin, auth, health, internal, runs, tokens, usage, webhooks
+from dpp_api.routers import admin, auth, billing, health, internal, onboarding, runs, tokens, usage, webhooks
 from dpp_api.schemas import ProblemDetail
 from dpp_api.utils import configure_json_logging
 
@@ -372,7 +372,31 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException) 
     P0-1: Preserves dict detail fields for structured error responses (RFC 9457 compliant).
     P0 Hotfix: Adds Retry-After header for 429 responses.
     RC-2: Uses opaque instance identifier and proper domain.
+    Phase 2 patch: If exc.detail is already a RFC 9457 Problem Detail dict
+      (has top-level "type" and "status" keys), pass it through unchanged to prevent
+      double-wrapping. This preserves endpoint-specific type/title/detail from billing
+      and other routers that construct Problem Details directly.
     """
+    headers = {}
+    if exc.status_code == 429:
+        headers["Retry-After"] = "60"
+
+    # Phase 2: Pass-through already-formed RFC 9457 Problem Detail dicts unchanged.
+    # Condition: detail is a dict with "type" and "status" at top level — this is
+    # the canonical signature of a Problem Detail object from _problem() helpers.
+    if (
+        isinstance(exc.detail, dict)
+        and "type" in exc.detail
+        and "status" in exc.detail
+    ):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=exc.detail,
+            media_type="application/problem+json",
+            headers=headers,
+        )
+
+    # Generic path: construct Problem Detail from status code
     # P0-1: Don't force-cast detail to str - preserve dict if provided
     detail_value = exc.detail if exc.detail is not None else _get_title_for_status(exc.status_code)
 
@@ -387,11 +411,6 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException) 
         detail=detail_value,
         instance=instance,
     )
-
-    headers = {}
-    # P0 Hotfix: Add Retry-After header for 429 (default to 60 seconds)
-    if exc.status_code == 429:
-        headers["Retry-After"] = "60"
 
     return JSONResponse(
         status_code=exc.status_code,
@@ -499,6 +518,8 @@ app.include_router(internal.router)  # SMTP Smoke Test: Internal endpoints
 app.include_router(admin.router)  # P0-1: Admin endpoints (kill switch)
 app.include_router(webhooks.router)  # P0-2: Billing webhooks (PayPal + Toss)
 app.include_router(tokens.router)  # P0-3: Token lifecycle management
+app.include_router(billing.router)  # Phase 2: Payment front door (checkout, PayPal, capture)
+app.include_router(onboarding.router)  # Phase 2: Onboarding status
 
 
 # ============================================================================
@@ -1060,6 +1081,8 @@ def create_app(
     new_app.include_router(runs.router)
     new_app.include_router(usage.router)
     new_app.include_router(auth.router)  # Phase 2: Auth/Email Onboarding
+    new_app.include_router(billing.router)  # Phase 2: Payment front door
+    new_app.include_router(onboarding.router)  # Phase 2: Onboarding status
 
     # Test endpoint for RC-7 gate tests
     @new_app.get("/v1/test-ratelimit")

@@ -14,7 +14,7 @@ Test Coverage:
 """
 
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
 
 from dpp_api.main import app
@@ -60,7 +60,7 @@ def test_paypal_webhook_verification_failed(mock_get_client, client: TestClient)
 
     # Should return 401 (not 2xx)
     assert response.status_code == 401
-    assert "verification failed" in response.json()["detail"].lower()
+    assert "verification_status" in response.json()["detail"].lower()
 
 
 # ============================================================================
@@ -86,8 +86,11 @@ def test_paypal_capture_completed(mock_get_db, mock_get_client, client: TestClie
     )
     mock_get_client.return_value = mock_paypal
 
-    # Mock DB (simplified - would need actual DB session in real tests)
-    mock_db = AsyncMock()
+    # Mock DB — must be MagicMock (sync), not AsyncMock.
+    # try_acquire_dedup() is a sync function; AsyncMock.execute() returns a
+    # coroutine which breaks .fetchone() with AttributeError.
+    mock_db = MagicMock()
+    mock_db.execute.return_value.fetchone.return_value = None  # no existing record
     mock_get_db.return_value = iter([mock_db])
 
     webhook_payload = {

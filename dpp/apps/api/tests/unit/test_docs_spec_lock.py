@@ -43,6 +43,20 @@ ALLOWLIST = [
     # Test files can use any tokens
     ("workspace_id", "test_", "Test fixture"),
     ("plan_id", "test_", "Test fixture"),
+    # Internal escalation template (ops-only, not public API surface)
+    ("dw_live_", "human-escalation-template", "Internal ops runbook, not customer-facing API doc"),
+    ("dw_test_", "human-escalation-template", "Internal ops runbook, not customer-facing API doc"),
+    ("Decision Credits", "human-escalation-template", "Internal ops runbook, not customer-facing API doc"),
+    # Pilot execution guide (internal test/ops doc, not public docs)
+    ("sk_test_", "P0-1_EXECUTION_GUIDE", "Internal pilot execution guide"),
+    ("sk_test_", "EXECUTION_GUIDE", "Internal pilot execution guide"),
+    # pilot-pack internal spec (design doc, not public quickstart)
+    ("workspace_id", "pilot-pack", "Internal design doc — idempotency key schema"),
+    # pricing-ssot is internal pricing spec, not customer-facing
+    ("workspace_id", "pricing-ssot", "Internal pricing spec"),
+    ("Decision Credits", "pricing-ssot", "Internal pricing spec — legacy DC field name"),
+    # Billing/refund pilot docs are internal ops
+    ("Decision Credits", "04_BILLING_AND_REFUND", "Internal pilot billing ops doc"),
 ]
 
 
@@ -160,8 +174,15 @@ def test_function_calling_specs_schema_no_forbidden_fields(client: TestClient):
     assert "inputs" in required, "inputs must be required"
     assert "reservation" in required, "reservation must be required"
 
-    # Reservation sub-schema check
-    reservation_props = properties.get("reservation", {}).get("properties", {})
+    # Reservation sub-schema check.
+    # Pydantic v2 model_json_schema() uses $ref for nested models, so resolve it.
+    reservation_field = properties.get("reservation", {})
+    if "$ref" in reservation_field:
+        ref_name = reservation_field["$ref"].split("/")[-1]
+        defs = parameters.get("$defs", {})
+        reservation_props = defs.get(ref_name, {}).get("properties", {})
+    else:
+        reservation_props = reservation_field.get("properties", {})
     assert "max_cost_usd" in reservation_props, "reservation.max_cost_usd must be present"
 
 

@@ -27,7 +27,7 @@ data:
   # Production must use IAM roles via boto3 default credential chain
 
   # CORS (P1-G)
-  CORS_ALLOWED_ORIGINS: "https://app.example.com,https://dashboard.example.com"
+  CORS_ALLOWED_ORIGINS: "https://decisionproof.io.kr,https://api.decisionproof.io.kr"
 
   # Worker Configuration (P0-1: Thread-safe heartbeat)
   WORKER_HEARTBEAT_INTERVAL_SEC: "30"

@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# 🔒 PRODUCTION 안전 기본 오버레이 (ACK 미주입)
+#
+# DPP_ACK_SUPABASE_BACKUP_POLICY 는 주입하지 않는다.
+# → 체크리스트 완료 전까지 dpp-api가 Fail-Fast(CrashLoopBackOff) 상태를 유지하는 것이 의도된 동작.
+# → 체크리스트 완료 후: kubectl apply -k k8s/overlays/production-ack1
+#
+# Apply:  kubectl apply -k k8s/overlays/production
+# 참고:   ops/runbooks/db_backup_restore.md
+
+namespace: dpp-production
+
+resources:
+  - ../../base
+
+patches:
+  # production 전용 ConfigMap (SQS URL 확정 + NETWORK_RESTRICTIONS ACK 포함)
+  # DPP_ACK_SUPABASE_BACKUP_POLICY 는 미주입 — production-ack1 오버레이에서만 주입
+  - path: patch-configmap-production.yaml
+    target:
+      kind: ConfigMap
+      name: dpp-config
+
+labels:
+  - pairs:
+      environment: production
+    includeSelectors: false

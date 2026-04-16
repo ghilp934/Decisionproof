@@ -12,6 +12,11 @@ data:
   AWS_REGION: "ap-northeast-2"
   SQS_QUEUE_URL: "https://sqs.ap-northeast-2.amazonaws.com/783268398937/dpp-runs-pilot"
   S3_RESULT_BUCKET: "dpp-results-pilot"
-  CORS_ALLOWED_ORIGINS: "https://app-pilot.decisionproof.io.kr"
+  CORS_ALLOWED_ORIGINS: "https://decisionproof.io.kr,https://app-pilot.decisionproof.io.kr"
+  API_BASE_URL: "https://api-pilot.decisionproof.io.kr"
+  CHECKOUT_SITE_BASE_URL: "https://decisionproof.io.kr"
+  PAYPAL_SANDBOX_SKIP_SIG_VERIFY: "1"
   DPP_ACK_SUPABASE_NETWORK_RESTRICTIONS: "1"
-  DPP_BILLING_PREFLIGHT_REQUIRED: "0"
+  # NOTE: DPP_BILLING_PREFLIGHT_REQUIRED is set as a literal value in the Deployment spec
+  # (not via configMapKeyRef), so this ConfigMap key has no effect on the Pod env.
+  # Authoritative value: patch-api-deployment-pilot.yaml → value: "1" (fail-fast, same as prod).

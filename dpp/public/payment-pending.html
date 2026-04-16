@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>Payment Pending — Decisionproof</title>
+  <link rel="stylesheet" href="/css/dpp.css">
+</head>
+<body class="page-wrap">
+
+  <nav class="nav">
+    <div class="container nav__inner">
+      <a class="nav__logo" href="/index.html">Decision<span>proof</span></a>
+    </div>
+  </nav>
+
+  <main style="display:flex; align-items:center; justify-content:center; padding:80px 24px;">
+    <div class="text-center" style="max-width:520px;">
+
+      <!-- Polling view -->
+      <div id="pollingView">
+        <span class="spinner" style="color:var(--brand-primary); width:48px; height:48px; border-width:4px;"></span>
+        <h1 style="font-size:26px; font-weight:800; margin:28px 0 12px;">Confirming your payment…</h1>
+        <p class="text-muted mb-8">We're waiting for PayPal to confirm your payment.</p>
+        <p class="text-muted" id="elapsedMsg" style="font-size:14px;"></p>
+        <div class="alert alert--info mt-24" style="text-align:left;">
+          <strong>Do not close this tab.</strong>
+          Your payment is being processed. This usually completes in under 30 seconds.
+        </div>
+      </div>
+
+      <!-- Success (briefly shown before redirect) -->
+      <div id="successView" class="hidden">
+        <div style="font-size:56px; margin-bottom:16px;">🎉</div>
+        <h1 style="font-size:26px; font-weight:800; margin:0 0 12px;">Payment confirmed!</h1>
+        <p class="text-muted">Redirecting to your onboarding dashboard…</p>
+      </div>
+
+      <!-- Timeout view -->
+      <div id="timeoutView" class="hidden">
+        <div style="font-size:56px; margin-bottom:16px;">⏳</div>
+        <h1 style="font-size:26px; font-weight:800; margin:0 0 12px;">Still processing…</h1>
+        <p class="text-muted mb-24">
+          Payment confirmation is taking longer than expected.
+          Check your email from PayPal for confirmation details.
+        </p>
+        <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+          <a href="/contact.html" class="btn btn--outline">Contact Support</a>
+          <a href="/onboarding.html" class="btn btn--primary">Go to Dashboard</a>
+        </div>
+      </div>
+
+      <!-- Failed view -->
+      <div id="failedView" class="hidden">
+        <div style="font-size:56px; margin-bottom:16px;">❌</div>
+        <h1 style="font-size:26px; font-weight:800; margin:0 0 12px;">Payment failed</h1>
+        <p class="text-muted mb-24">Something went wrong with your payment. No charge was made.</p>
+        <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+          <a href="/contact.html" class="btn btn--outline">Contact Support</a>
+          <a href="/checkout.html" class="btn btn--primary">Try Again</a>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__inner">
+      <p class="footer__copy">&copy; 2026 D_FFERENT. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script type="module">
+    import { requireAuth } from '/js/auth-state.js';
+    import { api } from '/js/dpp-api.js';
+
+    requireAuth('/payment-pending.html');
+
+    const POLL_INTERVAL = 3000;
+    const POLL_TIMEOUT  = 300_000; // 5 minutes
+    const startedAt     = Date.now();
+
+    function show(id) {
+      ['pollingView','successView','timeoutView','failedView'].forEach(v => {
+        document.getElementById(v).classList.toggle('hidden', v !== id);
+      });
+    }
+
+    // Update elapsed time display
+    function updateElapsed() {
+      const sec = Math.round((Date.now() - startedAt) / 1000);
+      const el  = document.getElementById('elapsedMsg');
+      if (el && sec >= 3) el.textContent = `Checking for ${sec}s…`;
+    }
+
+    async function poll() {
+      updateElapsed();
+
+      if (Date.now() - startedAt > POLL_TIMEOUT) {
+        show('timeoutView');
+        return;
+      }
+
+      try {
+        const status = await api.get('/v1/onboarding/status');
+
+        if (status.steps.entitlement_active) {
+          show('successView');
+          setTimeout(() => { window.location.href = '/onboarding.html'; }, 1800);
+          return;
+        }
+
+        const csStatus = status.checkout_session_status;
+        if (csStatus === 'FAILED') {
+          show('failedView');
+          return;
+        }
+
+        // Still pending (CAPTURE_SUBMITTED, PAYPAL_ORDER_CREATED, etc.) — keep polling
+        setTimeout(poll, POLL_INTERVAL);
+
+      } catch (_) {
+        // Network issue — keep polling
+        setTimeout(poll, POLL_INTERVAL);
+      }
+    }
+
+    // Start polling
+    setTimeout(poll, POLL_INTERVAL);
+  </script>
+
+</body>
+</html>

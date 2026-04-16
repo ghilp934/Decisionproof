@@ -126,7 +126,7 @@ For production deployments, use a secrets manager:
 **Symptom**: 401 error with `AUTH_MISSING` or `AUTH_INVALID`
 
 **Solutions**:
-1. Check header name: Must be `Authorization` (not `X-API-Key`)
+1. Check header name: Must be `Authorization` with `Bearer` scheme
 2. Check header value: Must start with `Bearer ` (note the space)
 3. Check token format: `sk_{key_id}_{secret}` (no environment prefix)
 4. Verify token is not expired (contact support to check status)

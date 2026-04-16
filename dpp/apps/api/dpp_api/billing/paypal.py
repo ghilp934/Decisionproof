@@ -1,7 +1,8 @@
-"""PayPal Orders API client for P0-2 Paid Pilot.
+"""PayPal Orders API client.
 
 DEC-P02-1: Provider 이원화 (PayPal)
 DEC-P02-5: Webhook 검증 정책
+DEC-V1-14/15: PayPal-Request-Id mandatory on create and capture.
 
 PayPal API Reference:
 - Orders API v2: https://developer.paypal.com/docs/api/orders/v2/
@@ -82,9 +83,9 @@ class PayPalClient:
         currency: str,
         internal_order_id: str,
         plan_id: str,
+        request_id: str,
         return_url: Optional[str] = None,
         cancel_url: Optional[str] = None,
-        request_id: Optional[str] = None,
     ) -> dict:
         """Create PayPal order with CAPTURE intent.
 
@@ -93,9 +94,10 @@ class PayPalClient:
             currency: Currency code (USD, EUR, etc.)
             internal_order_id: Internal order ID for reference
             plan_id: Plan ID being purchased
-            return_url: URL to redirect after approval (optional)
-            cancel_url: URL to redirect on cancel (optional)
-            request_id: PayPal-Request-Id for idempotency (optional)
+            request_id: PayPal-Request-Id for idempotency (MANDATORY — DEC-V1-14)
+                        Must be generated at checkout session creation and passed unchanged.
+            return_url: URL to redirect after buyer approval
+            cancel_url: URL to redirect on buyer cancel
 
         Returns:
             PayPal order response dict
@@ -106,14 +108,14 @@ class PayPalClient:
         access_token = await self.get_access_token()
         url = f"{self.base_url}/v2/checkout/orders"
 
+        # CHECKOUT_SITE_BASE_URL is locked to https://decisionproof.io.kr (DEC-V1-16)
+        site_base = os.getenv("CHECKOUT_SITE_BASE_URL", "https://decisionproof.io.kr")
+
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {access_token}",
+            "PayPal-Request-Id": request_id,  # Mandatory — DEC-V1-14
         }
-
-        # PayPal-Request-Id for idempotency
-        if request_id:
-            headers["PayPal-Request-Id"] = request_id
 
         # Build order request
         order_request = {
@@ -133,8 +135,8 @@ class PayPalClient:
                 "brand_name": "Decisionproof",
                 "landing_page": "NO_PREFERENCE",
                 "user_action": "PAY_NOW",
-                "return_url": return_url or "https://api.decisionproof.ai/billing/paypal/return",
-                "cancel_url": cancel_url or "https://api.decisionproof.ai/billing/paypal/cancel",
+                "return_url": return_url or f"{site_base}/payment-pending.html",
+                "cancel_url": cancel_url or f"{site_base}/payment-pending.html?cancelled=1",
             },
         }
 
@@ -155,12 +157,13 @@ class PayPalClient:
             )
             return result
 
-    async def capture_order(self, paypal_order_id: str, request_id: Optional[str] = None) -> dict:
+    async def capture_order(self, paypal_order_id: str, request_id: str) -> dict:
         """Capture payment for approved PayPal order.
 
         Args:
             paypal_order_id: PayPal order ID
-            request_id: PayPal-Request-Id for idempotency (optional)
+            request_id: PayPal-Request-Id for idempotency (MANDATORY — DEC-V1-15)
+                        Must be generated at checkout session creation and passed unchanged.
 
         Returns:
             Capture response dict
@@ -174,10 +177,8 @@ class PayPalClient:
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {access_token}",
+            "PayPal-Request-Id": request_id,  # Mandatory — DEC-V1-15
         }
-
-        if request_id:
-            headers["PayPal-Request-Id"] = request_id
 
         async with httpx.AsyncClient() as client:
             response = await client.post(url, headers=headers, json={}, timeout=30.0)

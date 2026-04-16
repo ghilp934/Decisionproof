@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+# Supabase Region Migration - Environment Variables Template
+#
+# Usage:
+#   1. Copy this file: cp migration_env.sh.template migration_env.sh
+#   2. Fill in all [REPLACE_*] values
+#   3. Run migration: bash execute_supabase_migration.sh migration_env.sh
+#
+# SECURITY WARNING:
+#   - This file contains SECRETS (service role keys, passwords)
+#   - DO NOT commit to git (.gitignore에 migration_env.sh 추가됨)
+#   - Keep this file in a secure location (password manager, vault)
+
+# ========================================
+# OLD Project (Decisionproof_Paid_Pilot)
+# ========================================
+
+# Project Reference ID (Supabase Dashboard → Settings → General)
+export OLD_PROJECT_REF="[REPLACE_WITH_OLD_PROJECT_REF]"
+
+# Database URL (Settings → Database → Connection string → Transaction Mode)
+# Format: postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-ap-southeast-2.pooler.supabase.com:6543/postgres?sslmode=require
+export OLD_DB_URL="postgresql://postgres.${OLD_PROJECT_REF}:[REPLACE_WITH_DB_PASSWORD]@aws-0-ap-southeast-2.pooler.supabase.com:6543/postgres?sslmode=require"
+
+# Project URL
+export OLD_PROJECT_URL="https://${OLD_PROJECT_REF}.supabase.co"
+
+# Service Role Key (Settings → API → service_role key) — SECRET!
+export OLD_SERVICE_ROLE_KEY="[REPLACE_WITH_OLD_SERVICE_ROLE_KEY]"
+
+# ========================================
+# NEW Project (Decisionproof / Seoul)
+# ========================================
+
+# Project Reference ID
+export NEW_PROJECT_REF="[REPLACE_WITH_NEW_PROJECT_REF]"
+
+# Database URL (Seoul region: ap-northeast-2)
+export NEW_DB_URL="postgresql://postgres.${NEW_PROJECT_REF}:[REPLACE_WITH_DB_PASSWORD]@aws-0-ap-northeast-2.pooler.supabase.com:6543/postgres?sslmode=require"
+
+# Project URL
+export NEW_PROJECT_URL="https://${NEW_PROJECT_REF}.supabase.co"
+
+# Service Role Key — SECRET!
+export NEW_SERVICE_ROLE_KEY="[REPLACE_WITH_NEW_SERVICE_ROLE_KEY]"
+
+# Anon Key (Settings → API → anon key) — PUBLIC (but still sensitive)
+export NEW_ANON_KEY="[REPLACE_WITH_NEW_ANON_KEY]"
+
+# ========================================
+# Migration Strategy
+# ========================================
+
+# JWT Token Strategy (REQUIRED)
+# Options:
+#   - "FORCE_RELOGIN" (권장): NEW project의 JWT Secret 유지, 모든 사용자 재로그인 필요
+#   - "KEEP_SESSIONS": OLD JWT Secret을 NEW에 복사, 기존 세션 유지 (수동 작업 필요)
+export JWT_STRATEGY="FORCE_RELOGIN"
+
+# Auth/Storage 스키마 커스텀 변경 여부
+# yes: Supabase CLI로 auth,storage diff 추출/적용
+# no: 기본 스키마만 사용 (권장)
+export HAS_CUSTOM_AUTH_OR_STORAGE_CHANGES="no"
+
+# supabase_migrations 테이블 복사 여부
+# yes: Migration history 유지 (supabase migrations 사용 시)
+# no: Migration history 불필요
+export MIGRATION_HISTORY_NEEDED="yes"
+
+# Edge Functions 존재 여부
+# yes: Edge Functions 수동 마이그레이션 필요
+# no: Edge Functions 없음
+export HAS_EDGE_FUNCTIONS="no"
+
+# Storage Objects 존재 여부
+# yes: Storage 객체 자동 마이그레이션 실행
+# no: Storage 객체 없음
+export HAS_STORAGE_OBJECTS="yes"
+
+# ========================================
+# Backup Configuration
+# ========================================
+
+# 백업 디렉토리 (타임스탬프 자동 추가)
+export MIGRATION_BACKUP_DIR="./supabase_migration_backups/$(date +%Y%m%d_%H%M%S)"
+
+# ========================================
+# Verification
+# ========================================
+
+# 설정 검증 (실행 전 확인)
+echo "================================================================="
+echo "Supabase Migration Environment Configuration"
+echo "================================================================="
+echo "OLD Project: $OLD_PROJECT_REF (ap-southeast-2)"
+echo "NEW Project: $NEW_PROJECT_REF (ap-northeast-2)"
+echo "JWT Strategy: $JWT_STRATEGY"
+echo "Storage Objects: $HAS_STORAGE_OBJECTS"
+echo "Edge Functions: $HAS_EDGE_FUNCTIONS"
+echo "Backup Dir: $MIGRATION_BACKUP_DIR"
+echo "================================================================="
+echo ""
+echo "⚠️  SECURITY CHECK:"
+echo "  - Service Role Keys are SET (length check)"
+echo "  - OLD_SERVICE_ROLE_KEY: ${#OLD_SERVICE_ROLE_KEY} chars"
+echo "  - NEW_SERVICE_ROLE_KEY: ${#NEW_SERVICE_ROLE_KEY} chars"
+echo ""
+
+if [ ${#OLD_SERVICE_ROLE_KEY} -lt 100 ] || [ ${#NEW_SERVICE_ROLE_KEY} -lt 100 ]; then
+  echo "⚠️  WARNING: Service Role Keys seem too short. Please verify."
+fi
+
+if [[ "$OLD_DB_URL" == *"[REPLACE"* ]] || [[ "$NEW_DB_URL" == *"[REPLACE"* ]]; then
+  echo "❌ ERROR: Database URLs contain placeholder values"
+  echo "   Please replace all [REPLACE_*] values with actual credentials"
+  exit 1
+fi
+
+echo "✅ Configuration file validated (basic checks passed)"
+echo ""
+echo "Next step: bash execute_supabase_migration.sh migration_env.sh"
+echo "================================================================="

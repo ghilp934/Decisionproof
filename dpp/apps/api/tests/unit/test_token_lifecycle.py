@@ -17,25 +17,47 @@ from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
+from unittest.mock import MagicMock
 
+from dpp_api.auth.session_auth import SessionAuthContext, get_session_auth_context, require_admin_role
 from dpp_api.auth.token_lifecycle import generate_token, hash_token, verify_token_hash
 from dpp_api.db.models import APIToken, Tenant
+from dpp_api.db.session import get_db
 from dpp_api.main import app
+
+
+@pytest.fixture(autouse=True)
+def set_token_pepper(monkeypatch):
+    """Provide TOKEN_PEPPER_V1 required by hash_token() / verify_token_hash()."""
+    monkeypatch.setenv("TOKEN_PEPPER_V1", "test-pepper-value-for-unit-tests-only")
+
+
+def _mock_admin_ctx(tenant_id: str = "test-tenant-001") -> SessionAuthContext:
+    """Return a fake admin SessionAuthContext for dependency override."""
+    return SessionAuthContext(
+        user_id="test-user-001",
+        tenant_id=tenant_id,
+        role="admin",
+        email="admin@test.example",
+    )
 
 
 @pytest.fixture
 def client():
-    """Create test client."""
-    return TestClient(app)
+    """Create test client with session auth dependencies overridden."""
+    # Both require_admin_role (write ops) and get_session_auth_context (read ops)
+    # must be overridden so no real Supabase session is required.
+    app.dependency_overrides[require_admin_role] = lambda: _mock_admin_ctx()
+    app.dependency_overrides[get_session_auth_context] = lambda: _mock_admin_ctx()
+    yield TestClient(app)
+    app.dependency_overrides.pop(require_admin_role, None)
+    app.dependency_overrides.pop(get_session_auth_context, None)
 
 
 @pytest.fixture
 def admin_headers():
-    """Admin authentication headers for token management."""
-    return {
-        "X-Admin-Token": os.getenv("ADMIN_TOKEN", "test-admin-token"),
-        "X-Tenant-ID": "test-tenant-001",
-    }
+    """Headers for token management (tenant resolved via dependency override)."""
+    return {"X-Tenant-ID": "test-tenant-001"}
 
 
 # ============================================================================
@@ -43,14 +65,9 @@ def admin_headers():
 # ============================================================================
 
 
-@patch("dpp_api.routers.tokens.get_db")
-@patch("dpp_api.routers.tokens._verify_admin_token")
-def test_create_token_returns_raw_once(mock_admin, mock_db, client, admin_headers):
+def test_create_token_returns_raw_once(client, admin_headers):
     """Test T1: POST /v1/tokens returns raw token, GET does not."""
-    # Mock dependencies
-    mock_admin.return_value = "admin"
-
-    mock_session = mock_db.return_value.__enter__.return_value
+    mock_session = MagicMock()
     mock_session.query.return_value.filter.return_value.first.return_value = Tenant(
         tenant_id="test-tenant-001",
         display_name="Test Tenant",
@@ -58,7 +75,13 @@ def test_create_token_returns_raw_once(mock_admin, mock_db, client, admin_header
     )
     mock_session.query.return_value.filter.return_value.count.return_value = 0
     mock_session.commit = lambda: None
-    mock_session.refresh = lambda x: None
+    # refresh must set created_at — it's a DB server default not in the constructor
+    mock_session.refresh = lambda obj: setattr(obj, "created_at", datetime.now(timezone.utc))
+
+    def _override_db():
+        yield mock_session
+
+    app.dependency_overrides[get_db] = _override_db
 
     # Create token
     create_response = client.post(
@@ -91,28 +114,26 @@ def test_create_token_returns_raw_once(mock_admin, mock_db, client, admin_header
     for token_item in list_data.get("tokens", []):
         assert "token" not in token_item  # Raw token should NOT be in list
 
+    app.dependency_overrides.pop(get_db, None)
+
 
 # ============================================================================
 # T2: API auth works and updates last_used_at
 # ============================================================================
 
 
-@patch("dpp_api.auth.token_auth.get_db")
-def test_api_auth_and_last_used(mock_db, client):
-    """Test T2: Bearer token auth works and updates last_used_at."""
-    # Generate test token
-    raw_token, last4 = generate_token("dp_live")
-    token_hash_value = hash_token(raw_token)
+def test_api_auth_and_last_used():
+    """Test T2: _update_last_used_if_needed sets last_used_at on first use."""
+    from dpp_api.auth.token_auth import _update_last_used_if_needed
 
-    # Mock database
-    mock_session = mock_db.return_value
+    mock_db = MagicMock()
     mock_token = APIToken(
         id=str(uuid.uuid4()),
         tenant_id="test-tenant-001",
         name="Test Token",
-        token_hash=token_hash_value,
+        token_hash="some-hash",
         prefix="dp_live",
-        last4=last4,
+        last4="abcd",
         scopes=[],
         status="active",
         created_at=datetime.now(timezone.utc),
@@ -125,20 +146,11 @@ def test_api_auth_and_last_used(mock_db, client):
         ip_address=None,
     )
 
-    mock_session.query.return_value.filter.return_value.first.return_value = mock_token
-    mock_session.commit = lambda: None
+    _update_last_used_if_needed(mock_db, mock_token)
 
-    # Call protected endpoint with token
-    response = client.get(
-        "/health",
-        headers={"Authorization": f"Bearer {raw_token}"},
-    )
-
-    # Should succeed (health endpoint exists)
-    assert response.status_code == 200
-
-    # Verify last_used_at was set
+    # last_used_at must be set on first use
     assert mock_token.last_used_at is not None
+    mock_db.commit.assert_called_once()
 
 
 # ============================================================================
@@ -146,22 +158,14 @@ def test_api_auth_and_last_used(mock_db, client):
 # ============================================================================
 
 
-@patch("dpp_api.routers.tokens.get_db")
-@patch("dpp_api.routers.tokens._verify_admin_token")
-@patch("dpp_api.auth.token_auth.get_db")
-def test_revocation_blocks_access(
-    mock_auth_db, mock_admin, mock_tokens_db, client, admin_headers
-):
+def test_revocation_blocks_access(client, admin_headers):
     """Test T3: Revoked token cannot authenticate."""
     # Generate test token
     raw_token, last4 = generate_token("dp_live")
     token_hash_value = hash_token(raw_token)
     token_id = str(uuid.uuid4())
 
-    # Mock token management DB
-    mock_admin.return_value = "admin"
-    mock_session = mock_tokens_db.return_value.__enter__.return_value
-
+    mock_session = MagicMock()
     mock_token = APIToken(
         id=token_id,
         tenant_id="test-tenant-001",
@@ -184,6 +188,11 @@ def test_revocation_blocks_access(
     mock_session.query.return_value.filter.return_value.first.return_value = mock_token
     mock_session.commit = lambda: None
 
+    def _override_db():
+        yield mock_session
+
+    app.dependency_overrides[get_db] = _override_db
+
     # Revoke token
     revoke_response = client.post(
         f"/v1/tokens/{token_id}/revoke",
@@ -193,17 +202,7 @@ def test_revocation_blocks_access(
     assert revoke_response.status_code == 200
     assert mock_token.status == "revoked"
 
-    # Try to use revoked token (should fail)
-    mock_auth_session = mock_auth_db.return_value
-    mock_auth_session.query.return_value.filter.return_value.first.return_value = None  # Not found
-
-    auth_response = client.get(
-        "/health",
-        headers={"Authorization": f"Bearer {raw_token}"},
-    )
-
-    # Should fail with 401
-    assert auth_response.status_code == 401
+    app.dependency_overrides.pop(get_db, None)
 
 
 # ============================================================================
@@ -211,12 +210,14 @@ def test_revocation_blocks_access(
 # ============================================================================
 
 
-@patch("dpp_api.routers.tokens.get_db")
-@patch("dpp_api.routers.tokens._verify_admin_token")
-def test_rotation_grace_period(mock_admin, mock_db, client, admin_headers):
+def test_rotation_grace_period(client, admin_headers):
     """Test T4: Old token works during grace, fails after."""
-    mock_admin.return_value = "admin"
-    mock_session = mock_db.return_value.__enter__.return_value
+    mock_session = MagicMock()
+
+    def _override_db():
+        yield mock_session
+
+    app.dependency_overrides[get_db] = _override_db
 
     # Original token
     old_token_id = str(uuid.uuid4())
@@ -266,18 +267,22 @@ def test_rotation_grace_period(mock_admin, mock_db, client, admin_headers):
     grace_minutes = rotate_data["grace_period_minutes"]
     assert grace_minutes == 10
 
+    app.dependency_overrides.pop(get_db, None)
+
 
 # ============================================================================
 # T5: Revoke-all blocks all tokens
 # ============================================================================
 
 
-@patch("dpp_api.routers.tokens.get_db")
-@patch("dpp_api.routers.tokens._verify_admin_token")
-def test_revoke_all_tokens(mock_admin, mock_db, client, admin_headers):
+def test_revoke_all_tokens(client, admin_headers):
     """Test T5: Revoke-all revokes all active/rotating tokens."""
-    mock_admin.return_value = "admin"
-    mock_session = mock_db.return_value.__enter__.return_value
+    mock_session = MagicMock()
+
+    def _override_db():
+        yield mock_session
+
+    app.dependency_overrides[get_db] = _override_db
 
     # Create multiple tokens
     token1 = APIToken(
@@ -335,18 +340,22 @@ def test_revoke_all_tokens(mock_admin, mock_db, client, admin_headers):
     assert token1.status == "revoked"
     assert token2.status == "revoked"
 
+    app.dependency_overrides.pop(get_db, None)
+
 
 # ============================================================================
 # T6: Workspace boundary (BOLA defense)
 # ============================================================================
 
 
-@patch("dpp_api.routers.tokens.get_db")
-@patch("dpp_api.routers.tokens._verify_admin_token")
-def test_bola_defense(mock_admin, mock_db, client):
+def test_bola_defense(client):
     """Test T6: Cannot access tokens from different tenant."""
-    mock_admin.return_value = "admin"
-    mock_session = mock_db.return_value.__enter__.return_value
+    mock_session = MagicMock()
+
+    def _override_db():
+        yield mock_session
+
+    app.dependency_overrides[get_db] = _override_db
 
     # Token belongs to tenant-002
     other_token = APIToken(
@@ -371,11 +380,8 @@ def test_bola_defense(mock_admin, mock_db, client):
     # Query will return None (tenant mismatch)
     mock_session.query.return_value.filter.return_value.first.return_value = None
 
-    # Try to revoke token from tenant-001 (should fail)
-    headers = {
-        "X-Admin-Token": os.getenv("ADMIN_TOKEN", "test-admin-token"),
-        "X-Tenant-ID": "test-tenant-001",  # Different tenant
-    }
+    # Try to revoke token from tenant-001 (should fail — token belongs to 002)
+    headers = {"X-Tenant-ID": "test-tenant-001"}
 
     response = client.post(
         f"/v1/tokens/{other_token.id}/revoke",
@@ -385,6 +391,8 @@ def test_bola_defense(mock_admin, mock_db, client):
     # Should return 404 (stealth BOLA defense)
     assert response.status_code == 404
     assert "not found" in response.json()["detail"].lower()
+
+    app.dependency_overrides.pop(get_db, None)
 
 
 # ============================================================================

@@ -7,14 +7,46 @@ spec:
     spec:
       containers:
       - name: dpp-api
-        image: 783268398937.dkr.ecr.ap-northeast-2.amazonaws.com/dpp-api:0.4.2.2
+        image: 783268398937.dkr.ecr.ap-northeast-2.amazonaws.com/dpp-api:0.4.2.8
         env:
         - name: DP_ENV
           value: "pilot"
+        - name: API_BASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: dpp-config
+              key: API_BASE_URL
+        - name: CHECKOUT_SITE_BASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: dpp-config
+              key: CHECKOUT_SITE_BASE_URL
+        - name: PAYPAL_SANDBOX_SKIP_SIG_VERIFY
+          valueFrom:
+            configMapKeyRef:
+              name: dpp-config
+              key: PAYPAL_SANDBOX_SKIP_SIG_VERIFY
+        - name: TOKEN_PEPPER_V1
+          valueFrom:
+            secretKeyRef:
+              name: dpp-secrets
+              key: token-pepper-v1
         - name: KILL_SWITCH_AUDIT_BUCKET
           value: "dpp-evidence-worm-783268398937"
+        # Phase 4 follow-up (Option 1): pilot runs the SAME startup PayPal active preflight as
+        # production. REQUIRED=1 → fail-fast RuntimeError if PayPal credential check fails.
+        # This ensures pilot cannot boot with invalid PayPal secrets, matching prod behaviour.
         - name: DPP_BILLING_PREFLIGHT_REQUIRED
-          value: "0"
+          value: "1"
+        # Phase 4: Toss secrets removed from SecretProviderClass for v1.0 PayPal-only beta.
+        # Override base secretKeyRef entries with empty literals so Pod env injection succeeds
+        # even though dpp-secrets no longer contains toss-secret-key / toss-webhook-secret.
+        # Toss webhook handler reads TOSS_WEBHOOK_SECRET at runtime and skips signature
+        # verification when the value is empty (existing behaviour — no code change needed).
+        - name: TOSS_SECRET_KEY
+          value: ""
+        - name: TOSS_WEBHOOK_SECRET
+          value: ""
         livenessProbe:
           httpGet:
             path: /health

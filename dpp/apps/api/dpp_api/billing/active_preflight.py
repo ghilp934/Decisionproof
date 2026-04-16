@@ -1,10 +1,16 @@
-"""Phase 6.1: Billing secrets active healthcheck (startup-time only).
+"""Phase 6.1 / Phase 4: Billing secrets active healthcheck (startup-time only).
 
 Purpose
 -------
-Validates that injected PayPal / Toss secrets are *working* credentials,
+Validates that injected PayPal secrets are *working* credentials,
 not merely *present* strings, by performing the lightest possible
-authenticated request to each provider's API.
+authenticated request to the PayPal API.
+
+Phase 4 change (v1.0 PayPal-only beta):
+  Toss is EXCLUDED from the startup-critical preflight path.
+  _check_toss() is preserved in this file for Phase 4+ reactivation,
+  but is NOT called from run_billing_secrets_active_preflight().
+  A missing or invalid Toss secret must not block startup or readyz.
 
 Rules (NON-NEGOTIABLE)
 -----------------------
@@ -24,7 +30,7 @@ Usage
 
     # In readyz handler (no network call):
     from dpp_api.billing.active_preflight import get_billing_preflight_status
-    status = get_billing_preflight_status()  # {"paypal": "ok", "toss": "ok"} | errors
+    status = get_billing_preflight_status()  # {"paypal": "ok"} | errors (v1.0)
 """
 
 from __future__ import annotations
@@ -49,8 +55,11 @@ _preflight_result: dict[str, str] | None = None  # None = not yet run
 def get_billing_preflight_status() -> dict[str, str]:
     """Return the cached billing preflight result (no network call).
 
+    Phase 4 (v1.0 PayPal-only): returns {"paypal": "ok"|"err:..."}.
+    Toss key is absent — a missing Toss result is not a failure.
+
     Returns:
-        Dict with keys "paypal" and "toss", values like "ok" or "err:<code>".
+        Dict with key "paypal", value "ok" or "err:<code>".
         If preflight has not run yet (e.g., disabled), returns {"status": "skipped"}.
     """
     if _preflight_result is None:
@@ -167,9 +176,12 @@ async def _check_paypal(timeout: float) -> str:
 
 # ---------------------------------------------------------------------------
 # Toss active check
+# Phase 4: DORMANT — not called from run_billing_secrets_active_preflight().
+# Preserved for Phase 4+ reactivation when Toss is re-enabled as a provider.
+# To reactivate: add `result["toss"] = await _check_toss(timeout)` below.
 # ---------------------------------------------------------------------------
 
-async def _check_toss(timeout: float) -> str:
+async def _check_toss(timeout: float) -> str:  # noqa: DORMANT_PHASE4
     """GET /v1/payments/orders/{probe_id} — auth probe only.
 
     Uses a synthetic orderId that will never exist in the system.
@@ -257,17 +269,20 @@ async def _check_toss(timeout: float) -> str:
 # ---------------------------------------------------------------------------
 
 async def run_billing_secrets_active_preflight() -> dict[str, Any]:
-    """Run PayPal + Toss active preflight checks.
+    """Run PayPal active preflight check (PayPal-only for v1.0 beta).
 
     Called ONCE from startup_event(). Results cached in module state.
     Subsequent calls are no-ops (idempotent guard).
 
+    Phase 4: Toss check is EXCLUDED from this path.
+    A missing or invalid Toss secret does NOT block startup or readyz.
+
     Returns:
-        {"paypal": "ok"|"err:...", "toss": "ok"|"err:..."}
+        {"paypal": "ok"|"err:..."}
 
     Raises:
-        RuntimeError("BILLING_SECRET_PREFLIGHT_FAILED:...:...")
-            if DPP_BILLING_PREFLIGHT_REQUIRED=1 and any check fails.
+        RuntimeError("BILLING_SECRET_PREFLIGHT_FAILED:paypal:...")
+            if DPP_BILLING_PREFLIGHT_REQUIRED=1 and PayPal check fails.
     """
     global _preflight_result
 
@@ -278,21 +293,19 @@ async def run_billing_secrets_active_preflight() -> dict[str, Any]:
     timeout = _get_timeout()
     result: dict[str, str] = {}
 
-    # PayPal
+    # PayPal — launch-critical for v1.0 beta
     paypal_status = await _check_paypal(timeout)
     result["paypal"] = paypal_status
 
-    # Toss
-    toss_status = await _check_toss(timeout)
-    result["toss"] = toss_status
+    # Toss — Phase 4: EXCLUDED (not launch-critical for v1.0 PayPal-only beta)
+    # To re-enable Toss: result["toss"] = await _check_toss(timeout)
 
     _preflight_result = result
 
-    all_ok = all(v == "ok" for v in result.values())
-    if all_ok:
+    if result.get("paypal") == "ok":
         logger.info(
             "BILLING_SECRET_PREFLIGHT_OK",
-            extra={"providers": "paypal,toss"},
+            extra={"providers": "paypal"},
         )
     else:
         failed = [k for k, v in result.items() if v != "ok"]

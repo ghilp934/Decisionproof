@@ -164,14 +164,10 @@ curl -X POST https://api.decisionproof.ai/v1/runs \
   -H "Authorization: Bearer eyJhbGc..." \
   -H "Content-Type: application/json" \
   -d '{
-    "workspace_id": "ws_abc123",
-    "run_id": "run_unique_001",
-    "plan_id": "plan_xyz789",
-    "input": {"question": "What is 2+2?"}
+    "pack_type": "decision",
+    "inputs": {"question": "What is 2+2?"}
   }'
 ```
-
-**Note**: API Key authentication (`X-API-Key` header) remains supported for backward compatibility.
 
 ## Token Management
 

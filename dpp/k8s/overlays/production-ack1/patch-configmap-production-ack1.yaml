@@ -1,0 +1,18 @@
+# patch-configmap-production-ack1.yaml
+# Strategic Merge Patch: dpp-config ConfigMap 에 DPP_ACK_SUPABASE_BACKUP_POLICY="1" 추가
+#
+# ⚠️ 이 파일은 ops/runbooks/db_backup_restore.md 체크리스트 완료 후에만 활성화됩니다.
+#    체크리스트 없이 이 값을 "1"로 설정하면 미검증 상태로 production 운영이 이루어집니다.
+#
+# 주입 경로:
+#   ConfigMap key  → 이 파일
+#   Deployment env → patch-api-deployment-production-ack1.yaml (configMapKeyRef 참조)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dpp-config
+  namespace: dpp-production
+data:
+  # ⚠️ ops/runbooks/db_backup_restore.md 체크리스트 완료(리허설 포함) 후에만 이 값 적용
+  # Phase 5 Supabase 백업 정책 ACK — production 가드레일 해제
+  DPP_ACK_SUPABASE_BACKUP_POLICY: "1"

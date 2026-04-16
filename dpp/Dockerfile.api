@@ -26,6 +26,9 @@ COPY apps/api/dpp_api ./apps/api/dpp_api
 COPY alembic ./alembic
 COPY alembic.ini ./
 
+# Copy frontend static files (served at / by FastAPI StaticFiles)
+COPY public ./public
+
 # P0-1: Set PYTHONPATH for API module imports
 ENV PYTHONPATH="/app/apps/api:${PYTHONPATH}"
 

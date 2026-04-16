@@ -9,7 +9,7 @@ spec:
     spec:
       containers:
       - name: dpp-worker
-        image: 783268398937.dkr.ecr.ap-northeast-2.amazonaws.com/dpp-worker:0.4.2.2
+        image: 783268398937.dkr.ecr.ap-northeast-2.amazonaws.com/dpp-worker:0.4.2.8
         # PILOT: 비용 절감용 리소스 캡 (base: 2Gi/1CPU)
         resources:
           requests:

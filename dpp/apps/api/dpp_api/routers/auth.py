@@ -5,7 +5,7 @@ Phase 2: Supabase Auth + AWS SES SMTP integration.
 Endpoints:
 - POST /v1/auth/signup: Email signup with confirmation email
 - POST /v1/auth/login: Email login (returns JWT session)
-- GET /v1/auth/confirmed: Email confirmation landing page (HTML)
+- GET /v1/auth/confirmed: Email confirmation redirect → decisionproof.io.kr/login.html?confirmed=1
 - GET /v1/auth/recovery: Password recovery landing page (HTML, future)
 
 SECURITY:
@@ -20,7 +20,7 @@ import os
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from dpp_api.context import request_id_var
@@ -315,88 +315,26 @@ async def login(request: LoginRequest) -> AuthResponse:
         )
 
 
-@router.get("/confirmed", response_class=HTMLResponse)
-async def email_confirmed() -> HTMLResponse:
-    """Email confirmation landing page.
+@router.get("/confirmed")
+async def email_confirmed() -> RedirectResponse:
+    """Email confirmation redirect — Phase 3 (B-03).
 
-    Phase 2: Simple HTML page shown after user clicks email confirmation link.
-
-    This is NOT a SPA - just a static message telling the user they can close the tab.
+    Redirects to the frontend login page with ?confirmed=1 after the user
+    clicks the Supabase confirmation link. API domain MUST NOT be the landing
+    page — redirect to CHECKOUT_SITE_BASE_URL immediately (locked, DEC-V1-B03).
 
     Security:
-    - Query string parameters (token, etc.) are NOT logged
-    - No sensitive information displayed
-    - No redirects (prevents phishing)
+    - Query string parameters (token, etc.) from Supabase are NOT forwarded
+    - Destination is controlled via env var only — no user-supplied redirects
+    - 302 (not 301) so browsers re-check on each request
 
     Returns:
-        200 OK with HTML content
+        302 Redirect to {CHECKOUT_SITE_BASE_URL}/login.html?confirmed=1
     """
-    html_content = """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Email Confirmed - Decisionproof</title>
-        <style>
-            body {
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 100vh;
-                margin: 0;
-                padding: 20px;
-            }
-            .container {
-                background: white;
-                border-radius: 12px;
-                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-                padding: 40px;
-                max-width: 500px;
-                text-align: center;
-            }
-            .icon {
-                font-size: 64px;
-                margin-bottom: 20px;
-            }
-            h1 {
-                color: #333;
-                font-size: 28px;
-                margin-bottom: 16px;
-            }
-            p {
-                color: #666;
-                font-size: 16px;
-                line-height: 1.6;
-                margin-bottom: 24px;
-            }
-            .footer {
-                color: #999;
-                font-size: 14px;
-                margin-top: 32px;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="icon">✅</div>
-            <h1>Email Confirmed</h1>
-            <p>Your email address has been successfully confirmed.</p>
-            <p>You can now close this tab and return to your application to log in.</p>
-            <div class="footer">
-                <p>Decisionproof API Platform</p>
-            </div>
-        </div>
-    </body>
-    </html>
-    """
-
-    # Log confirmation (without query params)
-    logger.info("auth.email_confirmed.view")
-
-    return HTMLResponse(content=html_content, status_code=200)
+    site_base = os.getenv("CHECKOUT_SITE_BASE_URL", "https://decisionproof.io.kr")
+    redirect_url = f"{site_base}/login.html?confirmed=1"
+    logger.info("auth.email_confirmed.redirect", extra={"redirect_to": redirect_url})
+    return RedirectResponse(url=redirect_url, status_code=302)
 
 
 @router.get("/recovery", response_class=HTMLResponse)

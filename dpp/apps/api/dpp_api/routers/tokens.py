@@ -158,7 +158,7 @@ async def create_token(
             "event": "token.created",
             "token_id": token_id,
             "tenant_id": tenant_id,
-            "name": request.name,
+            "token_name": request.name,  # "name" is reserved in LogRecord
         },
     )
 
@@ -293,7 +293,7 @@ async def revoke_token(
             "event": "token.revoked",
             "token_id": token_id,
             "tenant_id": tenant_id,
-            "name": token.name,
+            "token_name": token.name,  # "name" is reserved in LogRecord
         },
     )
 

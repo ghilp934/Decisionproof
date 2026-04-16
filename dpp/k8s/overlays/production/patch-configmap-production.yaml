@@ -1,0 +1,27 @@
+# patch-configmap-production.yaml
+# Strategic Merge Patch: k8s/base/configmap.yaml → dpp-production 전용 값으로 확정
+#
+# ✅ 포함:
+#   - SQS_QUEUE_URL: base의 ${AWS_ACCOUNT_ID} 변수를 실제 계정 ID로 치환
+#   - DPP_ACK_SUPABASE_NETWORK_RESTRICTIONS: "1" (Phase 3 완료 확인)
+#
+# 🚫 미포함 (의도적):
+#   - DPP_ACK_SUPABASE_BACKUP_POLICY
+#     → ops/runbooks/db_backup_restore.md 체크리스트 완료 전까지 주입 금지
+#     → 체크리스트 완료 후 k8s/overlays/production-ack1 오버레이로 주입
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dpp-config
+  namespace: dpp-production
+data:
+  # base의 ${AWS_ACCOUNT_ID} 치환 (783268398937)
+  SQS_QUEUE_URL: "https://sqs.ap-northeast-2.amazonaws.com/783268398937/dpp-runs-production"
+
+  # Phase 3 완료: Supabase 네트워크 제한 ACK (supabase_hardening.md 체크리스트 완료)
+  DPP_ACK_SUPABASE_NETWORK_RESTRICTIONS: "1"
+
+  # ── DPP_ACK_SUPABASE_BACKUP_POLICY 는 여기에 없습니다 ──────────────────────────
+  # 이 키는 ops/runbooks/db_backup_restore.md 체크리스트를 완료한 후
+  # k8s/overlays/production-ack1/patch-configmap-production-ack1.yaml 에서만 주입합니다.
+  # 체크리스트 없이 이 파일에 직접 추가하지 마세요.
