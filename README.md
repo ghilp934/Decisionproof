@@ -1,8 +1,8 @@
-# Decisionproof API Platform (Pilot) — v0.4.2.2
+# Decisionproof API Platform — v0.4.2.8
 ## Decision Pack Platform — Agent-Centric API Platform/Solution
 
-[![Status](https://img.shields.io/badge/Status-PILOT-orange)](#status)
-[![Tests](https://img.shields.io/badge/Tests-133%20passing-success)](dpp/IMPLEMENTATION_REPORT.md#test-coverage-summary)
+[![Status](https://img.shields.io/badge/Status-Paid%20Private%20Beta-blue)](#status)
+[![Tests](https://img.shields.io/badge/Tests-524%20passing-success)](#)
 [![Money](https://img.shields.io/badge/Money-Zero%20leak%20design-critical)](#money-flow-zero-leak-design)
 [![License](https://img.shields.io/badge/License-Apache--2.0-blue)](#license)
 
@@ -16,10 +16,58 @@ Built for teams that need **controlled execution, auditable results, and predict
 
 ## Status
 
-- **PILOT (Not GA):** APIs, limits, and operational defaults may change without notice.
-- This repository currently documents the **engineering design** and **reference deployment** used for the pilot.
+**Paid Private Beta — Not Public GA.**
+
+### v0.4.2.8 Release Gates (all passing)
+
+| Gate | Description |
+|---|---|
+| RC-5 | API Inventory — hidden endpoint allowlist enforced |
+| RC-7 | OpenTelemetry — SERVER spans, `http.server.request.duration` metric, trace/span ID log correlation |
+| RC-14 | Mini Demo Marketplace — RapidAPI proxy gate, fail-closed 503, poll rate limit 429 |
+| RC-15 | K8s Image Digest Pin — all pilot Deployments use `@sha256:` immutable digest |
+
+This release is a paid private beta. APIs, limits, and operational defaults may change without notice. No uptime SLA during the beta period.
+
+- Access requires account registration and payment at [decisionproof.io.kr](https://decisionproof.io.kr)
+- PayPal is the only supported payment method during beta
+- 30-day access per billing cycle ($29 USD)
+- Rate limits and per-pack cost caps apply (see [API docs](https://decisionproof.io.kr/docs/quickstart.html))
 
 Repository: https://github.com/ghilp934/Decisionproof
+
+---
+
+## How to Get Access
+
+1. Visit [decisionproof.io.kr](https://decisionproof.io.kr)
+2. Register and confirm your email
+3. Complete checkout via PayPal
+4. Issue an API token from your dashboard
+5. Submit your first run
+
+Questions or feedback? Use the [contact form](https://decisionproof.io.kr/contact.html).
+
+---
+
+## Supported Pack Types
+
+| Pack Type | Description |
+|---|---|
+| `decision` | Structured multi-factor decision scoring |
+| `url` | URL screening and content analysis |
+| `ocr` | Document and image OCR extraction |
+
+---
+
+## Beta Constraints
+
+- **Payment**: PayPal only (no other payment providers during beta)
+- **Billing cycle**: 30 days per payment ($29 USD), no auto-renewal
+- **Rate limits**: 10 POST/min, 120 poll/min per tenant
+- **Per-run cost cap**: $5.00 per run
+- **No uptime SLA** during beta period
+- **No free trial**
 
 ---
 
@@ -84,6 +132,14 @@ This design makes it possible to recover deterministically after crashes without
 - `GET /readyz` — readiness probe (checks DB/Redis/S3/SQS; returns 503 if any dependency is down)
 - `GET /docs` — Swagger UI (OpenAPI)
 - `GET /redoc` — ReDoc
+
+### Demo Marketplace (RapidAPI)
+
+A locked public surface for the RapidAPI marketplace listing. Requires `X-RapidAPI-Proxy-Secret` header. Fail-closed: returns 503 if proxy secret is not configured.
+
+- `POST /v1/demo/runs` — submit a demo run
+- `GET /v1/demo/runs/{run_id}` — poll result (rate-limited: one poll per interval)
+- `GET /.well-known/openapi-demo.json` — locked OpenAPI spec for the demo surface (no auth required)
 
 ### Run API (example)
 
