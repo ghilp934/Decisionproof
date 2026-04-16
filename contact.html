@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact &amp; Support — Decisionproof</title>
+  <meta name="description" content="Get support or send a message to the Decisionproof team. We respond within 1 business day.">
+  <link rel="canonical" href="https://decisionproof.io.kr/contact.html">
+  <link rel="stylesheet" href="/css/dpp.css">
+</head>
+<body class="page-wrap">
+
+  <nav class="nav">
+    <div class="container nav__inner">
+      <a class="nav__logo" href="/index.html">Decision<span>proof</span></a>
+      <ul class="nav__links">
+        <li><a href="/how-it-works.html" class="nav__link--secondary">How it works</a></li>
+        <li><a href="/pricing.html">Pricing</a></li>
+        <li><a href="/security.html" class="nav__link--secondary">Security</a></li>
+        <li><a href="/docs/quickstart.html" class="nav__link--secondary">Docs</a></li>
+        <li><a href="/contact.html" aria-current="page">Contact</a></li>
+        <li><a href="/login.html" class="btn btn--primary btn--sm">Log in</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main class="section">
+    <div class="container" style="max-width:640px;">
+
+      <h1 style="font-size:32px; font-weight:800; margin:0 0 8px;">Contact &amp; Support</h1>
+      <p class="text-muted mb-32">We respond to all enquiries within 1 business day.</p>
+
+      <!-- Common issues quick-links -->
+      <div class="card mb-32" style="background:var(--surface-alt);">
+        <h2 style="font-size:15px; font-weight:700; margin:0 0 16px;">Quick links</h2>
+        <ul style="list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px;">
+          <li><a href="/docs/quickstart.html">Getting started guide</a></li>
+          <li><a href="/pricing.html#faq">Billing &amp; refunds FAQ</a></li>
+          <li><a href="/login.html">Log in to your account</a></li>
+          <li><a href="/onboarding.html">Onboarding dashboard</a></li>
+        </ul>
+      </div>
+
+      <!-- Contact form -->
+      <div class="card">
+        <h2 style="font-size:17px; font-weight:700; margin:0 0 20px;">Send a message</h2>
+
+        <div id="formSuccess" class="alert alert--success hidden" role="status">
+          Message sent! We'll get back to you within 1 business day.
+        </div>
+        <div id="formError" class="alert alert--error hidden" role="alert"></div>
+
+        <form id="contactForm" novalidate onsubmit="handleSubmit(event)">
+          <div class="form-group">
+            <label class="form-label" for="cfName">Name</label>
+            <input class="form-input" type="text" id="cfName" required placeholder="Your name" autocomplete="name">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cfEmail">Email</label>
+            <input class="form-input" type="email" id="cfEmail" required placeholder="you@example.com" autocomplete="email">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cfSubject">Subject</label>
+            <select class="form-input" id="cfSubject" required>
+              <option value="" disabled selected>Select a topic…</option>
+              <option value="billing">Billing / payment</option>
+              <option value="access">Account access</option>
+              <option value="technical">Technical issue</option>
+              <option value="refund">Refund request</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cfMessage">Message</label>
+            <textarea class="form-input" id="cfMessage" rows="5" required
+                      placeholder="Describe your issue or question…"
+                      style="resize:vertical;"></textarea>
+          </div>
+          <button type="submit" id="submitBtn" class="btn btn--primary btn--full">Send Message</button>
+        </form>
+      </div>
+
+      <!-- Direct email fallback -->
+      <p class="text-sm text-muted text-center mt-24">
+        Or email us directly at
+        <a href="mailto:support@decisionproof.io.kr">support@decisionproof.io.kr</a>
+      </p>
+
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__inner">
+      <p class="footer__copy">&copy; 2026 D_FFERENT. All rights reserved.</p>
+      <ul class="footer__links">
+        <li><a href="/how-it-works.html">How it works</a></li>
+        <li><a href="/pricing.html">Pricing</a></li>
+        <li><a href="/security.html">Security</a></li>
+        <li><a href="/docs/quickstart.html">Docs</a></li>
+        <li><a href="/contact.html">Contact</a></li>
+      </ul>
+    </div>
+  </footer>
+
+  <script>
+    /**
+     * Contact form — client-side only.
+     * Shows success message on submit. POST /v1/contact wiring deferred to Phase 6.
+     * Direct fallback: support@decisionproof.io.kr
+     */
+    window.handleSubmit = async function(e) {
+      e.preventDefault();
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Sending…';
+      document.getElementById('formError').classList.add('hidden');
+
+      const name    = document.getElementById('cfName').value.trim();
+      const email   = document.getElementById('cfEmail').value.trim();
+      const subject = document.getElementById('cfSubject').value;
+      const message = document.getElementById('cfMessage').value.trim();
+
+      if (!name || !email || !subject || !message) {
+        document.getElementById('formError').textContent = 'Please fill in all fields.';
+        document.getElementById('formError').classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Send Message';
+        return;
+      }
+
+      // Phase 6: replace with POST /v1/contact → email forwarding
+      console.info('contact form submit:', { name, email, subject });
+
+      document.getElementById('contactForm').classList.add('hidden');
+      document.getElementById('formSuccess').classList.remove('hidden');
+    };
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>Processing Payment — Decisionproof</title>
+  <link rel="stylesheet" href="/css/dpp.css">
+</head>
+<body class="page-wrap">
+
+  <nav class="nav">
+    <div class="container nav__inner">
+      <a class="nav__logo" href="/index.html">Decision<span>proof</span></a>
+    </div>
+  </nav>
+
+  <main style="display:flex; align-items:center; justify-content:center; padding:80px 24px;">
+    <div class="text-center" style="max-width:480px;">
+
+      <!-- Initial: spinning -->
+      <div id="processingView">
+        <span class="spinner" style="color:var(--brand-primary); width:40px; height:40px; border-width:3px;"></span>
+        <h1 style="font-size:24px; font-weight:700; margin:24px 0 8px;">Processing your payment…</h1>
+        <p class="text-muted">Please wait while we confirm your order with PayPal.<br>Do not close this tab.</p>
+      </div>
+
+      <!-- Error state -->
+      <div id="errorView" class="hidden">
+        <div style="font-size:48px; margin-bottom:16px;">⚠️</div>
+        <h1 style="font-size:24px; font-weight:700; margin:0 0 12px;">Something went wrong</h1>
+        <p id="errorDetail" class="text-muted mb-24">We could not confirm your payment. If you were charged, please contact support.</p>
+        <div style="display:flex; gap:12px; justify-content:center;">
+          <a href="/contact.html" class="btn btn--outline">Contact Support</a>
+          <a href="/checkout.html" class="btn btn--primary">Try Again</a>
+        </div>
+      </div>
+
+      <!-- Timeout state -->
+      <div id="timeoutView" class="hidden">
+        <div style="font-size:48px; margin-bottom:16px;">⏳</div>
+        <h1 style="font-size:24px; font-weight:700; margin:0 0 12px;">Still processing…</h1>
+        <p class="text-muted mb-24">Payment confirmation is taking longer than expected.
+          Check your email for a confirmation from PayPal, then visit your dashboard.</p>
+        <div style="display:flex; gap:12px; justify-content:center;">
+          <a href="/contact.html" class="btn btn--outline">Contact Support</a>
+          <a href="/onboarding.html" class="btn btn--primary">Go to Dashboard</a>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script type="module">
+    /**
+     * PayPal return URL handler.
+     *
+     * PayPal redirects here as: /billing/paypal/return.html?token=PAYPAL_ORDER_ID&PayerID=...
+     * when the Checkout experience uses redirect (not in-context popup).
+     *
+     * When the JS SDK Buttons component is used (checkout.html), PayPal calls
+     * onApprove() in-page and does NOT redirect here. This page handles the
+     * redirect flow (fallback for browsers that block popups).
+     *
+     * DEC-V1-07/08: We submit capture then poll — never assume entitlement.
+     */
+
+    import { requireAuth } from '/js/auth-state.js';
+    import { api, ApiError } from '/js/dpp-api.js';
+
+    requireAuth('/billing/paypal/return.html' + window.location.search);
+
+    const params         = new URLSearchParams(window.location.search);
+    const paypalOrderId  = params.get('token');   // PayPal order ID
+    const checkoutSessionId = params.get('checkout_session_id') ?? sessionStorage.getItem('dpp_checkout_session_id');
+
+    function showError(msg) {
+      document.getElementById('processingView').classList.add('hidden');
+      document.getElementById('errorDetail').textContent = msg || 'An unexpected error occurred.';
+      document.getElementById('errorView').classList.remove('hidden');
+    }
+
+    function showTimeout() {
+      document.getElementById('processingView').classList.add('hidden');
+      document.getElementById('timeoutView').classList.remove('hidden');
+    }
+
+    if (!paypalOrderId) {
+      showError('Missing PayPal order reference. Please try again.');
+    } else {
+
+      // Submit capture
+      try {
+        await api.post('/v1/billing/paypal/capture', {
+          session_id:      checkoutSessionId,  // backend contract: session_id
+          paypal_order_id: paypalOrderId,
+        });
+      } catch (err) {
+        const msg = err instanceof ApiError ? err.detail : err.message;
+        showError(msg);
+        throw err;  // Bail out — don't start polling
+      }
+
+      // Poll onboarding status until entitlement_active
+      const POLL_INTERVAL  = 3000;
+      const POLL_TIMEOUT   = 300_000;
+      const started        = Date.now();
+
+      async function poll() {
+        if (Date.now() - started > POLL_TIMEOUT) { showTimeout(); return; }
+        try {
+          const status = await api.get('/v1/onboarding/status');
+          if (status.steps.entitlement_active) {
+            window.location.href = '/onboarding.html';
+          } else if (status.checkout_session_status === 'FAILED') {
+            showError('Payment failed. Please contact support or try again.');
+          } else {
+            setTimeout(poll, POLL_INTERVAL);
+          }
+        } catch (_) {
+          setTimeout(poll, POLL_INTERVAL);
+        }
+      }
+
+      setTimeout(poll, POLL_INTERVAL);
+    }
+  </script>
+
+</body>
+</html>

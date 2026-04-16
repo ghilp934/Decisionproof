@@ -1,0 +1,45 @@
+# Decisionproof API
+
+> Agent-centric decision execution platform with idempotent metering, RFC 9457 error handling, and IETF RateLimit headers.
+
+## Primary Resources
+
+- **OpenAPI Spec**: /.well-known/openapi.json
+  OpenAPI 3.1.0 machine-readable API specification with JSON Schema 2020-12 support.
+
+- **Function Calling Specs**: /docs/function-calling-specs.json
+  Machine-readable function calling specifications for AI agents. Includes tool parameters (JSON Schema), examples, and authentication requirements.
+
+- **Quickstart**: /docs/quickstart.md
+  cURL/Python/Node.js examples for asynchronous runs (202 + polling), authentication headers, and idempotency rules. Runnable code snippets.
+
+- **Authentication**: /docs/auth.md
+  Bearer token authentication (`Authorization: Bearer sk_{key_id}_{secret}`). 401/403 responses are non-billable.
+
+- **Delegated Authentication**: /docs/auth-delegated.md
+  OAuth 2.0 (RFC 6749) flows: Authorization Code, Client Credentials. Device Authorization Grant (RFC 8628) for headless agents and CLI tools. Roadmap: Q2-Q3 2026.
+
+- **Rate Limits**: /docs/rate-limits.md
+  IETF draft-ietf-httpapi-ratelimit-headers compliant. RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset headers on all responses. Retry-After on 429.
+
+- **Problem Types (RFC 9457)**: /docs/problem-types.md
+  application/problem+json responses for errors. quota-exceeded, budget-exceeded, invalid-request, unauthorized, forbidden types.
+
+- **Metering & Billing**: /docs/metering-billing.md
+  Charges in USD (4 decimal places). Billable: successful execution + business logic failures. Non-billable: authentication/validation errors. Idempotency prevents duplicate charges.
+
+- **Human Escalation Templates**: /docs/human-escalation-template.md
+  Pre-formatted templates for AI agents to request human approval. Template A: API token access. Template B: Budget increase. Template C: Rate limit tier upgrade.
+
+- **Changelog**: /docs/changelog.md
+  Document version history with breaking change markers.
+
+## Agent Integration Hints
+
+- **Auth Header**: `Authorization: Bearer sk_{key_id}_{secret}`
+- **Idempotency**: Include `Idempotency-Key` header (UUID recommended). Same key within 7 days returns existing run_id (no charge).
+- **Async Pattern**: POST /v1/runs returns 202 Accepted with run_id. Poll GET /v1/runs/{run_id} until status is "completed" or "failed".
+- **Billability**: Charges apply for successful execution and business logic failures. Authentication/validation errors (401/422/429) are non-billable.
+- **429 Handling**: Check `reason_code` in Problem Details. Respect `Retry-After` header (seconds). Exponential backoff recommended.
+- **RateLimit Headers**: Parse `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset` headers (IETF standard format).
+- **Cost Tracking**: Every response includes `cost` object with `reserved_usd`, `used_usd`, `budget_remaining_usd`.

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pricing — Decisionproof</title>
+  <meta name="description" content="Simple, transparent pricing. One plan for the private beta. $29 for 30 days, PayPal accepted.">
+  <link rel="canonical" href="https://decisionproof.io.kr/pricing.html">
+  <link rel="stylesheet" href="/css/dpp.css">
+</head>
+<body class="page-wrap">
+
+  <nav class="nav">
+    <div class="container nav__inner">
+      <a class="nav__logo" href="/index.html">Decision<span>proof</span></a>
+      <ul class="nav__links">
+        <li><a href="/how-it-works.html" class="nav__link--secondary">How it works</a></li>
+        <li><a href="/pricing.html" aria-current="page">Pricing</a></li>
+        <li><a href="/security.html" class="nav__link--secondary">Security</a></li>
+        <li><a href="/docs/quickstart.html" class="nav__link--secondary">Docs</a></li>
+        <li><a href="/contact.html" class="nav__link--secondary">Contact</a></li>
+        <li><a href="/login.html" class="btn btn--primary btn--sm">Log in</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main>
+
+    <section class="hero" style="padding-bottom:48px;">
+      <div class="container">
+        <div class="hero__eyebrow">Pricing</div>
+        <h1 style="font-size:clamp(28px,4vw,44px);">Simple, honest pricing</h1>
+        <p>One plan. No hidden fees. Cancel any time.</p>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0;">
+      <div class="container">
+        <div style="max-width:420px; margin:0 auto;">
+
+          <div class="pricing-card pricing-card--featured">
+
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+              <span style="font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--text-secondary);">Private Beta</span>
+              <span class="badge badge--info">Limited seats</span>
+            </div>
+
+            <div class="pricing-price"><sup>$</sup>29</div>
+            <p class="pricing-period">per 30 days &middot; one-time renewal</p>
+
+            <ul class="pricing-features">
+              <li><span class="check">✓</span> Full API access</li>
+              <li><span class="check">✓</span> 30-day validity window</li>
+              <li><span class="check">✓</span> Unlimited decision runs</li>
+              <li><span class="check">✓</span> Multiple API keys</li>
+              <li><span class="check">✓</span> Full audit log export</li>
+              <li><span class="check">✓</span> Priority support</li>
+            </ul>
+
+            <a id="pricingCta" href="/login.html?tab=signup" class="btn btn--primary btn--full btn--lg">
+              Get started
+            </a>
+
+            <p class="text-xs text-muted text-center mt-16">
+              Payment via PayPal only. Subscription does not auto-renew.
+            </p>
+          </div>
+
+          <div class="card mt-24" style="background:var(--surface-alt);">
+            <h3 style="font-size:15px; font-weight:700; margin:0 0 12px;">Payment details</h3>
+            <ul style="list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px;">
+              <li class="text-sm"><strong>Accepted:</strong> PayPal (credit/debit via PayPal)</li>
+              <li class="text-sm"><strong>Auto-renewal:</strong> No — manual renewal only</li>
+              <li class="text-sm"><strong>Refunds:</strong> Contact support within 48 hours</li>
+              <li class="text-sm"><strong>Invoice:</strong> Available via your PayPal receipt</li>
+            </ul>
+          </div>
+
+        </div><!-- /max-w -->
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section section--alt">
+      <div class="container" style="max-width:680px;">
+        <h2 class="section-title">FAQ</h2>
+
+        <div style="display:flex; flex-direction:column; gap:20px;">
+
+          <div>
+            <h3 style="font-size:16px; font-weight:700; margin:0 0 6px;">What happens after 30 days?</h3>
+            <p class="text-muted text-sm mb-0">Your access expires. You can renew at any time from your dashboard. We'll send a reminder email before expiry.</p>
+          </div>
+
+          <div>
+            <h3 style="font-size:16px; font-weight:700; margin:0 0 6px;">Can I use a credit card without a PayPal account?</h3>
+            <p class="text-muted text-sm mb-0">Yes. PayPal allows guest checkout with a card. You do not need a PayPal account.</p>
+          </div>
+
+          <div>
+            <h3 style="font-size:16px; font-weight:700; margin:0 0 6px;">Is there a free trial?</h3>
+            <p class="text-muted text-sm mb-0">Not at this time. During the private beta, access is subscription-only.</p>
+          </div>
+
+          <div>
+            <h3 style="font-size:16px; font-weight:700; margin:0 0 6px;">How do I cancel?</h3>
+            <p class="text-muted text-sm mb-0">Simply don't renew. Your access remains active until the 30 days expire — no action needed to cancel.</p>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__inner">
+      <p class="footer__copy">&copy; 2026 D_FFERENT. All rights reserved.</p>
+      <ul class="footer__links">
+        <li><a href="/how-it-works.html">How it works</a></li>
+        <li><a href="/pricing.html">Pricing</a></li>
+        <li><a href="/security.html">Security</a></li>
+        <li><a href="/docs/quickstart.html">Docs</a></li>
+        <li><a href="/contact.html">Contact</a></li>
+      </ul>
+    </div>
+  </footer>
+
+  <script type="module">
+    import { isLoggedIn } from '/js/auth-state.js';
+    const btn = document.getElementById('pricingCta');
+    if (btn && isLoggedIn()) {
+      btn.href = '/checkout.html';
+      btn.textContent = 'Go to checkout';
+    }
+  </script>
+
+</body>
+</html>

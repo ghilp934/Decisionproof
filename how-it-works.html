@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How it works — Decisionproof</title>
+  <meta name="description" content="Get from sign-up to your first API call in four steps. Decisionproof private beta — $29 for 30 days, PayPal accepted.">
+  <link rel="canonical" href="https://decisionproof.io.kr/how-it-works.html">
+  <link rel="stylesheet" href="/css/dpp.css">
+</head>
+<body class="page-wrap">
+
+  <nav class="nav">
+    <div class="container nav__inner">
+      <a class="nav__logo" href="/index.html">Decision<span>proof</span></a>
+      <ul class="nav__links">
+        <li><a href="/how-it-works.html" aria-current="page">How it works</a></li>
+        <li><a href="/pricing.html">Pricing</a></li>
+        <li><a href="/security.html" class="nav__link--secondary">Security</a></li>
+        <li><a href="/docs/quickstart.html" class="nav__link--secondary">Docs</a></li>
+        <li><a href="/contact.html" class="nav__link--secondary">Contact</a></li>
+        <li><a href="/login.html" class="btn btn--primary btn--sm">Log in</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main>
+
+    <!-- Hero -->
+    <section class="hero" style="padding-bottom:48px;">
+      <div class="container">
+        <div class="hero__eyebrow">Private Beta — 4 steps</div>
+        <h1>From sign-up to first API call</h1>
+        <p>
+          No SDK required. No OAuth flow. Just a REST endpoint,
+          an API key, and a structured decision — ready in minutes.
+        </p>
+      </div>
+    </section>
+
+    <!-- Steps -->
+    <section class="section" style="padding-top:0;">
+      <div class="container" style="max-width:720px;">
+
+        <div class="how-steps">
+
+          <div class="how-step">
+            <div class="how-step__num" aria-hidden="true">1</div>
+            <div class="how-step__body">
+              <h2 class="how-step__title">Create your account</h2>
+              <p class="how-step__desc">
+                Sign up at <a href="/login.html?tab=signup">decisionproof.io.kr</a> with
+                your email address. Account creation takes under a minute — no credit card
+                required at this step.
+              </p>
+            </div>
+          </div>
+
+          <div class="how-step">
+            <div class="how-step__num" aria-hidden="true">2</div>
+            <div class="how-step__body">
+              <h2 class="how-step__title">Subscribe for 30-day access</h2>
+              <p class="how-step__desc">
+                Pay <strong>$29</strong> via PayPal to activate your account.
+                You do not need a PayPal account — guest checkout with a credit or debit
+                card is supported. Access does not auto-renew; you choose when to renew.
+              </p>
+              <p class="how-step__desc mt-8">
+                <a href="/pricing.html">See full pricing details →</a>
+              </p>
+            </div>
+          </div>
+
+          <div class="how-step">
+            <div class="how-step__num" aria-hidden="true">3</div>
+            <div class="how-step__body">
+              <h2 class="how-step__title">Create an API key</h2>
+              <p class="how-step__desc">
+                Once your payment is confirmed, your onboarding dashboard activates.
+                Create one or more API keys — each key can be revoked independently
+                at any time. No OAuth scopes to configure.
+              </p>
+            </div>
+          </div>
+
+          <div class="how-step">
+            <div class="how-step__num" aria-hidden="true">4</div>
+            <div class="how-step__body">
+              <h2 class="how-step__title">Submit your first decision</h2>
+              <p class="how-step__desc">
+                POST a structured decision payload to the API. Get back a deterministic,
+                auditable result. Every run is logged — export the full decision trace at
+                any time.
+              </p>
+
+              <div style="margin-top:20px;">
+                <pre><code>curl -X POST https://api.decisionproof.io.kr/v1/decisions \
+  -H "Authorization: Bearer sk_live_your_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "decision_type": "approval",
+    "inputs": { "score": 87, "threshold": 80 }
+  }'</code></pre>
+              </div>
+
+              <p class="how-step__desc mt-16">
+                <a href="/docs/quickstart.html">Read the full quickstart →</a>
+              </p>
+            </div>
+          </div>
+
+        </div><!-- /how-steps -->
+
+      </div>
+    </section>
+
+    <!-- What you get -->
+    <section class="section section--alt">
+      <div class="container" style="max-width:720px;">
+        <h2 class="section-title">What's included</h2>
+        <p class="section-sub">
+          Every private beta subscription gives you full access — no feature tiers,
+          no usage caps during the beta period.
+        </p>
+
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px;">
+          <div class="card">
+            <h3 style="font-size:15px; font-weight:700; margin:0 0 6px;">Full API access</h3>
+            <p class="text-sm text-muted mb-0">All endpoints, including decisions, keys, and audit log export.</p>
+          </div>
+          <div class="card">
+            <h3 style="font-size:15px; font-weight:700; margin:0 0 6px;">Unlimited decision runs</h3>
+            <p class="text-sm text-muted mb-0">No per-request limits during the 30-day beta window.</p>
+          </div>
+          <div class="card">
+            <h3 style="font-size:15px; font-weight:700; margin:0 0 6px;">Full audit log export</h3>
+            <p class="text-sm text-muted mb-0">Download a complete trace of every decision run at any time.</p>
+          </div>
+          <div class="card">
+            <h3 style="font-size:15px; font-weight:700; margin:0 0 6px;">Priority support</h3>
+            <p class="text-sm text-muted mb-0">Responses within 1 business day via the contact form.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="section">
+      <div class="container text-center">
+        <h2 class="section-title">Ready to get started?</h2>
+        <p class="text-muted mb-32" style="font-size:17px;">
+          Private beta — limited seats. $29 for 30 days.
+        </p>
+        <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+          <a href="/login.html?tab=signup" class="btn btn--primary btn--lg">Join private beta</a>
+          <a href="/pricing.html" class="btn btn--outline btn--lg">See pricing</a>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__inner">
+      <p class="footer__copy">&copy; 2026 D_FFERENT. All rights reserved.</p>
+      <ul class="footer__links">
+        <li><a href="/how-it-works.html">How it works</a></li>
+        <li><a href="/pricing.html">Pricing</a></li>
+        <li><a href="/security.html">Security</a></li>
+        <li><a href="/docs/quickstart.html">Docs</a></li>
+        <li><a href="/contact.html">Contact</a></li>
+      </ul>
+    </div>
+  </footer>
+
+</body>
+</html>

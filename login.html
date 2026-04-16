@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>Log In — Decisionproof</title>
+  <link rel="stylesheet" href="/css/dpp.css">
+</head>
+<body class="page-wrap">
+
+  <nav class="nav">
+    <div class="container nav__inner">
+      <a class="nav__logo" href="/index.html">Decision<span>proof</span></a>
+      <ul class="nav__links">
+        <li><a href="/pricing.html">Pricing</a></li>
+        <li><a href="/docs/quickstart.html">Docs</a></li>
+        <li><a href="/contact.html">Contact</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main style="display:flex; align-items:center; justify-content:center; padding: 48px 24px;">
+    <div style="width:100%; max-width:400px;">
+
+      <!-- Email confirmed banner (shown when ?confirmed=1) -->
+      <div id="confirmedBanner" class="alert alert--success hidden" role="status">
+        Email confirmed! You can now log in.
+      </div>
+
+      <!-- Session expired banner (shown when ?reason=session_expired) -->
+      <div id="expiredBanner" class="alert alert--warning hidden" role="status">
+        Your session expired. Please log in again.
+      </div>
+
+      <!-- Tab switcher: Login / Sign Up -->
+      <div style="display:flex; border-bottom:1.5px solid var(--border); margin-bottom:28px;">
+        <button id="tabLogin"  class="btn btn--ghost" onclick="switchTab('login')"
+                style="flex:1; border-radius:0; border-bottom:2.5px solid var(--brand-primary); color:var(--brand-primary); font-size:15px;">
+          Log In
+        </button>
+        <button id="tabSignup" class="btn btn--ghost" onclick="switchTab('signup')"
+                style="flex:1; border-radius:0; border-bottom:2.5px solid transparent; font-size:15px;">
+          Sign Up
+        </button>
+      </div>
+
+      <!-- Error alert -->
+      <div id="alertMsg" class="alert alert--error hidden" role="alert"></div>
+
+      <!-- ── Login form ──────────────────────────────────────────── -->
+      <form id="loginForm" onsubmit="handleLogin(event)" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="loginEmail">Email</label>
+          <input class="form-input" type="email" id="loginEmail"
+                 autocomplete="email" required placeholder="you@example.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="loginPassword">Password</label>
+          <input class="form-input" type="password" id="loginPassword"
+                 autocomplete="current-password" required>
+        </div>
+        <button type="submit" id="loginBtn" class="btn btn--primary btn--full btn--lg">
+          Log In
+        </button>
+      </form>
+
+      <!-- ── Signup form ─────────────────────────────────────────── -->
+      <form id="signupForm" class="hidden" onsubmit="handleSignup(event)" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="signupEmail">Email</label>
+          <input class="form-input" type="email" id="signupEmail"
+                 autocomplete="email" required placeholder="you@example.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="signupPassword">Password
+            <span class="text-muted text-sm" style="font-weight:400"> — 8+ characters</span>
+          </label>
+          <input class="form-input" type="password" id="signupPassword"
+                 autocomplete="new-password" required minlength="8">
+        </div>
+        <button type="submit" id="signupBtn" class="btn btn--primary btn--full btn--lg">
+          Create Account
+        </button>
+        <p class="text-sm text-muted text-center mt-16">
+          We'll send a confirmation email. You must confirm before logging in.
+        </p>
+      </form>
+
+      <!-- ── Signup success ──────────────────────────────────────── -->
+      <div id="signupSuccess" class="hidden text-center" style="padding:24px 0;">
+        <div style="font-size:48px; margin-bottom:16px;">📬</div>
+        <h2 style="margin:0 0 12px; font-size:22px;">Check your inbox</h2>
+        <p class="text-muted">
+          We sent a confirmation link to <strong id="signupEmailDisplay"></strong>.<br>
+          Click the link to activate your account, then return here to log in.
+        </p>
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__inner">
+      <p class="footer__copy">&copy; 2026 D_FFERENT. All rights reserved.</p>
+      <ul class="footer__links">
+        <li><a href="/contact.html">Support</a></li>
+        <li><a href="/docs/quickstart.html">Docs</a></li>
+      </ul>
+    </div>
+  </footer>
+
+  <script type="module">
+    import { saveSession, redirectIfLoggedIn } from '/js/auth-state.js';
+    import { api, ApiError } from '/js/dpp-api.js';
+
+    // Redirect logged-in users away
+    redirectIfLoggedIn();
+
+    // Parse query params
+    const params = new URLSearchParams(window.location.search);
+
+    if (params.get('confirmed') === '1') {
+      document.getElementById('confirmedBanner').classList.remove('hidden');
+    }
+    if (params.get('reason') === 'session_expired') {
+      document.getElementById('expiredBanner').classList.remove('hidden');
+    }
+
+    // Restore tab from URL if present
+    if (params.get('tab') === 'signup') {
+      switchTab('signup');
+    }
+
+    // ── Tab switching ───────────────────────────────────────────────
+    window.switchTab = function(tab) {
+      const isLogin = tab === 'login';
+      document.getElementById('loginForm').classList.toggle('hidden', !isLogin);
+      document.getElementById('signupForm').classList.toggle('hidden', isLogin);
+      document.getElementById('signupSuccess').classList.add('hidden');
+      clearAlert();
+
+      const loginTab  = document.getElementById('tabLogin');
+      const signupTab = document.getElementById('tabSignup');
+      loginTab.style.borderBottomColor  = isLogin  ? 'var(--brand-primary)' : 'transparent';
+      signupTab.style.borderBottomColor = !isLogin ? 'var(--brand-primary)' : 'transparent';
+      loginTab.style.color  = isLogin  ? 'var(--brand-primary)' : '';
+      signupTab.style.color = !isLogin ? 'var(--brand-primary)' : '';
+    };
+
+    // ── Alert helpers ───────────────────────────────────────────────
+    function showAlert(msg) {
+      const el = document.getElementById('alertMsg');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+    }
+    function clearAlert() {
+      document.getElementById('alertMsg').classList.add('hidden');
+    }
+
+    function setLoading(btnId, loading) {
+      const btn = document.getElementById(btnId);
+      btn.disabled = loading;
+      btn.innerHTML = loading
+        ? '<span class="spinner"></span> Please wait…'
+        : btn.dataset.label;
+    }
+
+    // Save original labels
+    document.getElementById('loginBtn').dataset.label  = 'Log In';
+    document.getElementById('signupBtn').dataset.label = 'Create Account';
+
+    // ── Login ────────────────────────────────────────────────────────
+    window.handleLogin = async function(e) {
+      e.preventDefault();
+      clearAlert();
+      const email    = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      if (!email || !password) { showAlert('Please enter your email and password.'); return; }
+
+      setLoading('loginBtn', true);
+      try {
+        const session = await api.post('/v1/auth/login', { email, password });
+        saveSession(session);
+
+        // Redirect: ?next param → or onboarding
+        const next = params.get('next');
+        window.location.href = next ? decodeURIComponent(next) : '/onboarding.html';
+
+      } catch (err) {
+        const msg = err instanceof ApiError
+          ? (err.status === 401 ? 'Invalid email or password.' : err.detail)
+          : 'Login failed. Please try again.';
+        showAlert(msg);
+        setLoading('loginBtn', false);
+      }
+    };
+
+    // ── Signup ───────────────────────────────────────────────────────
+    window.handleSignup = async function(e) {
+      e.preventDefault();
+      clearAlert();
+      const email    = document.getElementById('signupEmail').value.trim();
+      const password = document.getElementById('signupPassword').value;
+      if (!email) { showAlert('Please enter your email.'); return; }
+      if (password.length < 8) { showAlert('Password must be at least 8 characters.'); return; }
+
+      setLoading('signupBtn', true);
+      try {
+        await api.post('/v1/auth/signup', { email, password });
+
+        document.getElementById('signupForm').classList.add('hidden');
+        document.getElementById('signupEmailDisplay').textContent = email;
+        document.getElementById('signupSuccess').classList.remove('hidden');
+
+      } catch (err) {
+        const msg = err instanceof ApiError
+          ? (err.status === 409 ? 'An account with this email already exists.' : err.detail)
+          : 'Signup failed. Please try again.';
+        showAlert(msg);
+        setLoading('signupBtn', false);
+      }
+    };
+  </script>
+
+</body>
+</html>

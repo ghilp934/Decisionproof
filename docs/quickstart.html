@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quickstart — Decisionproof Docs</title>
+  <meta name="description" content="Get started with the Decisionproof API in minutes. Authentication, your first decision run, polling, results, and error handling.">
+  <link rel="canonical" href="https://decisionproof.io.kr/docs/quickstart.html">
+  <link rel="stylesheet" href="/css/dpp.css">
+  <style>
+    /* Docs-specific layout */
+    .docs-layout {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 0;
+      max-width: var(--max-w);
+      margin: 0 auto;
+    }
+
+    .docs-sidebar {
+      padding: 32px 24px;
+      border-right: 1px solid var(--border);
+      position: sticky;
+      top: 56px;
+      height: calc(100vh - 56px);
+      overflow-y: auto;
+    }
+
+    .docs-sidebar h3 {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin: 0 0 12px;
+    }
+
+    .docs-nav {
+      list-style: none;
+      margin: 0 0 24px;
+      padding: 0;
+    }
+
+    .docs-nav li a {
+      display: block;
+      font-size: 14px;
+      color: var(--text-secondary);
+      padding: 5px 0;
+      transition: color .15s;
+    }
+
+    .docs-nav li a:hover,
+    .docs-nav li a.active {
+      color: var(--brand-primary);
+      text-decoration: none;
+    }
+
+    .docs-content {
+      padding: 40px 48px;
+      max-width: 800px;
+    }
+
+    .docs-content h1 { font-size: 32px; font-weight: 800; margin: 0 0 8px; }
+    .docs-content h2 { font-size: 22px; font-weight: 700; margin: 40px 0 12px; padding-top: 8px; border-top: 1px solid var(--border); }
+    .docs-content h3 { font-size: 17px; font-weight: 700; margin: 24px 0 8px; }
+    .docs-content p  { line-height: 1.75; color: var(--text-primary); }
+    .docs-content ul { padding-left: 20px; line-height: 1.8; }
+    .docs-content li { margin-bottom: 4px; }
+    .docs-content details { margin: 16px 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .docs-content summary { padding: 12px 16px; cursor: pointer; font-weight: 600; font-size: 14px; background: var(--surface-alt); }
+    .docs-content summary:hover { background: var(--border); }
+    .docs-content details pre { margin: 0; border-radius: 0; }
+
+    @media (max-width: 768px) {
+      .docs-layout { grid-template-columns: 1fr; }
+      .docs-sidebar { display: none; }
+      .docs-content { padding: 24px 20px; }
+    }
+  </style>
+</head>
+<body class="page-wrap">
+
+  <nav class="nav">
+    <div class="container nav__inner">
+      <a class="nav__logo" href="/index.html">Decision<span>proof</span></a>
+      <ul class="nav__links">
+        <li><a href="/how-it-works.html" class="nav__link--secondary">How it works</a></li>
+        <li><a href="/pricing.html">Pricing</a></li>
+        <li><a href="/security.html" class="nav__link--secondary">Security</a></li>
+        <li><a href="/docs/quickstart.html" aria-current="page">Docs</a></li>
+        <li><a href="/contact.html" class="nav__link--secondary">Contact</a></li>
+        <li><a href="/login.html" class="btn btn--primary btn--sm">Log in</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main>
+    <div class="docs-layout">
+
+      <!-- Sidebar -->
+      <aside class="docs-sidebar">
+        <h3>Getting Started</h3>
+        <ul class="docs-nav">
+          <li><a href="/docs/quickstart.html" class="active">Quickstart</a></li>
+        </ul>
+        <h3>Reference</h3>
+        <ul class="docs-nav">
+          <li><a href="/docs/quickstart.html#auth">Authentication</a></li>
+          <li><a href="/docs/quickstart.html#submit">Submit a run</a></li>
+          <li><a href="/docs/quickstart.html#poll">Poll for status</a></li>
+          <li><a href="/docs/quickstart.html#result">Get results</a></li>
+          <li><a href="/docs/quickstart.html#errors">Error handling</a></li>
+        </ul>
+        <h3>Account</h3>
+        <ul class="docs-nav">
+          <li><a href="/onboarding.html">Dashboard</a></li>
+          <li><a href="/pricing.html">Pricing</a></li>
+          <li><a href="/contact.html">Support</a></li>
+        </ul>
+      </aside>
+
+      <!-- Content -->
+      <div class="docs-content">
+
+        <div class="hero__eyebrow" style="margin-bottom:16px;">Documentation</div>
+        <h1>Quickstart</h1>
+        <p class="text-muted" style="font-size:17px; margin-bottom:32px;">
+          Get up and running with the Decisionproof API in a few minutes.
+        </p>
+
+        <!-- Prerequisites -->
+        <h2 id="prereqs">Prerequisites</h2>
+        <ul>
+          <li>An active Decisionproof subscription (<a href="/pricing.html">see pricing</a>)</li>
+          <li>An API token — create one from your <a href="/onboarding.html">dashboard</a> (format: <code>sk_{key_id}_{secret}</code>)</li>
+          <li>Any HTTP client: curl, Python requests, Node.js fetch, etc.</li>
+        </ul>
+
+        <!-- Base URL -->
+        <h2 id="base-url">Base URL</h2>
+        <pre><code>https://api.decisionproof.io.kr</code></pre>
+
+        <!-- Authentication -->
+        <h2 id="auth">Authentication</h2>
+        <p>All requests require a <code>Bearer</code> token in the <code>Authorization</code> header:</p>
+        <pre><code>Authorization: Bearer sk_abc123_xyz789def456...</code></pre>
+        <div class="alert alert--warning" style="font-size:14px;">
+          <strong>Keep your token secret.</strong> Treat it like a password.
+          Revoke and rotate it immediately if you suspect it has been exposed.
+        </div>
+
+        <!-- Submit a run -->
+        <h2 id="submit">Submit a run</h2>
+        <p>
+          The API is <strong>asynchronous</strong>:
+        </p>
+        <ol>
+          <li>POST to <code>/v1/runs</code> — receive <code>202 Accepted</code> with a <code>run_id</code></li>
+          <li>Poll <code>/v1/runs/{run_id}</code> until <code>status</code> is <code>completed</code> or <code>failed</code></li>
+          <li>Download the result from <code>presigned_url</code></li>
+        </ol>
+
+        <details>
+          <summary>cURL</summary>
+<pre><code>curl -X POST https://api.decisionproof.io.kr/v1/runs \
+  -H "Authorization: Bearer sk_abc123_xyz789..." \
+  -H "Idempotency-Key: unique-request-id-001" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "pack_type": "decision",
+    "inputs": {
+      "question": "Should we proceed with Plan A?",
+      "context": {"budget": 50000, "timeline": "Q2"}
+    },
+    "reservation": {
+      "max_cost_usd": "0.0500",
+      "timebox_sec": 90,
+      "min_reliability_score": 0.8
+    }
+  }'</code></pre>
+        </details>
+
+        <details>
+          <summary>Python</summary>
+<pre><code>import requests, time
+
+response = requests.post(
+    "https://api.decisionproof.io.kr/v1/runs",
+    headers={
+        "Authorization": "Bearer sk_abc123_xyz789...",
+        "Idempotency-Key": "unique-request-id-001",
+        "Content-Type": "application/json"
+    },
+    json={
+        "pack_type": "decision",
+        "inputs": {
+            "question": "Should we proceed with Plan A?",
+            "context": {"budget": 50000, "timeline": "Q2"}
+        },
+        "reservation": {
+            "max_cost_usd": "0.0500",
+            "timebox_sec": 90,
+            "min_reliability_score": 0.8
+        }
+    }
+)
+assert response.status_code == 202
+receipt = response.json()
+run_id   = receipt["run_id"]
+poll_url = f"https://api.decisionproof.io.kr{receipt['poll']['href']}"</code></pre>
+        </details>
+
+        <details>
+          <summary>Node.js</summary>
+<pre><code>const response = await fetch("https://api.decisionproof.io.kr/v1/runs", {
+  method: "POST",
+  headers: {
+    "Authorization": "Bearer sk_abc123_xyz789...",
+    "Idempotency-Key": "unique-request-id-001",
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    pack_type: "decision",
+    inputs: { question: "Should we proceed with Plan A?" },
+    reservation: { max_cost_usd: "0.0500", timebox_sec: 90 }
+  })
+});
+if (response.status !== 202) throw new Error(`Expected 202, got ${response.status}`);
+const receipt = await response.json();
+const runId   = receipt.run_id;</code></pre>
+        </details>
+
+        <p><strong>Response (202 Accepted):</strong></p>
+        <pre><code>{
+  "run_id": "run_abc123def456",
+  "status": "queued",
+  "poll": {
+    "href": "/v1/runs/run_abc123def456",
+    "recommended_interval_ms": 1500,
+    "max_wait_sec": 90
+  },
+  "reservation": { "reserved_usd": "0.0500" }
+}</code></pre>
+
+        <!-- Poll -->
+        <h2 id="poll">Poll for status</h2>
+        <p>Poll until <code>status</code> is <code>completed</code> or <code>failed</code>:</p>
+        <details>
+          <summary>Python polling loop</summary>
+<pre><code>while True:
+    time.sleep(1.5)
+    r = requests.get(poll_url, headers={"Authorization": "Bearer sk_..."})
+    run = r.json()
+    if run["status"] in ("completed", "failed"):
+        break
+
+if run["status"] == "completed":
+    print("Result URL:", run["output"]["presigned_url"])</code></pre>
+        </details>
+
+        <!-- Result -->
+        <h2 id="result">Get results</h2>
+        <p>
+          When <code>status</code> is <code>completed</code>, the response includes
+          <code>output.presigned_url</code> — a short-lived S3 URL. Download it directly:
+        </p>
+        <pre><code>curl -o result.json "https://s3.amazonaws.com/..."</code></pre>
+
+        <!-- Errors -->
+        <h2 id="errors">Error handling</h2>
+        <p>All errors follow <a href="https://www.rfc-editor.org/rfc/rfc9457" rel="noopener">RFC 9457 Problem Details</a>:</p>
+        <pre><code>{
+  "type": "https://api.decisionproof.io.kr/problems/unauthorized",
+  "title": "Unauthorized",
+  "status": 401,
+  "detail": "Invalid or expired API token."
+}</code></pre>
+        <p>Key status codes:</p>
+        <ul>
+          <li><code>401</code> — invalid or expired token</li>
+          <li><code>402</code> — entitlement inactive (subscription expired or not active)</li>
+          <li><code>422</code> — invalid request body</li>
+          <li><code>429</code> — rate limit exceeded (retry after header included)</li>
+        </ul>
+
+        <div class="alert alert--info mt-32" style="font-size:14px;">
+          Need help? <a href="/contact.html">Contact support</a> or check your
+          <a href="/onboarding.html">onboarding dashboard</a> for account status.
+        </div>
+
+      </div><!-- /docs-content -->
+    </div><!-- /docs-layout -->
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__inner">
+      <p class="footer__copy">&copy; 2026 D_FFERENT. All rights reserved.</p>
+      <ul class="footer__links">
+        <li><a href="/how-it-works.html">How it works</a></li>
+        <li><a href="/pricing.html">Pricing</a></li>
+        <li><a href="/security.html">Security</a></li>
+        <li><a href="/docs/quickstart.html">Docs</a></li>
+        <li><a href="/contact.html">Contact</a></li>
+      </ul>
+    </div>
+  </footer>
+
+</body>
+</html>
