@@ -194,9 +194,22 @@
         document.getElementById('signupSuccess').classList.remove('hidden');
 
       } catch (err) {
-        const msg = err instanceof ApiError
-          ? (err.status === 409 ? 'An account with this email already exists.' : err.detail)
-          : 'Signup failed. Please try again.';
+        let msg;
+        if (err instanceof ApiError) {
+          if (err.status === 409) {
+            msg = 'An account with this email already exists. Please log in instead.';
+          } else if (err.status === 422) {
+            // Weak / HIBP password rejected by server
+            msg = err.detail || 'Please choose a stronger, unique password.';
+          } else if (err.status === 503) {
+            // Email delivery failure — show detail which includes support contact
+            msg = err.detail || 'Email service is temporarily unavailable. Please try again later.';
+          } else {
+            msg = err.detail || 'Signup failed. Please try again.';
+          }
+        } else {
+          msg = 'Signup failed. Please check your connection and try again.';
+        }
         showAlert(msg);
         setLoading('signupBtn', false);
       }

@@ -199,12 +199,13 @@ async def signup(request: SignupRequest, db: Session = Depends(get_db)) -> AuthR
             },
         )
 
-        # Check for common Supabase errors
+        request_id = request_id_var.get()
         error_msg = str(e).lower()
+
+        # 409 — email already registered
         if "already registered" in error_msg or "already exists" in error_msg:
-            request_id = request_id_var.get()
             problem = ProblemDetail(
-                type="https://api.decisionproof.ai/problems/auth-conflict",
+                type="https://api.decisionproof.io.kr/problems/auth-conflict",
                 title="Email Already Registered",
                 status=409,
                 detail="This email is already registered. Please login instead.",
@@ -216,7 +217,58 @@ async def signup(request: SignupRequest, db: Session = Depends(get_db)) -> AuthR
                 media_type="application/problem+json",
             )
 
-        # Generic error
+        # 422 — password rejected by Supabase HIBP / strength check
+        if (
+            "weak" in error_msg
+            or "easy to guess" in error_msg
+            or "known password" in error_msg
+            or "hibp" in error_msg
+            or "password" in error_msg and "breach" in error_msg
+        ):
+            problem = ProblemDetail(
+                type="https://api.decisionproof.io.kr/problems/weak-password",
+                title="Password Too Weak",
+                status=422,
+                detail=(
+                    "This password is too common or has appeared in known data breaches. "
+                    "Please choose a stronger, unique password."
+                ),
+                instance=f"urn:decisionproof:trace:{request_id}",
+            )
+            return JSONResponse(
+                status_code=422,
+                content=problem.model_dump(exclude_none=True),
+                media_type="application/problem+json",
+            )
+
+        # 503 — Supabase SMTP / email delivery failure (infrastructure issue)
+        if (
+            "confirmation email" in error_msg
+            or "sending email" in error_msg
+            or "smtp" in error_msg
+            or ("sending" in error_msg and "email" in error_msg)
+        ):
+            logger.error(
+                "auth.signup.email_delivery_failure",
+                extra={"error": str(e)},
+            )
+            problem = ProblemDetail(
+                type="https://api.decisionproof.io.kr/problems/email-service-unavailable",
+                title="Email Service Unavailable",
+                status=503,
+                detail=(
+                    "Your account was created but we could not send a confirmation email. "
+                    "Please contact support at ghilplip934@gmail.com to activate your account."
+                ),
+                instance=f"urn:decisionproof:trace:{request_id}",
+            )
+            return JSONResponse(
+                status_code=503,
+                content=problem.model_dump(exclude_none=True),
+                media_type="application/problem+json",
+            )
+
+        # Generic 500
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Signup failed: {str(e)[:100]}",
