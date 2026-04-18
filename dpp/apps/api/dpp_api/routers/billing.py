@@ -63,7 +63,10 @@ _EMAIL_CACHE_TTL_SEC = 60
 
 
 def _is_email_confirmed(user_id: str) -> bool:
-    """Check email confirmation status via Supabase Admin API with 60s TTL cache.
+    """Check verified-identity status via Supabase Admin API with 60s TTL cache.
+
+    Verified identity = email_confirmed_at set (email flow)
+                     OR Google OAuth identity present (OAuth flow).
 
     The JWT claim MUST NOT be trusted for this check (locked decision).
     """
@@ -77,11 +80,43 @@ def _is_email_confirmed(user_id: str) -> bool:
     try:
         admin = get_supabase_admin_client()
         user_data = admin.auth.admin.get_user_by_id(user_id)
-        confirmed = (
-            user_data is not None
-            and user_data.user is not None
-            and user_data.user.email_confirmed_at is not None
-        )
+
+        if user_data is None or user_data.user is None:
+            logger.warning(
+                "email_confirmed.user_not_found",
+                extra={"user_id": user_id},
+            )
+            confirmed = False
+        elif user_data.user.email_confirmed_at is not None:
+            logger.debug(
+                "email_confirmed.via_email_confirmed_at",
+                extra={"user_id": user_id},
+            )
+            confirmed = True
+        else:
+            # Narrow OAuth fallback: Google identity = email pre-verified by Google.
+            # Only 'google' is trusted here — do not broaden to arbitrary providers.
+            identities = getattr(user_data.user, "identities", None) or []
+            has_google = any(
+                getattr(i, "provider", "") == "google" for i in identities
+            )
+            if has_google:
+                logger.info(
+                    "email_confirmed.via_google_oauth_identity",
+                    extra={"user_id": user_id},
+                )
+            else:
+                logger.warning(
+                    "email_confirmed.unconfirmed_no_oauth",
+                    extra={
+                        "user_id": user_id,
+                        "identity_providers": [
+                            getattr(i, "provider", "unknown") for i in identities
+                        ],
+                    },
+                )
+            confirmed = has_google
+
     except Exception:
         logger.exception(
             "email_confirmed_check.failed",

@@ -9,6 +9,20 @@
 </head>
 <body class="page-wrap">
 
+  <!--
+    OPERATOR FILL-IN REQUIRED before deploy:
+    Replace the two placeholder strings below with your actual Supabase project
+    URL and anon (publishable) key.
+    Both values are safe to expose in client HTML — they are designed for public use.
+    Source: Supabase Dashboard → Project Settings → API
+  -->
+  <script>
+    window.__DPP_SUPABASE__ = {
+      SUPABASE_URL:      'REPLACE_WITH_YOUR_SUPABASE_URL',
+      SUPABASE_ANON_KEY: 'REPLACE_WITH_YOUR_SUPABASE_ANON_KEY',
+    };
+  </script>
+
   <nav class="nav">
     <div class="container nav__inner">
       <a class="nav__logo" href="/index.html">Decision<span>proof</span></a>
@@ -20,82 +34,40 @@
     </div>
   </nav>
 
-  <main style="display:flex; align-items:center; justify-content:center; padding: 48px 24px;">
+  <main style="display:flex; align-items:center; justify-content:center; padding:48px 24px;">
     <div style="width:100%; max-width:400px;">
 
-      <!-- Email confirmed banner (shown when ?confirmed=1) -->
-      <div id="confirmedBanner" class="alert alert--success hidden" role="status">
-        Email confirmed! You can now log in.
-      </div>
-
-      <!-- Session expired banner (shown when ?reason=session_expired) -->
+      <!-- Session expired banner -->
       <div id="expiredBanner" class="alert alert--warning hidden" role="status">
-        Your session expired. Please log in again.
-      </div>
-
-      <!-- Tab switcher: Login / Sign Up -->
-      <div style="display:flex; border-bottom:1.5px solid var(--border); margin-bottom:28px;">
-        <button id="tabLogin"  class="btn btn--ghost" onclick="switchTab('login')"
-                style="flex:1; border-radius:0; border-bottom:2.5px solid var(--brand-primary); color:var(--brand-primary); font-size:15px;">
-          Log In
-        </button>
-        <button id="tabSignup" class="btn btn--ghost" onclick="switchTab('signup')"
-                style="flex:1; border-radius:0; border-bottom:2.5px solid transparent; font-size:15px;">
-          Sign Up
-        </button>
+        Your session expired. Please sign in again.
       </div>
 
       <!-- Error alert -->
       <div id="alertMsg" class="alert alert--error hidden" role="alert"></div>
 
-      <!-- ── Login form ──────────────────────────────────────────── -->
-      <form id="loginForm" onsubmit="handleLogin(event)" novalidate>
-        <div class="form-group">
-          <label class="form-label" for="loginEmail">Email</label>
-          <input class="form-input" type="email" id="loginEmail"
-                 autocomplete="email" required placeholder="you@example.com">
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="loginPassword">Password</label>
-          <input class="form-input" type="password" id="loginPassword"
-                 autocomplete="current-password" required>
-        </div>
-        <button type="submit" id="loginBtn" class="btn btn--primary btn--full btn--lg">
-          Log In
-        </button>
-      </form>
-
-      <!-- ── Signup form ─────────────────────────────────────────── -->
-      <form id="signupForm" class="hidden" onsubmit="handleSignup(event)" novalidate>
-        <div class="form-group">
-          <label class="form-label" for="signupEmail">Email</label>
-          <input class="form-input" type="email" id="signupEmail"
-                 autocomplete="email" required placeholder="you@example.com">
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="signupPassword">Password
-            <span class="text-muted text-sm" style="font-weight:400"> — 8+ characters</span>
-          </label>
-          <input class="form-input" type="password" id="signupPassword"
-                 autocomplete="new-password" required minlength="8">
-        </div>
-        <button type="submit" id="signupBtn" class="btn btn--primary btn--full btn--lg">
-          Create Account
-        </button>
-        <p class="text-sm text-muted text-center mt-16">
-          We'll send a confirmation email. You must confirm before logging in.
-        </p>
-      </form>
-
-      <!-- ── Signup success ──────────────────────────────────────── -->
-      <div id="signupSuccess" class="hidden text-center" style="padding:24px 0;">
-        <div style="font-size:48px; margin-bottom:16px;">📬</div>
-        <h2 style="margin:0 0 12px; font-size:22px;">Check your inbox</h2>
-        <p class="text-muted">
-          We sent a confirmation link to <strong id="signupEmailDisplay"></strong>.<br>
-          Click the link to activate your account, then return here to log in.
-        </p>
+      <!-- Heading -->
+      <div style="text-align:center; margin-bottom:32px;">
+        <h1 style="font-size:22px; font-weight:800; margin:0 0 8px;">Sign in to Decisionproof</h1>
+        <p class="text-sm text-muted mb-0">Private beta &mdash; Google account required</p>
       </div>
+
+      <!-- Google OAuth button — single primary path -->
+      <button id="googleBtn" class="btn btn--outline btn--full btn--lg"
+              style="display:flex; align-items:center; justify-content:center; gap:10px;">
+        <!-- Google "G" logo SVG (official brand asset, no external fetch) -->
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+          <path d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+          <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
+          <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+          <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+        </svg>
+        <span id="googleBtnLabel">Continue with Google</span>
+      </button>
+
+      <p class="text-xs text-muted text-center mt-24" style="line-height:1.6;">
+        By signing in you agree to our <a href="/contact.html">Terms</a>.
+        New to Decisionproof? <a href="/pricing.html">See pricing &rarr;</a>
+      </p>
 
     </div>
   </main>
@@ -111,132 +83,78 @@
   </footer>
 
   <script type="module">
-    import { saveSession, redirectIfLoggedIn } from '/js/auth-state.js';
-    import { api, ApiError } from '/js/dpp-api.js';
+    import { isLoggedIn } from '/js/auth-state.js';
 
-    // ── Alert helpers ───────────────────────────────────────────────
-    function showAlert(msg) {
-      const el = document.getElementById('alertMsg');
-      el.textContent = msg;
-      el.classList.remove('hidden');
-    }
-    function clearAlert() {
-      document.getElementById('alertMsg').classList.add('hidden');
+    // Redirect already-authenticated users away from login page
+    if (isLoggedIn()) {
+      window.location.replace('/onboarding.html');
     }
 
-    function setLoading(btnId, loading) {
-      const btn = document.getElementById(btnId);
-      btn.disabled = loading;
-      btn.innerHTML = loading
-        ? '<span class="spinner"></span> Please wait…'
-        : btn.dataset.label;
-    }
-
-    // ── Tab switching ───────────────────────────────────────────────
-    // Defined before any call site (including the ?tab=signup init below
-    // and the onclick="switchTab(...)" attributes on the tab buttons).
-    window.switchTab = function(tab) {
-      const isLogin = tab === 'login';
-      document.getElementById('loginForm').classList.toggle('hidden', !isLogin);
-      document.getElementById('signupForm').classList.toggle('hidden', isLogin);
-      document.getElementById('signupSuccess').classList.add('hidden');
-      clearAlert();
-
-      const loginTab  = document.getElementById('tabLogin');
-      const signupTab = document.getElementById('tabSignup');
-      loginTab.style.borderBottomColor  = isLogin  ? 'var(--brand-primary)' : 'transparent';
-      signupTab.style.borderBottomColor = !isLogin ? 'var(--brand-primary)' : 'transparent';
-      loginTab.style.color  = isLogin  ? 'var(--brand-primary)' : '';
-      signupTab.style.color = !isLogin ? 'var(--brand-primary)' : '';
-    };
-
-    // ── Login ────────────────────────────────────────────────────────
-    window.handleLogin = async function(e) {
-      e.preventDefault();
-      clearAlert();
-      const email    = document.getElementById('loginEmail').value.trim();
-      const password = document.getElementById('loginPassword').value;
-      if (!email || !password) { showAlert('Please enter your email and password.'); return; }
-
-      setLoading('loginBtn', true);
-      try {
-        const session = await api.post('/v1/auth/login', { email, password });
-        saveSession(session);
-
-        // Redirect: ?next param → or onboarding
-        const next = params.get('next');
-        window.location.href = next ? decodeURIComponent(next) : '/onboarding.html';
-
-      } catch (err) {
-        const msg = err instanceof ApiError
-          ? (err.status === 401 ? 'Invalid email or password.' : err.detail)
-          : 'Login failed. Please try again.';
-        showAlert(msg);
-        setLoading('loginBtn', false);
-      }
-    };
-
-    // ── Signup ───────────────────────────────────────────────────────
-    window.handleSignup = async function(e) {
-      e.preventDefault();
-      clearAlert();
-      const email    = document.getElementById('signupEmail').value.trim();
-      const password = document.getElementById('signupPassword').value;
-      if (!email) { showAlert('Please enter your email.'); return; }
-      if (password.length < 8) { showAlert('Password must be at least 8 characters.'); return; }
-
-      setLoading('signupBtn', true);
-      try {
-        await api.post('/v1/auth/signup', { email, password });
-
-        document.getElementById('signupForm').classList.add('hidden');
-        document.getElementById('signupEmailDisplay').textContent = email;
-        document.getElementById('signupSuccess').classList.remove('hidden');
-
-      } catch (err) {
-        let msg;
-        if (err instanceof ApiError) {
-          if (err.status === 409) {
-            msg = 'An account with this email already exists. Please log in instead.';
-          } else if (err.status === 422) {
-            // Weak / HIBP password rejected by server
-            msg = err.detail || 'Please choose a stronger, unique password.';
-          } else if (err.status === 503) {
-            // Email delivery failure — show detail which includes support contact
-            msg = err.detail || 'Email service is temporarily unavailable. Please try again later.';
-          } else {
-            msg = err.detail || 'Signup failed. Please try again.';
-          }
-        } else {
-          msg = 'Signup failed. Please check your connection and try again.';
-        }
-        showAlert(msg);
-        setLoading('signupBtn', false);
-      }
-    };
-
-    // ── Initialization (runs after all functions are defined) ────────
-    // Redirect logged-in users away
-    redirectIfLoggedIn();
-
-    // Save original button labels for setLoading restore
-    document.getElementById('loginBtn').dataset.label  = 'Log In';
-    document.getElementById('signupBtn').dataset.label = 'Create Account';
-
-    // Parse query params
     const params = new URLSearchParams(window.location.search);
 
-    if (params.get('confirmed') === '1') {
-      document.getElementById('confirmedBanner').classList.remove('hidden');
-    }
     if (params.get('reason') === 'session_expired') {
       document.getElementById('expiredBanner').classList.remove('hidden');
     }
 
-    // Restore tab from URL — switchTab is now defined above, safe to call
-    if (params.get('tab') === 'signup') {
-      switchTab('signup');
+    // Guard: ensure operator has filled in Supabase config placeholders
+    const cfg = window.__DPP_SUPABASE__;
+    const cfgMissing = !cfg?.SUPABASE_URL
+      || cfg.SUPABASE_URL.startsWith('REPLACE_')
+      || !cfg?.SUPABASE_ANON_KEY
+      || cfg.SUPABASE_ANON_KEY.startsWith('REPLACE_');
+
+    if (cfgMissing) {
+      const el = document.getElementById('alertMsg');
+      el.textContent = 'Authentication service is not configured. Please contact support.';
+      el.classList.remove('hidden');
+      document.getElementById('googleBtn').disabled = true;
+      console.error('[login] window.__DPP_SUPABASE__ config missing or placeholder not replaced');
     }
+
+    // Google OAuth flow
+    document.getElementById('googleBtn').addEventListener('click', async () => {
+      if (cfgMissing) return;
+
+      const btn   = document.getElementById('googleBtn');
+      const label = document.getElementById('googleBtnLabel');
+      btn.disabled  = true;
+      label.textContent = 'Redirecting to Google\u2026';
+
+      try {
+        const { createClient } = await import(
+          'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
+        );
+        const supabase = createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+
+        // Preserve ?next= through the callback round-trip
+        const next = params.get('next');
+        const callbackBase = 'https://decisionproof.io.kr/auth/callback.html';
+        const redirectTo = next
+          ? `${callbackBase}?next=${encodeURIComponent(next)}`
+          : callbackBase;
+
+        console.log('[login] Starting Google OAuth, redirectTo:', redirectTo);
+
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo,
+            scopes: 'email profile',
+          },
+        });
+
+        if (error) throw error;
+        // Supabase SDK redirects the browser — execution stops here on success.
+
+      } catch (err) {
+        console.error('[login] Google OAuth initiation failed:', err);
+        const el = document.getElementById('alertMsg');
+        el.textContent = 'Could not start sign-in. Please try again or contact support.';
+        el.classList.remove('hidden');
+        btn.disabled  = false;
+        label.textContent = 'Continue with Google';
+      }
+    });
   </script>
 
 </body>

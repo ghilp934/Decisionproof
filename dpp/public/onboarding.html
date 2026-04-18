@@ -85,23 +85,13 @@
 
     const STEPS_META = [
       { key: 'signup_complete',    label: 'Create account',           desc: 'Your account is active.',                                     action: null },
-      { key: 'email_confirmed',    label: 'Confirm your email',        desc: 'Click the link we sent to your inbox.',                        action: { label: 'Resend email', href: null, fn: 'resendConfirmation' } },
+      { key: 'email_confirmed',    label: 'Email address verified',    desc: 'Sign in with Google to verify your identity.',                action: { label: 'Sign in with Google', href: '/login.html' } },
       { key: 'tenant_resolved',    label: 'Workspace ready',           desc: 'Your workspace has been provisioned.',                         action: null },
       { key: 'payment_complete',   label: 'Activate subscription',     desc: 'Subscribe to get full API access.',                            action: { label: 'Go to checkout', href: '/checkout.html' } },
       { key: 'entitlement_active', label: 'Subscription active',       desc: 'Your 30-day access window is running.',                        action: { label: 'Go to checkout', href: '/checkout.html' } },
       { key: 'token_issued',       label: 'Create your first API key', desc: 'You need an API key to authenticate requests.',                action: { label: 'Create API key', href: null, fn: 'createApiKey' } },
       { key: 'first_run_complete', label: 'Make your first API call',  desc: 'Run a decision and see the results.',                          action: { label: 'Read quickstart', href: '/docs/quickstart.html' } },
     ];
-
-    window.resendConfirmation = async function() {
-      try {
-        const { email } = getSession();
-        // POST /v1/auth/signup acts as resend when email already exists (Supabase handles it)
-        alert(`Check ${email} for a confirmation link.`);
-      } catch (_) {
-        alert('Could not resend confirmation. Try signing up again.');
-      }
-    };
 
     window.createApiKey = async function() {
       try {

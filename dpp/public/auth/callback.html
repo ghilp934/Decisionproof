@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>Signing in\u2026 — Decisionproof</title>
+  <link rel="stylesheet" href="/css/dpp.css">
+</head>
+<body class="page-wrap">
+
+  <!--
+    OPERATOR FILL-IN REQUIRED before deploy:
+    Same Supabase credentials as login.html — must match exactly.
+    Source: Supabase Dashboard → Project Settings → API
+  -->
+  <script>
+    window.__DPP_SUPABASE__ = {
+      SUPABASE_URL:      'REPLACE_WITH_YOUR_SUPABASE_URL',
+      SUPABASE_ANON_KEY: 'REPLACE_WITH_YOUR_SUPABASE_ANON_KEY',
+    };
+  </script>
+
+  <main style="display:flex; align-items:center; justify-content:center; min-height:70vh;">
+    <div class="text-center" style="padding:48px 24px;">
+      <span class="spinner" id="spinner"
+            style="color:var(--brand-primary); width:32px; height:32px; border-width:3px; display:inline-block;"></span>
+      <p class="text-muted mt-16" id="statusMsg">Completing sign-in\u2026</p>
+      <div id="errorBox" class="hidden" style="margin-top:24px; max-width:360px;">
+        <div id="errorMsg" class="alert alert--error" role="alert"></div>
+        <a href="/login.html" class="btn btn--outline btn--sm mt-16">Back to sign-in</a>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    const API_BASE = 'https://api.decisionproof.io.kr';
+
+    function showError(msg) {
+      document.getElementById('spinner').style.display    = 'none';
+      document.getElementById('statusMsg').textContent    = '';
+      document.getElementById('errorMsg').textContent     = msg;
+      document.getElementById('errorBox').classList.remove('hidden');
+    }
+
+    async function handleCallback() {
+      const cfg = window.__DPP_SUPABASE__;
+
+      // Guard: config must be operator-filled
+      if (!cfg?.SUPABASE_URL || cfg.SUPABASE_URL.startsWith('REPLACE_')
+          || !cfg?.SUPABASE_ANON_KEY || cfg.SUPABASE_ANON_KEY.startsWith('REPLACE_')) {
+        console.error('[callback] __DPP_SUPABASE__ config missing or placeholder not replaced');
+        showError('Authentication service is not configured. Please contact support.');
+        return;
+      }
+
+      const params    = new URLSearchParams(window.location.search);
+      const oauthCode = params.get('code');
+      const oauthErr  = params.get('error');
+      const oauthErrDesc = params.get('error_description');
+
+      // OAuth provider-level error (e.g. user denied consent)
+      if (oauthErr) {
+        console.error('[callback] OAuth provider error:', oauthErr, oauthErrDesc);
+        showError(`Sign-in failed: ${oauthErrDesc || oauthErr}. Please try again.`);
+        return;
+      }
+
+      if (!oauthCode) {
+        console.error('[callback] No authorization code in URL');
+        showError('Missing authentication code. Please try signing in again.');
+        return;
+      }
+
+      try {
+        const { createClient } = await import(
+          'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
+        );
+        const supabase = createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+
+        console.log('[callback] Exchanging authorization code for session');
+        document.getElementById('statusMsg').textContent = 'Verifying with Google\u2026';
+
+        const { data, error: exchangeErr } = await supabase.auth.exchangeCodeForSession(oauthCode);
+
+        if (exchangeErr || !data?.session) {
+          console.error('[callback] Code exchange failed:', exchangeErr);
+          showError('Could not complete sign-in. Please try again.');
+          return;
+        }
+
+        const session = data.session;
+        const user    = data.user;
+
+        console.log('[callback] Session established, user_id:', user?.id,
+                    'email:', user?.email,
+                    'email_confirmed_at:', user?.email_confirmed_at ?? 'n/a');
+
+        // ── Persist to DPP sessionStorage (same keys as auth-state.js) ──
+        sessionStorage.setItem('dpp_access_token',  session.access_token);
+        sessionStorage.setItem('dpp_refresh_token', session.refresh_token);
+        sessionStorage.setItem('dpp_user_id',       user?.id    ?? '');
+        sessionStorage.setItem('dpp_email',         user?.email ?? '');
+
+        // Clean up Supabase SDK's PKCE artifacts from localStorage (purpose-limited)
+        for (const key of Object.keys(localStorage)) {
+          if (key.startsWith('sb-') || key.includes('supabase')) {
+            localStorage.removeItem(key);
+          }
+        }
+
+        // ── Provision tenant (idempotent) ────────────────────────────────
+        document.getElementById('statusMsg').textContent = 'Setting up your workspace\u2026';
+
+        try {
+          const provisionRes = await fetch(`${API_BASE}/v1/auth/provision`, {
+            method:  'POST',
+            headers: { 'Authorization': `Bearer ${session.access_token}` },
+          });
+
+          if (provisionRes.ok) {
+            const provisionData = await provisionRes.json().catch(() => ({}));
+            console.log('[callback] Tenant provision result:',
+                        provisionData.created ? 'created' : 'existing',
+                        'tenant_id:', provisionData.tenant_id);
+          } else {
+            // Non-fatal — onboarding will display a meaningful error if needed
+            console.warn('[callback] Provision returned', provisionRes.status,
+                         '— proceeding to onboarding');
+          }
+        } catch (provisionErr) {
+          console.warn('[callback] Provision request failed (network?):', provisionErr,
+                       '— proceeding to onboarding');
+        }
+
+        // ── Redirect ─────────────────────────────────────────────────────
+        console.log('[callback] Redirecting to onboarding');
+        const next = params.get('next');
+        window.location.replace(next ? decodeURIComponent(next) : '/onboarding.html');
+
+      } catch (err) {
+        console.error('[callback] Unexpected error:', err);
+        showError('An unexpected error occurred. Please try again.');
+      }
+    }
+
+    handleCallback();
+  </script>
+
+</body>
+</html>
