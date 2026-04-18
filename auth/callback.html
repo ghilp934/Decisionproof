@@ -54,10 +54,12 @@
         return;
       }
 
-      const params    = new URLSearchParams(window.location.search);
-      const oauthCode = params.get('code');
-      const oauthErr  = params.get('error');
-      const oauthErrDesc = params.get('error_description');
+      const params   = new URLSearchParams(window.location.search);
+      const hashParams = new URLSearchParams(window.location.hash.slice(1));
+
+      // Errors can arrive in query string or hash
+      const oauthErr     = params.get('error')             || hashParams.get('error');
+      const oauthErrDesc = params.get('error_description') || hashParams.get('error_description');
 
       // OAuth provider-level error (e.g. user denied consent)
       if (oauthErr) {
@@ -66,9 +68,14 @@
         return;
       }
 
-      if (!oauthCode) {
-        console.error('[callback] No authorization code in URL');
-        showError('Missing authentication code. Please try signing in again.');
+      const oauthCode = params.get('code');                 // PKCE flow
+      const hashToken = hashParams.get('access_token');     // Implicit flow
+
+      console.log('[callback] flow detection — code:', !!oauthCode, 'hash_token:', !!hashToken);
+
+      if (!oauthCode && !hashToken) {
+        console.error('[callback] No authorization code or token in URL');
+        showError('Missing authentication data. Please try signing in again.');
         return;
       }
 
@@ -76,21 +83,45 @@
         const { createClient } = await import(
           'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
         );
+        // SDK automatically parses hash tokens on init (implicit flow)
         const supabase = createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
 
-        console.log('[callback] Exchanging authorization code for session');
         document.getElementById('statusMsg').textContent = 'Verifying with Google\u2026';
 
-        const { data, error: exchangeErr } = await supabase.auth.exchangeCodeForSession(oauthCode);
+        let session, user;
 
-        if (exchangeErr || !data?.session) {
-          console.error('[callback] Code exchange failed:', exchangeErr);
-          showError('Could not complete sign-in. Please try again.');
-          return;
+        if (oauthCode) {
+          // ── PKCE flow: explicit code exchange ──────────────────────────
+          console.log('[callback] PKCE flow — exchanging authorization code');
+          const { data, error: exchangeErr } = await supabase.auth.exchangeCodeForSession(oauthCode);
+
+          if (exchangeErr || !data?.session) {
+            console.error('[callback] PKCE code exchange failed:', exchangeErr);
+            showError('Could not complete sign-in. Please try again.');
+            return;
+          }
+          session = data.session;
+          user    = data.user;
+
+        } else {
+          // ── Implicit flow: tokens already in URL hash ──────────────────
+          // SDK parsed the hash on createClient; retrieve via getSession()
+          console.log('[callback] Implicit flow — reading session from hash');
+          const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
+
+          if (sessionErr || !sessionData?.session) {
+            console.error('[callback] Implicit session retrieval failed:', sessionErr);
+            showError('Could not complete sign-in. Please try again.');
+            return;
+          }
+          session = sessionData.session;
+          const { data: userData } = await supabase.auth.getUser();
+          user = userData?.user ?? session.user;
         }
 
-        const session = data.session;
-        const user    = data.user;
+        console.log('[callback] Session established, user_id:', user?.id,
+                    'email:', user?.email,
+                    'email_confirmed_at:', user?.email_confirmed_at ?? 'n/a');
 
         console.log('[callback] Session established, user_id:', user?.id,
                     'email:', user?.email,
