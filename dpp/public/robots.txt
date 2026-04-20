@@ -7,25 +7,17 @@ Disallow: /checkout.html
 Disallow: /payment-pending.html
 Disallow: /onboarding.html
 Disallow: /billing/
+Disallow: /auth/
 
-# Internal / ops files
-Disallow: /PILOT_READY.md
+# Internal docs (not public marketing)
+Disallow: /docs/best_practices/
+
+# Release-packet docs (internal CI gate reference only, not for public indexing)
 Disallow: /RELEASE_NOTES_v0.4_RC.md
-Disallow: /release_notes_v0.4.2.2-pilot.2.md
+Disallow: /PILOT_READY.md
+
+# Machine-readable agent files (served for agents that fetch directly)
 Disallow: /llms.txt
 Disallow: /llms-full.txt
-
-# Internal docs (API-facing, not public marketing)
-Disallow: /docs/best_practices/
-Disallow: /docs/schemas/
-Disallow: /docs/auth.md
-Disallow: /docs/auth-delegated.md
-Disallow: /docs/changelog.md
-Disallow: /docs/metering-billing.md
-Disallow: /docs/pilot-pack-v0.2.md
-Disallow: /docs/pricing-ssot.md
-Disallow: /docs/problem-types.md
-Disallow: /docs/rate-limits.md
-Disallow: /docs/human-escalation-template.md
 
 Sitemap: https://decisionproof.io.kr/sitemap.xml

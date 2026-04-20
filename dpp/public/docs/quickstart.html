@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quickstart — Decisionproof Docs</title>
-  <meta name="description" content="Get started with the Decisionproof API in minutes. Authentication, your first decision run, polling, results, and error handling.">
+  <meta name="description" content="Get started with the Decisionproof API. Execution governance for AI runs — spend caps, receipts, and reconciliation. Authentication, first run, polling, results, and error handling.">
   <link rel="canonical" href="https://decisionproof.io.kr/docs/quickstart.html">
   <link rel="stylesheet" href="/css/dpp.css">
   <style>
@@ -122,17 +122,23 @@
       <!-- Content -->
       <div class="docs-content">
 
-        <div class="hero__eyebrow" style="margin-bottom:16px;">Documentation</div>
+        <div class="hero__eyebrow" style="margin-bottom:16px;">Documentation — Paid private beta</div>
         <h1>Quickstart</h1>
-        <p class="text-muted" style="font-size:17px; margin-bottom:32px;">
-          Get up and running with the Decisionproof API in a few minutes.
+        <p class="text-muted" style="font-size:17px; margin-bottom:16px;">
+          Set a spend cap. Submit a run. Inspect the receipt.
+        </p>
+        <p style="font-size:15px; line-height:1.7; margin-bottom:32px;">
+          The Decisionproof API turns AI runs into budget-bounded, auditable,
+          settlement-safe operations. Every run reserves a spend cap upfront, captures
+          a result artifact on success, and settles cost only against that receipt.
+          The snippets below assume an active paid private beta subscription.
         </p>
 
         <!-- Prerequisites -->
         <h2 id="prereqs">Prerequisites</h2>
         <ul>
-          <li>An active Decisionproof subscription (<a href="/pricing.html">see pricing</a>)</li>
-          <li>An API token — create one from your <a href="/onboarding.html">dashboard</a> (format: <code>sk_{key_id}_{secret}</code>)</li>
+          <li>An active paid private beta subscription (<a href="/pricing.html">see pricing</a>)</li>
+          <li>An API key — create one from your <a href="/onboarding.html">dashboard</a> (format: <code>dpp_live_{key}</code>; up to 3 keys per workspace during beta)</li>
           <li>Any HTTP client: curl, Python requests, Node.js fetch, etc.</li>
         </ul>
 
@@ -142,11 +148,13 @@
 
         <!-- Authentication -->
         <h2 id="auth">Authentication</h2>
-        <p>All requests require a <code>Bearer</code> token in the <code>Authorization</code> header:</p>
-        <pre><code>Authorization: Bearer sk_abc123_xyz789def456...</code></pre>
+        <p>All requests require an API key in the <code>Authorization</code> header:</p>
+        <pre><code>Authorization: Bearer dpp_live_your_key_here</code></pre>
         <div class="alert alert--warning" style="font-size:14px;">
-          <strong>Keep your token secret.</strong> Treat it like a password.
-          Revoke and rotate it immediately if you suspect it has been exposed.
+          <strong>Keep your key secret.</strong> Treat it like a password —
+          do not commit it to source control. Revoke and rotate it immediately
+          from your dashboard if you suspect it has been exposed. You are
+          responsible for all activity performed under your keys.
         </div>
 
         <!-- Submit a run -->
@@ -163,8 +171,8 @@
         <details>
           <summary>cURL</summary>
 <pre><code>curl -X POST https://api.decisionproof.io.kr/v1/runs \
-  -H "Authorization: Bearer sk_abc123_xyz789..." \
-  -H "Idempotency-Key: unique-request-id-001" \
+  -H "Authorization: Bearer dpp_live_your_key_here" \
+  -H "Idempotency-Key: my-unique-key-123" \
   -H "Content-Type: application/json" \
   -d '{
     "pack_type": "decision",
@@ -172,11 +180,7 @@
       "question": "Should we proceed with Plan A?",
       "context": {"budget": 50000, "timeline": "Q2"}
     },
-    "reservation": {
-      "max_cost_usd": "0.0500",
-      "timebox_sec": 90,
-      "min_reliability_score": 0.8
-    }
+    "max_cost_usd": "0.0500"
   }'</code></pre>
         </details>
 
@@ -187,8 +191,8 @@
 response = requests.post(
     "https://api.decisionproof.io.kr/v1/runs",
     headers={
-        "Authorization": "Bearer sk_abc123_xyz789...",
-        "Idempotency-Key": "unique-request-id-001",
+        "Authorization": "Bearer dpp_live_your_key_here",
+        "Idempotency-Key": "my-unique-key-123",
         "Content-Type": "application/json"
     },
     json={
@@ -197,11 +201,7 @@ response = requests.post(
             "question": "Should we proceed with Plan A?",
             "context": {"budget": 50000, "timeline": "Q2"}
         },
-        "reservation": {
-            "max_cost_usd": "0.0500",
-            "timebox_sec": 90,
-            "min_reliability_score": 0.8
-        }
+        "max_cost_usd": "0.0500"
     }
 )
 assert response.status_code == 202
@@ -215,14 +215,14 @@ poll_url = f"https://api.decisionproof.io.kr{receipt['poll']['href']}"</code></p
 <pre><code>const response = await fetch("https://api.decisionproof.io.kr/v1/runs", {
   method: "POST",
   headers: {
-    "Authorization": "Bearer sk_abc123_xyz789...",
-    "Idempotency-Key": "unique-request-id-001",
+    "Authorization": "Bearer dpp_live_your_key_here",
+    "Idempotency-Key": "my-unique-key-123",
     "Content-Type": "application/json"
   },
   body: JSON.stringify({
     pack_type: "decision",
     inputs: { question: "Should we proceed with Plan A?" },
-    reservation: { max_cost_usd: "0.0500", timebox_sec: 90 }
+    max_cost_usd: "0.0500"
   })
 });
 if (response.status !== 202) throw new Error(`Expected 202, got ${response.status}`);
@@ -239,8 +239,13 @@ const runId   = receipt.run_id;</code></pre>
     "recommended_interval_ms": 1500,
     "max_wait_sec": 90
   },
-  "reservation": { "reserved_usd": "0.0500" }
+  "reserved_usd": "0.0500"
 }</code></pre>
+        <p class="text-sm text-muted" style="margin-top:-4px;">
+          The per-run cost cap during the paid private beta is US$5.00.
+          Reserve what you expect; you'll be charged only the settled cost
+          once the result artifact and its receipt metadata are captured.
+        </p>
 
         <!-- Poll -->
         <h2 id="poll">Poll for status</h2>
@@ -249,7 +254,7 @@ const runId   = receipt.run_id;</code></pre>
           <summary>Python polling loop</summary>
 <pre><code>while True:
     time.sleep(1.5)
-    r = requests.get(poll_url, headers={"Authorization": "Bearer sk_..."})
+    r = requests.get(poll_url, headers={"Authorization": "Bearer dpp_live_your_key_here"})
     run = r.json()
     if run["status"] in ("completed", "failed"):
         break
@@ -273,18 +278,19 @@ if run["status"] == "completed":
   "type": "https://api.decisionproof.io.kr/problems/unauthorized",
   "title": "Unauthorized",
   "status": 401,
-  "detail": "Invalid or expired API token."
+  "detail": "Invalid or expired API key."
 }</code></pre>
         <p>Key status codes:</p>
         <ul>
-          <li><code>401</code> — invalid or expired token</li>
+          <li><code>401</code> — invalid or expired API key</li>
           <li><code>402</code> — entitlement inactive (subscription expired or not active)</li>
           <li><code>422</code> — invalid request body</li>
-          <li><code>429</code> — rate limit exceeded (retry after header included)</li>
+          <li><code>429</code> — rate limit exceeded (<code>Retry-After</code> header included)</li>
         </ul>
 
         <div class="alert alert--info mt-32" style="font-size:14px;">
-          Need help? <a href="/contact.html">Contact support</a> or check your
+          Need help? <a href="/contact.html">Contact support</a>, review the
+          <a href="/terms.html">Terms of Use</a>, or check your
           <a href="/onboarding.html">onboarding dashboard</a> for account status.
         </div>
 
@@ -301,6 +307,7 @@ if run["status"] == "completed":
         <li><a href="/security.html">Security</a></li>
         <li><a href="/docs/quickstart.html">Docs</a></li>
         <li><a href="/contact.html">Contact</a></li>
+        <li><a href="/terms.html">Terms</a></li>
       </ul>
     </div>
   </footer>

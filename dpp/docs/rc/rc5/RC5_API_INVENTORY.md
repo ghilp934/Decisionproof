@@ -1,7 +1,7 @@
 # RC-5 API Inventory Report
 
-**Generated At:** 2026-02-21T02:54:14.297204+00:00  
-**Commit:** `8d3f9bb8`  
+**Generated At:** 2026-04-16T13:20:05.587187+00:00  
+**Commit:** `1cbbe1ba`  
 **App Entrypoint:** `dpp_api.main:app`  
 
 ---
@@ -11,13 +11,14 @@
 **Status:** [OK] PASS  
 **Missing in OpenAPI:** 0  
 **Extra in OpenAPI:** 0  
-**Total Public Routes:** 25  
-**Total Hidden Routes:** 4  
+**Total Public Routes:** 32  
+**Total Hidden Routes:** 5  
 
 ## Hidden Endpoints
 
 ### [OK] Intentionally Hidden (Approved)
 
+- `GET /.well-known/openapi-demo.json`
 - `GET /api-docs`
 - `GET /docs/oauth2-redirect`
 - `GET /openapi.json`

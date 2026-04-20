@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Decisionproof — Structured Decision Intelligence API</title>
-  <meta name="description" content="Decisionproof turns your decision data into clear, auditable outputs via a single REST API. Private beta now open.">
+  <title>Decisionproof — Execution governance for AI decisions</title>
+  <meta name="description" content="Spend caps, receipts, and automatic reconciliation for AI runs. Decisionproof turns AI execution into budget-bounded, auditable, settlement-safe operations. Paid private beta.">
   <link rel="canonical" href="https://decisionproof.io.kr/">
   <link rel="stylesheet" href="/css/dpp.css">
 </head>
@@ -29,18 +29,20 @@
     <!-- Hero -->
     <section class="hero">
       <div class="container">
-        <div class="hero__eyebrow">Private Beta — Limited Access</div>
-        <h1>Decision intelligence,<br>delivered as an API</h1>
+        <div class="hero__eyebrow">Paid Private Beta — Limited Access</div>
+        <h1>Spend caps, receipts,<br>and reconciliation for AI runs</h1>
         <p>
-          Decisionproof processes structured decisions at scale — with full
-          auditability, deterministic outputs, and a clean REST interface.
-          Built for teams that can't afford ambiguity.
+          Uncontrolled AI execution is a financial and operational risk.
+          Decisionproof turns AI runs into budget-bounded, auditable,
+          settlement-safe operations — with hard spend caps, receipt-backed
+          cost settlement, and a reconciliation loop that rolls every run
+          forward or back, deterministically.
         </p>
         <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
           <a href="/login.html?tab=signup" class="btn btn--primary btn--lg">Join private beta</a>
           <a href="/docs/quickstart.html" class="btn btn--outline btn--lg">Read the docs</a>
         </div>
-        <p class="text-sm text-muted mt-24">$29 / 30 days &mdash; PayPal accepted</p>
+        <p class="text-sm text-muted mt-24">$29 / 30 days &mdash; PayPal only &mdash; no auto-renewal</p>
       </div>
     </section>
 
@@ -50,39 +52,70 @@
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:24px;">
 
           <div class="card">
-            <div style="font-size:32px; margin-bottom:12px;">⚡</div>
-            <h3 style="margin:0 0 8px; font-size:17px; font-weight:700;">Single REST endpoint</h3>
-            <p class="text-muted text-sm mb-0">One endpoint, one job — submit a decision, get a structured result. No SDK required.</p>
+            <div style="font-size:32px; margin-bottom:12px;">💰</div>
+            <h3 style="margin:0 0 8px; font-size:17px; font-weight:700;">Hard spend caps</h3>
+            <p class="text-muted text-sm mb-0">Submit each run with a max cost. Budget is reserved before work starts — runs that would exceed the cap are rejected, not truncated.</p>
           </div>
 
           <div class="card">
-            <div style="font-size:32px; margin-bottom:12px;">🔒</div>
-            <h3 style="margin:0 0 8px; font-size:17px; font-weight:700;">Auditable by design</h3>
-            <p class="text-muted text-sm mb-0">Every run is logged. Export full decision traces at any time.</p>
+            <div style="font-size:32px; margin-bottom:12px;">🧾</div>
+            <h3 style="margin:0 0 8px; font-size:17px; font-weight:700;">Receipt-backed settlement</h3>
+            <p class="text-muted text-sm mb-0">Cost settles only when the result artifact is written and its metadata is captured. No receipt means no settlement.</p>
+          </div>
+
+          <div class="card">
+            <div style="font-size:32px; margin-bottom:12px;">🔄</div>
+            <h3 style="margin:0 0 8px; font-size:17px; font-weight:700;">Automatic reconciliation</h3>
+            <p class="text-muted text-sm mb-0">A continuous loop scans for lease expiry, stuck finalize stages, and missing receipts, and rolls each run forward or back without silent money drift.</p>
+          </div>
+
+          <div class="card">
+            <div style="font-size:32px; margin-bottom:12px;">🗂️</div>
+            <h3 style="margin:0 0 8px; font-size:17px; font-weight:700;">Exportable audit trail</h3>
+            <p class="text-muted text-sm mb-0">Every run is recorded as input → state transitions → result → settlement, and exportable at any time. No TTL on the data.</p>
           </div>
 
           <div class="card">
             <div style="font-size:32px; margin-bottom:12px;">🔑</div>
             <h3 style="margin:0 0 8px; font-size:17px; font-weight:700;">API-key auth</h3>
-            <p class="text-muted text-sm mb-0">Create and revoke keys from your dashboard. No OAuth flows to manage.</p>
+            <p class="text-muted text-sm mb-0">Create and revoke keys from your dashboard. No SDK required. No OAuth flows to manage.</p>
           </div>
 
           <div class="card">
-            <div style="font-size:32px; margin-bottom:12px;">📦</div>
-            <h3 style="margin:0 0 8px; font-size:17px; font-weight:700;">Deterministic outputs</h3>
-            <p class="text-muted text-sm mb-0">Same input, same output — every time. Reproducible results for regulated workflows.</p>
+            <div style="font-size:32px; margin-bottom:12px;">🏗️</div>
+            <h3 style="margin:0 0 8px; font-size:17px; font-weight:700;">Tenant data isolation</h3>
+            <p class="text-muted text-sm mb-0">Your run data is scoped to your workspace. API keys only authorize access to your own tenant's runs and receipts.</p>
           </div>
 
         </div>
       </div>
     </section>
 
-    <!-- CTA -->
+    <!-- Positioning anchor -->
     <section class="section">
+      <div class="container" style="max-width:720px;">
+        <h2 class="section-title">Not an agent framework. The control layer you run around it.</h2>
+        <p class="text-muted" style="font-size:16px; line-height:1.75;">
+          Agent frameworks, durable execution engines, and orchestration toolkits
+          cover how an AI run is constructed and resumed. Decisionproof sits one
+          layer up: it governs what a run is allowed to spend, how completion is
+          proven, and how cost settles when a worker crashes, a lease expires,
+          or a retry collides.
+        </p>
+        <p class="text-muted mt-16" style="font-size:16px; line-height:1.75;">
+          Treat each run as an accountable economic transaction. Decisionproof
+          handles the money, the receipts, and the recovery — so your AI stack
+          clears cleanly, even on the bad days.
+        </p>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="section section--alt">
       <div class="container text-center">
         <h2 class="section-title">Ready to try it?</h2>
         <p class="text-muted mb-32" style="font-size:17px;">
-          Join the private beta for $29 / 30 days. No auto-renewal.
+          Paid private beta &mdash; $29 for 30 days, 1,000 decision credits included, no auto-renewal.
         </p>
         <a href="/login.html?tab=signup" class="btn btn--primary btn--lg">Get started</a>
       </div>
@@ -99,6 +132,7 @@
         <li><a href="/security.html">Security</a></li>
         <li><a href="/docs/quickstart.html">Docs</a></li>
         <li><a href="/contact.html">Contact</a></li>
+        <li><a href="/terms.html">Terms</a></li>
       </ul>
     </div>
   </footer>

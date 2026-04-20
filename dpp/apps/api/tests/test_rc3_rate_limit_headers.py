@@ -153,7 +153,7 @@ class TestRC3RateLimitHeaders:
         - Retry-After line must be present
         """
         # Read documentation (SSOT: public/docs/)
-        docs_path = Path(__file__).parent.parent.parent.parent / "public" / "docs" / "rate-limits.md"
+        docs_path = Path(__file__).parent.parent.parent.parent / "docs" / "rate-limits.md"
         assert docs_path.exists(), \
             f"Documentation not found: {docs_path}"
 

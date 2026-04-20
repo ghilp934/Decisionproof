@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Security &amp; Reliability — Decisionproof</title>
-  <meta name="description" content="How Decisionproof protects your data and ensures reliable, auditable decision outputs. WORM audit storage, PayPal-only payments, tenant isolation.">
+  <meta name="description" content="Architectural controls behind Decisionproof: WORM audit storage, tenant isolation, PayPal-only payments, API-key auth, and deterministic recovery for AI runs. Paid private beta.">
   <link rel="canonical" href="https://decisionproof.io.kr/security.html">
   <link rel="stylesheet" href="/css/dpp.css">
 </head>
@@ -30,11 +30,12 @@
     <section class="hero" style="padding-bottom:48px;">
       <div class="container">
         <div class="hero__eyebrow">Security &amp; Reliability</div>
-        <h1>Built for teams that can't<br>afford ambiguity</h1>
+        <h1>Architectural controls,<br>not unsupported promises</h1>
         <p>
-          Every design decision in Decisionproof starts from the assumption
-          that your decision data is sensitive, your audit trail is load-bearing,
-          and your payment information is not ours to store.
+          Decisionproof treats your run data as sensitive, your audit trail as
+          load-bearing, and your payment information as not ours to store.
+          The controls below are design-level — they are not third-party
+          certifications, and we don't pretend otherwise.
         </p>
       </div>
     </section>
@@ -47,11 +48,11 @@
 
           <div class="trust-item">
             <div class="trust-item__icon">🗂️</div>
-            <h2 class="trust-item__title">Every decision is logged</h2>
+            <h2 class="trust-item__title">Every run is logged</h2>
             <p class="trust-item__desc">
-              All decision runs are recorded with a full input/output trace. You can
-              export the complete audit log at any time from your dashboard — no
-              request needed, no TTL on the data.
+              All runs are recorded with a full input → state transitions → result
+              → settlement trace. You can export the complete audit log at any
+              time from your dashboard — no request needed, no TTL on the data.
             </p>
           </div>
 
@@ -69,29 +70,42 @@
             <div class="trust-item__icon">💳</div>
             <h2 class="trust-item__title">PayPal-only payments</h2>
             <p class="trust-item__desc">
-              We do not store card numbers or payment credentials.
-              All payment processing is handled by PayPal. Guest checkout
-              is supported — no PayPal account required.
+              Decisionproof does not store card numbers or payment credentials.
+              All payment processing is handled by PayPal. Card payment may be
+              available through PayPal guest checkout for eligible buyers, depending
+              on the flow PayPal presents.
             </p>
           </div>
 
           <div class="trust-item">
             <div class="trust-item__icon">🔑</div>
-            <h2 class="trust-item__title">API key auth — no OAuth complexity</h2>
+            <h2 class="trust-item__title">API-key auth &mdash; no OAuth complexity</h2>
             <p class="trust-item__desc">
-              Access is controlled via API keys you create and revoke from your
-              dashboard. Keys can be rotated instantly. No OAuth flows, no token
-              refresh logic to manage on your side.
+              Access to the run API is controlled via API keys you create and
+              revoke from your dashboard. Keys can be rotated instantly. No OAuth
+              flows, no token refresh logic to manage on your side. (Sign-in to
+              the dashboard itself uses Google OAuth.)
             </p>
           </div>
 
           <div class="trust-item">
             <div class="trust-item__icon">⚙️</div>
-            <h2 class="trust-item__title">Deterministic outputs</h2>
+            <h2 class="trust-item__title">Deterministic recovery</h2>
             <p class="trust-item__desc">
-              The same input always produces the same output. There is no hidden
-              model state, no random sampling, no version drift between calls.
-              Results are reproducible and auditable.
+              Runs follow an idempotent state machine with lease-based workers,
+              staged finalize, and a reaper reconciliation loop. Recovery from
+              crashes, timeouts, and retries is deterministic by design &mdash; not
+              a claim about AI inference determinism.
+            </p>
+          </div>
+
+          <div class="trust-item">
+            <div class="trust-item__icon">💰</div>
+            <h2 class="trust-item__title">Spend caps &amp; receipts</h2>
+            <p class="trust-item__desc">
+              Every run has a hard spend cap. Budget is reserved before work
+              starts. Cost is committed only when the result artifact and its
+              receipt metadata are captured &mdash; no receipt, no settlement.
             </p>
           </div>
 
@@ -99,9 +113,9 @@
             <div class="trust-item__icon">🏗️</div>
             <h2 class="trust-item__title">Tenant data isolation</h2>
             <p class="trust-item__desc">
-              Your decision data is scoped to your account. There is no shared
-              data layer across tenants. API keys only authorize access to your
-              own tenant's decisions.
+              Your run data is scoped to your workspace. There is no shared data
+              layer across tenants. API keys only authorize access to your own
+              tenant's runs, receipts, and audit records.
             </p>
           </div>
 
@@ -115,15 +129,27 @@
       <div class="container" style="max-width:680px;">
         <h2 class="section-title">A note on private beta</h2>
         <p style="font-size:16px; color:var(--text-secondary); line-height:1.75; margin-bottom:20px;">
-          Decisionproof is in paid private beta. We operate a production-grade
-          infrastructure on AWS — EKS, RDS, ElastiCache, S3 — but we do not publish
-          uptime SLAs during the beta period.
+          Decisionproof is in paid private beta. The service runs on AWS (EKS, RDS,
+          ElastiCache, S3) using production-grade configuration, but we do not
+          publish uptime SLAs during the beta period. APIs, limits, and operational
+          defaults may change.
+        </p>
+        <p style="font-size:16px; color:var(--text-secondary); line-height:1.75; margin-bottom:20px;">
+          We do not claim third-party compliance certifications or regulatory
+          coverage during the paid private beta. The controls on this page are
+          architectural &mdash; not certifications. If your use case requires a
+          named certification, Decisionproof may not be the right fit at this
+          time.
         </p>
         <p style="font-size:16px; color:var(--text-secondary); line-height:1.75; margin-bottom:0;">
-          If you experience an outage or unexpected behaviour, contact us directly
-          at <a href="mailto:ghilplip934@gmail.com">ghilplip934@gmail.com</a>.
-          We respond within 1 business day. Refund requests within 48 hours of
-          purchase are honoured — see our <a href="/pricing.html#faq">billing FAQ</a>.
+          If you experience an outage or unexpected behaviour, contact
+          <a href="mailto:ghilplip934@gmail.com">ghilplip934@gmail.com</a>.
+          We respond within 1 business day. Commercial refund requests are
+          reviewed case-by-case within 48 hours of purchase; non-waivable
+          consumer-protection rights in your jurisdiction are preserved
+          separately &mdash; see the
+          <a href="/pricing.html#faq">billing FAQ</a> and the
+          <a href="/terms.html">Terms of Use</a>.
         </p>
       </div>
     </section>
@@ -153,6 +179,7 @@
         <li><a href="/security.html">Security</a></li>
         <li><a href="/docs/quickstart.html">Docs</a></li>
         <li><a href="/contact.html">Contact</a></li>
+        <li><a href="/terms.html">Terms</a></li>
       </ul>
     </div>
   </footer>

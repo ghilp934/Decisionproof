@@ -1,16 +1,16 @@
-# Decisionproof API Platform — v0.4.2.8
-## Decision Pack Platform — Agent-Centric API Platform/Solution
+# Decisionproof — v0.4.2.8
+## Execution governance layer for AI decisions
 
 [![Status](https://img.shields.io/badge/Status-Paid%20Private%20Beta-blue)](#status)
-[![Tests](https://img.shields.io/badge/Tests-524%20passing-success)](#)
+[![Tests](https://img.shields.io/badge/Tests-passing-success)](#)
 [![Money](https://img.shields.io/badge/Money-Zero%20leak%20design-critical)](#money-flow-zero-leak-design)
 [![License](https://img.shields.io/badge/License-Apache--2.0-blue)](#license)
 
-Payment-based API platform for **supporting decision-making processes of AI agents.**
+**Spend caps, receipts, and automatic reconciliation for AI runs.**
 
-Run multi-step AI workloads — including structured scoring, URL screening, OCR/document extraction, and research workflows — with **spend caps, receipts, and automatic reconciliation**.
+Decisionproof turns AI decision runs into budget-bounded, auditable, settlement-safe operations. You submit a run with a hard spend cap. The platform reserves budget, executes the work, writes a result artifact, and only then settles the cost. If a worker crashes, a lease expires, or a retry collides, a reconciliation loop rolls the run forward or back — deterministically, without silent money drift.
 
-Built for teams that need **controlled execution, auditable results, and predictable recovery under retries, timeouts, and worker failures**.
+Built for teams that treat AI execution as an accountable economic transaction: decisions need to clear cleanly, cost needs to settle predictably, and the audit trail has to hold up under review.
 
 ---
 
@@ -31,10 +31,23 @@ This release is a paid private beta. APIs, limits, and operational defaults may 
 
 - Access requires account registration and payment at [decisionproof.io.kr](https://decisionproof.io.kr)
 - PayPal is the only supported payment method during beta
-- 30-day access per billing cycle ($29 USD)
-- Rate limits and per-pack cost caps apply (see [API docs](https://decisionproof.io.kr/docs/quickstart.html))
+- $29 USD per 30-day cycle, manual renewal only (no auto-renewal)
+- Rate limits and per-run cost caps apply (see [API docs](https://decisionproof.io.kr/docs/quickstart.html))
 
 Repository: https://github.com/ghilp934/Decisionproof
+
+---
+
+## Why Decisionproof is different
+
+Agent frameworks, durable execution engines, and orchestration toolkits cover **how** an AI run is constructed and resumed. Decisionproof sits one layer up: it governs **what a run is allowed to spend, how completion is proven, and how cost settles** when things go wrong.
+
+- **Spend caps, reserved before work starts.** A run that would exceed its cap is rejected, not truncated mid-execution.
+- **Receipt-backed settlement.** Cost is committed only when the result artifact is written and its metadata is captured. No receipt means no settlement.
+- **Reaper reconciliation.** A continuous loop scans for lease expiry, stuck finalize stages, and missing receipts — and rolls forward or back deterministically.
+- **Audit trail as first-class output.** Every run is recorded as a complete input → state transitions → result → settlement record, exportable at any time.
+
+This is not a replacement for your agent framework. It is the financial and operational control layer you run around it.
 
 ---
 
@@ -75,14 +88,14 @@ Questions or feedback? Use the [contact form](https://decisionproof.io.kr/contac
 
 Decisionproof runs *decision packs* (units of work) as **runs** through a distributed pipeline:
 
-1. **API** validates the request, enforces plan/budget limits, and enqueues work.
-2. **Worker** executes the pack from a queue, producing a result artifact. Depending on the pack type, a worker may perform structured scoring, URL screening, OCR/document extraction, or research-oriented processing. The output is stored as a result artifact so downstream systems can review outcomes in a more controlled and auditable way.
-3. **Reaper** continuously reconciles edge cases (stuck runs, lease expiry, partial commits).
+1. **API** validates the request, enforces plan and spend-cap limits, and enqueues work.
+2. **Worker** executes the pack from a queue and produces a result artifact. Depending on pack type, a worker performs structured scoring, URL screening, OCR/document extraction, or research-style processing. The result is written to durable storage so downstream systems can review outcomes under a controlled audit trail.
+3. **Reaper** continuously reconciles edge cases (stuck runs, lease expiry, partial commits) using deterministic roll-forward / roll-back rules.
 
 The core design goal is to remain **failure-safe** under retries, timeouts, and worker crashes by combining:
 - **Idempotency** at the API boundary (per-tenant idempotency key).
 - **Leases + heartbeats** for long-running work.
-- **Receipt-based settlement** where the result store metadata acts as an authoritative proof for reconciliation.
+- **Receipt-based settlement** where result-store metadata acts as the authoritative proof for reconciliation.
 
 ---
 
@@ -192,10 +205,14 @@ curl http://localhost:8000/v1/runs/<RUN_ID> \
 
 ## Security model (pilot)
 
-- **API keys:** stored hashed (SHA-256), validated with format + checksum.
-- **Errors:** RFC 9457 `application/problem+json` for consistent error handling.
+- **API keys:** stored hashed (SHA-256), validated with format + checksum; revocable from the dashboard.
+- **Errors:** RFC 9457 `application/problem+json` for consistent, machine-parseable error handling.
 - **CORS:** production uses an explicit allowlist via `CORS_ALLOWED_ORIGINS` (dev fallback uses localhost variants; never `"*"` with credentials).
 - **Supabase / Postgres SSOT:** the production guide assumes Supabase Postgres as the primary DB. RLS is enabled for public tables with a default-deny stance.
+- **Tenant isolation:** API keys only authorize access to their own tenant's runs and audit records.
+- **Payments:** PayPal only during beta. No card numbers or payment credentials are stored by Decisionproof.
+
+These are architectural controls, not certifications. Decisionproof does not claim third-party compliance certifications or regulatory coverage during the paid private beta.
 
 > For security reporting, do not open a public issue. Use GitHub Security Advisories / private reporting when enabled.
 
