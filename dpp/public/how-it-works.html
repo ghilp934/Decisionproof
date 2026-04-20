@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>How it works — Decisionproof</title>
-  <meta name="description" content="Get from sign-up to your first API call in four steps. Decisionproof paid private beta — $29 for 30 days, includes 1,000 decision credits.">
+  <meta name="description" content="Set a spend cap, submit a run, inspect the result and receipt. Decisionproof paid private beta — $29 per 30-day cycle, 1,000 decision credits included.">
   <link rel="canonical" href="https://decisionproof.io.kr/how-it-works.html">
   <link rel="stylesheet" href="/css/dpp.css">
 </head>
@@ -29,17 +29,32 @@
     <!-- Hero -->
     <section class="hero" style="padding-bottom:48px;">
       <div class="container">
-        <div class="hero__eyebrow">Private Beta — 4 steps</div>
-        <h1>From sign-up to first API call</h1>
+        <div class="hero__eyebrow">Paid Private Beta &mdash; 4 steps</div>
+        <h1>Set a spend cap.<br>Submit a run. Inspect the receipt.</h1>
         <p>
-          No SDK required. No OAuth flow. Just a REST endpoint,
-          an API key, and a structured decision — ready in minutes.
+          That is the whole mental model. No SDK required. Sign in with Google,
+          pay $29 for 30 days of access, issue an API key, and POST your first
+          run &mdash; budget-bounded, auditable, settlement-safe by design.
         </p>
       </div>
     </section>
 
+    <!-- Mental model box -->
+    <section class="section" style="padding-top:0; padding-bottom:0;">
+      <div class="container" style="max-width:720px;">
+        <div class="card card--accent">
+          <h2 style="font-size:15px; font-weight:700; margin:0 0 12px; text-transform:uppercase; letter-spacing:.5px;">The loop you will run every day</h2>
+          <ol style="margin:0; padding-left:20px; line-height:1.85; color:var(--text-primary);">
+            <li><strong>Set a spend cap</strong> on the run (e.g. <code>max_cost_usd: "5.00"</code>).</li>
+            <li><strong>Submit the run</strong> with an <code>Idempotency-Key</code> so retries are safe.</li>
+            <li><strong>Inspect the result and receipt</strong> &mdash; actual cost, state transitions, and the exportable audit record.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
     <!-- Steps -->
-    <section class="section" style="padding-top:0;">
+    <section class="section" style="padding-top:32px;">
       <div class="container" style="max-width:720px;">
 
         <div class="how-steps">
@@ -47,11 +62,11 @@
           <div class="how-step">
             <div class="how-step__num" aria-hidden="true">1</div>
             <div class="how-step__body">
-              <h2 class="how-step__title">Create your account</h2>
+              <h2 class="how-step__title">Sign in with Google</h2>
               <p class="how-step__desc">
-                Sign up at <a href="/login.html?tab=signup">decisionproof.io.kr</a> with
-                your email address. Account creation takes under a minute — no credit card
-                required at this step.
+                Access requires a Google account during the paid private beta.
+                <a href="/login.html?tab=signup">Sign in at decisionproof.io.kr</a>
+                &mdash; no separate password, no credit card required at this step.
               </p>
             </div>
           </div>
@@ -59,14 +74,16 @@
           <div class="how-step">
             <div class="how-step__num" aria-hidden="true">2</div>
             <div class="how-step__body">
-              <h2 class="how-step__title">Subscribe for 30-day access</h2>
+              <h2 class="how-step__title">Pay $29 for 30-day access</h2>
               <p class="how-step__desc">
-                Pay <strong>$29</strong> via PayPal to activate your account for 30 days.
-                Each paid beta cycle includes <strong>1,000 decision credits</strong> with a
-                <strong>hard cap of 2,000</strong>. Access does not auto-renew; you choose when to renew.
+                Pay <strong>$29</strong> via PayPal to activate your workspace for a
+                30-day cycle. Each cycle includes <strong>1,000 decision credits</strong>
+                with a per-cycle <strong>hard cap of 2,000</strong> and a per-run cost
+                cap of <strong>$5.00</strong>. Access does not auto-renew &mdash; you
+                choose when to renew.
               </p>
               <p class="how-step__desc mt-8">
-                <a href="/pricing.html">See full pricing details →</a>
+                <a href="/pricing.html">See full pricing details &rarr;</a>
               </p>
             </div>
           </div>
@@ -74,11 +91,12 @@
           <div class="how-step">
             <div class="how-step__num" aria-hidden="true">3</div>
             <div class="how-step__body">
-              <h2 class="how-step__title">Create an API key</h2>
+              <h2 class="how-step__title">Issue an API key</h2>
               <p class="how-step__desc">
-                Once your payment is confirmed, your onboarding dashboard activates.
-                Create up to <strong>3 API keys</strong> for your workspace during beta — each
-                key can be revoked independently at any time. No OAuth scopes to configure.
+                Once payment is confirmed, your onboarding dashboard activates.
+                Create up to <strong>3 API keys</strong> per workspace during beta &mdash; each
+                key can be revoked independently at any time. No OAuth scopes to configure
+                on the API surface.
               </p>
             </div>
           </div>
@@ -86,25 +104,31 @@
           <div class="how-step">
             <div class="how-step__num" aria-hidden="true">4</div>
             <div class="how-step__body">
-              <h2 class="how-step__title">Submit your first decision</h2>
+              <h2 class="how-step__title">Submit your first run</h2>
               <p class="how-step__desc">
-                POST a structured decision payload to the API. Get back a deterministic,
-                auditable result. Every run is logged — export the full decision trace at
-                any time.
+                POST a structured run payload with a hard spend cap. You get back
+                a run ID to poll; on completion, the result and the receipt
+                (including <code>actual_cost_usd</code>) are available via the run
+                endpoint and your exportable audit log.
               </p>
 
               <div style="margin-top:20px;">
-                <pre><code>curl -X POST https://api.decisionproof.io.kr/v1/decisions \
-  -H "Authorization: Bearer sk_live_your_key_here" \
+                <pre><code>curl -X POST https://api.decisionproof.io.kr/v1/runs \
+  -H "Authorization: Bearer dpp_live_your_key_here" \
   -H "Content-Type: application/json" \
+  -H "Idempotency-Key: my-unique-key-123" \
   -d '{
-    "decision_type": "approval",
-    "inputs": { "score": 87, "threshold": 80 }
+    "pack_type": "decision",
+    "inputs": {
+      "question": "Should I launch this product?",
+      "mode": "detailed"
+    },
+    "max_cost_usd": "5.00"
   }'</code></pre>
               </div>
 
               <p class="how-step__desc mt-16">
-                <a href="/docs/quickstart.html">Read the full quickstart →</a>
+                <a href="/docs/quickstart.html">Read the full quickstart &rarr;</a>
               </p>
             </div>
           </div>
@@ -119,30 +143,34 @@
       <div class="container" style="max-width:720px;">
         <h2 class="section-title">What's included</h2>
         <p class="section-sub">
-          Every paid private beta subscription gives you full API feature access, with
-          workspace-level limits during beta to keep usage predictable and reliable.
+          Every paid private beta subscription gives you full API feature access.
+          Workspace-level limits apply during beta to keep usage predictable and the service stable.
         </p>
 
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px;">
           <div class="card">
             <h3 style="font-size:15px; font-weight:700; margin:0 0 6px;">Full API feature access</h3>
-            <p class="text-sm text-muted mb-0">All beta endpoints, including runs, API keys, and audit log export.</p>
+            <p class="text-sm text-muted mb-0">All beta endpoints: runs, API keys, audit log export.</p>
           </div>
           <div class="card">
-            <h3 style="font-size:15px; font-weight:700; margin:0 0 6px;">1,000 decision credits included</h3>
+            <h3 style="font-size:15px; font-weight:700; margin:0 0 6px;">1,000 decision credits / cycle</h3>
             <p class="text-sm text-muted mb-0">Each 30-day cycle includes 1,000 decision credits for live usage.</p>
           </div>
           <div class="card">
             <h3 style="font-size:15px; font-weight:700; margin:0 0 6px;">Hard cap: 2,000 credits</h3>
-            <p class="text-sm text-muted mb-0">A workspace cannot exceed 2,000 decision credits in a single 30-day beta cycle.</p>
+            <p class="text-sm text-muted mb-0">A workspace cannot exceed 2,000 decision credits in a single 30-day cycle.</p>
+          </div>
+          <div class="card">
+            <h3 style="font-size:15px; font-weight:700; margin:0 0 6px;">Per-run cost cap: $5.00</h3>
+            <p class="text-sm text-muted mb-0">Submit runs with your own <code>max_cost_usd</code>, capped at $5.00 per run during beta.</p>
           </div>
           <div class="card">
             <h3 style="font-size:15px; font-weight:700; margin:0 0 6px;">Up to 3 API keys</h3>
             <p class="text-sm text-muted mb-0">Create separate keys for environments or workflows, with independent revocation.</p>
           </div>
           <div class="card">
-            <h3 style="font-size:15px; font-weight:700; margin:0 0 6px;">Workspace-level limits</h3>
-            <p class="text-sm text-muted mb-0">Rate limits and cost controls apply during beta to protect stability for all customers.</p>
+            <h3 style="font-size:15px; font-weight:700; margin:0 0 6px;">Exportable audit trail</h3>
+            <p class="text-sm text-muted mb-0">Every run is logged as input → state transitions → result → settlement, and exportable any time.</p>
           </div>
         </div>
       </div>
@@ -153,7 +181,7 @@
       <div class="container text-center">
         <h2 class="section-title">Ready to get started?</h2>
         <p class="text-muted mb-32" style="font-size:17px;">
-          Paid private beta — $29 for 30 days, including 1,000 decision credits.
+          Paid private beta &mdash; $29 per 30-day cycle, 1,000 decision credits included, no auto-renewal.
         </p>
         <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
           <a href="/login.html?tab=signup" class="btn btn--primary btn--lg">Join private beta</a>
@@ -173,6 +201,7 @@
         <li><a href="/security.html">Security</a></li>
         <li><a href="/docs/quickstart.html">Docs</a></li>
         <li><a href="/contact.html">Contact</a></li>
+        <li><a href="/terms.html">Terms</a></li>
       </ul>
     </div>
   </footer>

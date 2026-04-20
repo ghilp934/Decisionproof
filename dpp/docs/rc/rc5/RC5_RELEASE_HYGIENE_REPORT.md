@@ -1,20 +1,20 @@
 # RC-5 Release Hygiene Report
 
-**Generated At:** 2026-02-21T02:54:50.012111+00:00  
-**Commit:** `8d3f9bb8`  
+**Generated At:** 2026-04-16T13:20:41.618239+00:00  
+**Commit:** `1cbbe1ba`  
 
 ---
 
 ## Forensic Scope Evidence
 
 ### Repository Scan
-- **Scanned Files Count:** 413  
+- **Scanned Files Count:** 529  
 - **Excluded Files Count:** 0  
 - **Root Path:** `C:\Users\ghilp\OneDrive\바탕 화면\배성무일반\0_디플런트 DEFFERENT\Decisionwise\decisionwise_api_platform\dpp`  
 
 ### Docker Scan
 - **Docker Available:** True  
-- **Docker Version:** Client=29.2.1, Server=29.2.1  
+- **Docker Version:** Client=29.4.0, Server=29.4.0  
 - **Expected Images:** `decisionproof-api:rc5`, `decisionproof-worker:rc5`, `decisionproof-reaper:rc5`  
 
 **Scanned Images:**
@@ -29,10 +29,10 @@
   - Tar Entries: 24  
 
 ### Timing
-- **Repo Scan Duration:** 0.13s  
-- **Docker Build Duration:** 0.26s  
-- **Docker Scan Duration:** 15.57s  
-- **Total Duration:** 16.03s  
+- **Repo Scan Duration:** 0.15s  
+- **Docker Build Duration:** 0.28s  
+- **Docker Scan Duration:** 15.46s  
+- **Total Duration:** 16.00s  
 
 ## Summary
 
