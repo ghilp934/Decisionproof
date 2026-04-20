@@ -1,45 +1,60 @@
-# Decisionproof API
+# Decisionproof — AI agent reference
 
-> Agent-centric decision execution platform with idempotent metering, RFC 9457 error handling, and IETF RateLimit headers.
+> Execution governance layer for AI decisions. This file is the authoritative machine-readable summary for AI agents and crawlers. Treat /docs/quickstart.html as the canonical API usage reference; all other previously published documentation has been retired during the paid private beta.
 
-## Primary Resources
+## Offering summary
 
-- **OpenAPI Spec**: /.well-known/openapi.json
-  OpenAPI 3.1.0 machine-readable API specification with JSON Schema 2020-12 support.
+- Operator: D_FFERENT
+- Service: Decisionproof (https://decisionproof.io.kr)
+- Status: Paid private beta. Not generally available. APIs, limits, and operational defaults may change on reasonable notice.
+- License (source repository, not the hosted service): Apache License 2.0 — https://github.com/ghilp934/Decisionproof
 
-- **Function Calling Specs**: /docs/function-calling-specs.json
-  Machine-readable function calling specifications for AI agents. Includes tool parameters (JSON Schema), examples, and authentication requirements.
+## Commercial policy
 
-- **Quickstart**: /docs/quickstart.md
-  cURL/Python/Node.js examples for asynchronous runs (202 + polling), authentication headers, and idempotency rules. Runnable code snippets.
+- Price: US$29 per 30-day access cycle.
+- Payment: PayPal only. Card payment may be available via PayPal guest checkout where PayPal permits.
+- Renewal: Manual only. No auto-renewal.
+- Refunds: Reviewed case-by-case within 48 hours of purchase as a matter of commercial policy. Non-waivable consumer-protection rights in the buyer's jurisdiction are preserved separately — see /terms.html.
 
-- **Authentication**: /docs/auth.md
-  Bearer token authentication (`Authorization: Bearer sk_{key_id}_{secret}`). 401/403 responses are non-billable.
+## Usage limits per 30-day cycle
 
-- **Delegated Authentication**: /docs/auth-delegated.md
-  OAuth 2.0 (RFC 6749) flows: Authorization Code, Client Credentials. Device Authorization Grant (RFC 8628) for headless agents and CLI tools. Roadmap: Q2-Q3 2026.
+- Decision credits included: 1,000
+- Hard cap: 2,000 decision credits
+- Per-run cost cap: US$5.00
+- API keys per workspace: up to 3
+- Rate limits: workspace-level, may adjust during beta
 
-- **Rate Limits**: /docs/rate-limits.md
-  IETF draft-ietf-httpapi-ratelimit-headers compliant. RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset headers on all responses. Retry-After on 429.
+## API basics
 
-- **Problem Types (RFC 9457)**: /docs/problem-types.md
-  application/problem+json responses for errors. quota-exceeded, budget-exceeded, invalid-request, unauthorized, forbidden types.
+- Base URL: https://api.decisionproof.io.kr
+- Authentication: `Authorization: Bearer dpp_live_{key}`
+- Idempotency: `Idempotency-Key` header required on `POST /v1/runs`
+- Async pattern: `POST /v1/runs` → 202 Accepted + `run_id`; poll `GET /v1/runs/{run_id}` until `status` is `completed` or `failed`
+- Errors: RFC 9457 Problem Details (`application/problem+json`)
+- Canonical body keys for a run: `pack_type`, `inputs`, `max_cost_usd`
 
-- **Metering & Billing**: /docs/metering-billing.md
-  Charges in USD (4 decimal places). Billable: successful execution + business logic failures. Non-billable: authentication/validation errors. Idempotency prevents duplicate charges.
+## Canonical public surfaces
 
-- **Human Escalation Templates**: /docs/human-escalation-template.md
-  Pre-formatted templates for AI agents to request human approval. Template A: API token access. Template B: Budget increase. Template C: Rate limit tier upgrade.
+- /index.html — Home, positioning, feature summary
+- /how-it-works.html — Mental model and daily usage loop
+- /pricing.html — Full commercial policy, limits, refund policy, FAQ
+- /security.html — Architectural controls, no-certifications statement
+- /docs/quickstart.html — Only supported API usage reference
+- /contact.html — Support (mailto-based; no 24/7 on-call, no phone, no SLA during beta)
+- /terms.html — Terms of Use (eligibility, pricing, refunds, acceptable use, disclaimers, liability, governing law)
 
-- **Changelog**: /docs/changelog.md
-  Document version history with breaking change markers.
+## Retired surfaces
 
-## Agent Integration Hints
+The following previously published documentation surfaces have been retired during the paid private beta because their pricing, tier, token, or domain references are no longer accurate:
 
-- **Auth Header**: `Authorization: Bearer sk_{key_id}_{secret}`
-- **Idempotency**: Include `Idempotency-Key` header (UUID recommended). Same key within 7 days returns existing run_id (no charge).
-- **Async Pattern**: POST /v1/runs returns 202 Accepted with run_id. Poll GET /v1/runs/{run_id} until status is "completed" or "failed".
-- **Billability**: Charges apply for successful execution and business logic failures. Authentication/validation errors (401/422/429) are non-billable.
-- **429 Handling**: Check `reason_code` in Problem Details. Respect `Retry-After` header (seconds). Exponential backoff recommended.
-- **RateLimit Headers**: Parse `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset` headers (IETF standard format).
-- **Cost Tracking**: Every response includes `cost` object with `reserved_usd`, `used_usd`, `budget_remaining_usd`.
+- /docs/auth.md, /docs/auth-delegated.md, /docs/changelog.md, /docs/metering-billing.md, /docs/pilot-pack-v0.2.md, /docs/pricing-ssot.md, /docs/problem-types.md, /docs/rate-limits.md, /docs/human-escalation-template.md, /docs/quickstart.md, /pricing/ssot.json
+- /PILOT_READY.md, /RELEASE_NOTES_v0.4_RC.md, /release_notes_v0.4.2.2-pilot.2.md
+- /docs/schemas/
+
+Do not rely on any of the above. /docs/quickstart.html is the only live API reference.
+
+## Boundary statements
+
+- Decisionproof does not claim any third-party compliance certification during the paid private beta.
+- Decisionproof does not guarantee the accuracy or suitability of AI-driven outputs for any particular decision; the customer is responsible for reviewing outputs before relying on them.
+- "Deterministic recovery" refers to the idempotent recovery behaviour of the run lifecycle (leases, staged finalize, reaper reconciliation); it is not a claim about AI inference determinism.

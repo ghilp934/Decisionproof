@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Contact &amp; Support — Decisionproof</title>
-  <meta name="description" content="Get support or send a message to the Decisionproof team. We respond within 1 business day.">
+  <meta name="description" content="Billing, access, technical, or refund questions about Decisionproof. Paid private beta support — we respond within 1 business day.">
   <link rel="canonical" href="https://decisionproof.io.kr/contact.html">
   <link rel="stylesheet" href="/css/dpp.css">
 </head>
@@ -28,7 +28,8 @@
     <div class="container" style="max-width:640px;">
 
       <h1 style="font-size:32px; font-weight:800; margin:0 0 8px;">Contact &amp; Support</h1>
-      <p class="text-muted mb-32">We respond to all enquiries within 1 business day.</p>
+      <p class="text-muted mb-8">Paid private beta support. We respond within 1 business day.</p>
+      <p class="text-muted text-sm mb-32">No 24/7 on-call, no phone line, no uptime SLA during beta &mdash; see the <a href="/terms.html">Terms of Use</a> for the full scope.</p>
 
       <!-- Common issues quick-links -->
       <div class="card mb-32" style="background:var(--surface-alt);">
@@ -36,6 +37,7 @@
         <ul style="list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px;">
           <li><a href="/docs/quickstart.html">Getting started guide</a></li>
           <li><a href="/pricing.html#faq">Billing &amp; refunds FAQ</a></li>
+          <li><a href="/terms.html">Terms of Use</a></li>
           <li><a href="/login.html">Log in to your account</a></li>
           <li><a href="/onboarding.html">Onboarding dashboard</a></li>
         </ul>
@@ -43,10 +45,18 @@
 
       <!-- Contact form -->
       <div class="card">
-        <h2 style="font-size:17px; font-weight:700; margin:0 0 20px;">Send a message</h2>
+        <h2 style="font-size:17px; font-weight:700; margin:0 0 8px;">Draft a support email</h2>
+        <p class="text-sm text-muted mb-20">
+          This form opens your default email app with a pre-filled message addressed
+          to our support inbox. Nothing is submitted through this website &mdash; you
+          need to send the email from your mail app for us to receive it.
+        </p>
 
-        <div id="formSuccess" class="alert alert--success hidden" role="status">
-          Message sent! We'll get back to you within 1 business day.
+        <div id="formSuccess" class="alert alert--info hidden" role="status">
+          Your email app should now be open with a pre-filled message. <strong>Send
+          it from your email app</strong> to reach support &mdash; we respond within
+          1 business day. If no email app opened, please email us directly at
+          <a href="mailto:ghilplip934@gmail.com">ghilplip934@gmail.com</a>.
         </div>
         <div id="formError" class="alert alert--error hidden" role="alert"></div>
 
@@ -56,13 +66,13 @@
             <input class="form-input" type="text" id="cfName" required placeholder="Your name" autocomplete="name">
           </div>
           <div class="form-group">
-            <label class="form-label" for="cfEmail">Email</label>
+            <label class="form-label" for="cfEmail">Your email</label>
             <input class="form-input" type="email" id="cfEmail" required placeholder="you@example.com" autocomplete="email">
           </div>
           <div class="form-group">
             <label class="form-label" for="cfSubject">Subject</label>
             <select class="form-input" id="cfSubject" required>
-              <option value="" disabled selected>Select a topic…</option>
+              <option value="" disabled selected>Select a topic&hellip;</option>
               <option value="billing">Billing / payment</option>
               <option value="access">Account access</option>
               <option value="technical">Technical issue</option>
@@ -73,17 +83,18 @@
           <div class="form-group">
             <label class="form-label" for="cfMessage">Message</label>
             <textarea class="form-input" id="cfMessage" rows="5" required
-                      placeholder="Describe your issue or question…"
+                      placeholder="Describe your issue or question&hellip;"
                       style="resize:vertical;"></textarea>
           </div>
-          <button type="submit" id="submitBtn" class="btn btn--primary btn--full">Send Message</button>
+          <button type="submit" id="submitBtn" class="btn btn--primary btn--full">Open in my email app</button>
         </form>
       </div>
 
       <!-- Direct email fallback -->
       <p class="text-sm text-muted text-center mt-24">
-        Or email us directly at
+        Prefer to skip the form? Email
         <a href="mailto:ghilplip934@gmail.com">ghilplip934@gmail.com</a>
+        directly.
       </p>
 
     </div>
@@ -98,6 +109,7 @@
         <li><a href="/security.html">Security</a></li>
         <li><a href="/docs/quickstart.html">Docs</a></li>
         <li><a href="/contact.html">Contact</a></li>
+        <li><a href="/terms.html">Terms</a></li>
       </ul>
     </div>
   </footer>
