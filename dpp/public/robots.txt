@@ -12,6 +12,10 @@ Disallow: /auth/
 # Internal docs (not public marketing)
 Disallow: /docs/best_practices/
 
+# Release-packet docs (internal CI gate reference only, not for public indexing)
+Disallow: /RELEASE_NOTES_v0.4_RC.md
+Disallow: /PILOT_READY.md
+
 # Machine-readable agent files (served for agents that fetch directly)
 Disallow: /llms.txt
 Disallow: /llms-full.txt
