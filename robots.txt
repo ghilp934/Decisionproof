@@ -20,4 +20,4 @@ Disallow: /PILOT_READY.md
 Disallow: /llms.txt
 Disallow: /llms-full.txt
 
-Sitemap: https://decisionproof.io.kr/sitemap.xml
+Sitemap: https://www.decisionproof.io.kr/sitemap.xml
