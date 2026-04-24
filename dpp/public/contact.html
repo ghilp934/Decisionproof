@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Contact &amp; Support — Decisionproof</title>
-  <meta name="description" content="Billing, access, technical, or refund questions about Decisionproof. Sandbox paid private beta support — email-based, best effort, target first response within 1 business day. Design Partner support is governed separately by the signed pilot agreement.">
+  <meta name="description" content="Billing, access, technical, or refund questions about Decisionproof. Sandbox paid private beta support — email-based, best effort, target first response within 1 business day. Design Partner application, Growth waitlist, and Enterprise contact-sales inquiries also routed here.">
   <link rel="canonical" href="https://www.decisionproof.io.kr/contact.html">
   <link rel="stylesheet" href="/css/dpp.css">
 </head>
@@ -30,6 +30,17 @@
       <h1 style="font-size:32px; font-weight:800; margin:0 0 8px;">Contact &amp; Support</h1>
       <p class="text-muted mb-8">Sandbox (paid private beta) support. Email-based, best effort, target first response within 1 business day.</p>
       <p class="text-muted text-sm mb-32">No 24/7 on-call, no phone line, no uptime SLA for Sandbox &mdash; see the <a href="/terms.html">Terms of Use</a> for the full scope. Design Partner support is governed separately by the signed pilot agreement and support playbook (Sev1&ndash;Sev4 response targets), not by this Sandbox contact page.</p>
+
+      <!-- MT0A-2: tier-routing note -->
+      <div class="card mb-24" style="background:rgba(220, 38, 38, 0.04); border-left:3px solid var(--brand-primary, #1D4ED8);">
+        <p class="text-sm" style="margin:0 0 8px;"><strong>Other inquiries also welcome here:</strong></p>
+        <ul style="list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px;">
+          <li class="text-sm">• <strong>Apply for Design Partner</strong> &mdash; limited paid pilot. Capacity: max 3 signed partners pre-v1.0; max 2 concurrent live onboardings. Application and review required; no instant checkout.</li>
+          <li class="text-sm">• <strong>Growth waitlist</strong> &mdash; Post-GA tier; not available for self-serve activation in MT0A-2.</li>
+          <li class="text-sm">• <strong>Enterprise contact sales</strong> &mdash; contract-only; legal &amp; security review required; no self-serve. We do not list a public Enterprise price; we do not offer any unlimited tier.</li>
+        </ul>
+        <p class="text-xs text-muted" style="margin:8px 0 0;">Across every tier, additional capacity beyond the prepaid / contract-defined / reserved allowance requires explicit plan upgrade, prepaid top-up, reserve increase, signed order-form amendment, or manual invoice settlement &mdash; never automatic postpaid overage. See <a href="/pricing.html">pricing</a>.</p>
+      </div>
 
       <!-- Common issues quick-links -->
       <div class="card mb-32" style="background:var(--surface-alt);">
@@ -74,10 +85,13 @@
             <label class="form-label" for="cfSubject">Subject</label>
             <select class="form-input" id="cfSubject" required>
               <option value="" disabled selected>Select a topic&hellip;</option>
-              <option value="billing">Billing / payment</option>
+              <option value="billing">Billing / payment (Sandbox)</option>
               <option value="access">Account access</option>
               <option value="technical">Technical issue</option>
-              <option value="refund">Refund request</option>
+              <option value="refund">Refund request (Sandbox)</option>
+              <option value="design-partner">Apply for Design Partner</option>
+              <option value="growth-waitlist">Growth waitlist</option>
+              <option value="enterprise">Enterprise contact sales</option>
               <option value="other">Other</option>
             </select>
           </div>
@@ -124,12 +138,27 @@
     var SUPPORT_EMAIL = 'ghilplip934@gmail.com';
 
     var SUBJECT_LABELS = {
-      billing:   'Billing / payment',
-      access:    'Account access',
-      technical: 'Technical issue',
-      refund:    'Refund request',
-      other:     'Other'
+      billing:           'Billing / payment (Sandbox)',
+      access:            'Account access',
+      technical:         'Technical issue',
+      refund:            'Refund request (Sandbox)',
+      'design-partner':  'Apply for Design Partner',
+      'growth-waitlist': 'Growth waitlist',
+      enterprise:        'Enterprise contact sales',
+      other:             'Other'
     };
+
+    // Pre-select topic from ?topic= URL query (set by pricing.html secondary cards)
+    (function preselectTopic() {
+      try {
+        var params = new URLSearchParams(window.location.search);
+        var topic = params.get('topic');
+        if (topic && SUBJECT_LABELS[topic]) {
+          var sel = document.getElementById('cfSubject');
+          if (sel) sel.value = topic;
+        }
+      } catch (e) { /* no-op */ }
+    })();
 
     window.handleSubmit = function(e) {
       e.preventDefault();

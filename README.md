@@ -1,4 +1,4 @@
-# Decisionproof — v0.4.2.10
+# Decisionproof — v0.4.2.11 (MT0A-2 Aligned)
 ## Execution governance layer for AI runs
 
 [![Status](https://img.shields.io/badge/Status-Paid%20Private%20Beta-blue)](#status)
@@ -92,6 +92,23 @@ Every Sandbox request is evaluated against the limits below **before** any AI in
 - **No free trial**
 
 These numerics align with the internal runtime entitlement configuration (`dpp/apps/api/dpp_api/pricing/fixtures/pricing_ssot.json`) for the Sandbox paid private beta. B2B Design Partner contracts define their own limits in the signed pilot agreement.
+
+---
+
+## Commercial tier skeleton (MT0A-2 lock)
+
+Decisionproof publishes a controlled four-tier commercial skeleton. Only Sandbox is currently sold self-serve. The skeleton is locked in `_DP_v1_0/mt0a_closeout/dec/DEC-MT0A-02-TIER-SKELETON.md` and reflected in `dpp/docs/SPEC_LOCK_PUBLIC_CONTRACT.md` §7.7.
+
+| Tier | Status | Public CTA | Public price |
+|---|---|---|---|
+| Sandbox | Active paid private beta | Join Sandbox beta | US$29 / 30-day access cycle |
+| Design Partner | Limited paid pilot — max 3 signed pre-v1.0; max 2 concurrent live onboardings | Apply for Design Partner | Contracted separately; no public amount |
+| Growth | Post-GA / Waitlist | Join waitlist | Not public in MT0A-2 |
+| Enterprise | Contract-only / Contact Sales | Contact Sales | Not public; no unlimited claim |
+
+**Universal hard-stop commercial rule (every tier)** — Decisionproof does **not** run automatic postpaid overage in any tier. When the prepaid, invoiced, contract-defined, or reserved allowance is exhausted, the system hard-stops with HTTP 429 (rate / quota) or HTTP 402 (entitlement-inactive). Increasing capacity requires explicit plan upgrade, prepaid top-up, reserve increase, signed order-form amendment, manual invoice settlement, or contract-defined Enterprise limit change. **No tier is unlimited**; runtime configuration `0` for an Enterprise contract row means contract-defined / unset, not unlimited public usage.
+
+**Support entitlement by tier** — Sandbox: best-effort email, target first response within 1 business day, no 24/7, no phone, no uptime SLA. Design Partner: Sev1 4h / Sev2 8h / Sev3 1 BD / Sev4 2 BD under signed pilot agreement; availability target binds only if expressly included. Growth: Post-GA, no public Sev commitment in MT0A-2. Enterprise: contract-defined; no public TAM / Slack / 24/7 promise unless signed.
 
 ---
 

@@ -19,6 +19,19 @@
 - Retention (Sandbox): Hot online access for 30 days by default. Cold Archive and Deep Archive are available only where included in the plan or contract. Sandbox data does not automatically move to Cold Archive.
 - Operator: D_FFERENT. Contact: ghilplip934@gmail.com.
 
+## Commercial tier skeleton (MT0A-2 lock)
+
+Decisionproof publishes a four-tier commercial skeleton. Only Sandbox is currently sold self-serve. Other tiers require application, waitlist, or contract.
+
+- Sandbox — Active paid private beta. CTA: Join Sandbox beta. Numerics as listed above.
+- Design Partner — Limited paid pilot. Capacity: max 3 signed pre-v1.0; max 2 concurrent live onboardings. CTA: Apply for Design Partner / Request review. Pricing, runtime limits, retention, support are contract-defined in the signed pilot agreement and Order Form (manual invoice + IBK bank remittance + applicable tax invoice). Not published on /pricing.html.
+- Growth — Post-GA / Waitlist. CTA: Join waitlist / Get notified. No public price, no public quotas in MT0A-2.
+- Enterprise — Contract-only / Contact Sales. CTA: Contact Sales / Request legal & security review. No public price; no unlimited claim. Limits, retention, support, SSO/audit features are contract-defined and subject to runtime readiness.
+
+## Universal hard-stop commercial rule (every tier)
+
+Decisionproof does not run automatic postpaid overage in any tier. When the prepaid, invoiced, contract-defined, or reserved allowance is exhausted, the system hard-stops with HTTP 429 (rate/quota) or HTTP 402 (entitlement-inactive). Increasing capacity requires explicit plan upgrade, prepaid top-up, reserve increase, signed order-form amendment, manual invoice settlement, or contract-defined Enterprise limit change. No tier is unlimited; runtime configuration `0` for an Enterprise contract row means contract-defined / unset, not unlimited public usage.
+
 ## Primary public surfaces
 
 - Home: /index.html

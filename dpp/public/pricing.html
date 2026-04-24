@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pricing — Decisionproof</title>
-  <meta name="description" content="Sandbox paid private beta: $29 per 30-day access cycle, time-boxed and limit-enforced, per-run spend cap US$5.00, no overage billing, no auto-renewal. Sandbox is not the B2B Design Partner offer.">
+  <meta name="description" content="Sandbox paid private beta US$29 / 30-day; Design Partner limited paid pilot (application required); Growth Post-GA waitlist; Enterprise contract-only. No automatic postpaid overage. No unlimited tier.">
   <link rel="canonical" href="https://www.decisionproof.io.kr/pricing.html">
   <link rel="stylesheet" href="/css/dpp.css">
 </head>
@@ -26,81 +26,169 @@
 
   <main>
 
-    <section class="hero" style="padding-bottom:48px;">
+    <section class="hero" style="padding-bottom:32px;">
       <div class="container">
-        <div class="hero__eyebrow">Pricing — Sandbox paid private beta</div>
-        <h1 style="font-size:clamp(28px,4vw,44px);">Sandbox plan. Limit-enforced. No auto-renewal.</h1>
-        <p>Sandbox is a time-boxed, limit-enforced paid beta access path for individual or small-scale evaluation. There is no overage billing; requests that exceed active Sandbox limits are rejected fail-closed. Sandbox is not the B2B Design Partner offer &mdash; Design Partner engagements are contracted separately.</p>
+        <div class="hero__eyebrow">Pricing — Sandbox active. Design Partner limited. Growth Post-GA. Enterprise contract-only.</div>
+        <h1 style="font-size:clamp(28px,4vw,44px);">Choose the right level of execution governance.</h1>
+        <p>Sandbox is the only instant paid entry point. Design Partner is a selective paid pilot (application required). Growth is a Post-GA waitlist. Enterprise is contract-only. Every tier is hard-stopped at its published or contract-defined limits — Decisionproof does not run automatic postpaid overage in any tier.</p>
       </div>
     </section>
 
+    <!-- Primary row: Sandbox + Design Partner -->
     <section class="section" style="padding-top:0;">
       <div class="container">
-        <div style="max-width:420px; margin:0 auto;">
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:24px; align-items:stretch; max-width:880px; margin:0 auto;">
 
-          <div class="pricing-card pricing-card--featured">
+          <!-- Sandbox card (active) -->
+          <div class="pricing-card pricing-card--featured" style="display:flex; flex-direction:column;">
 
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
-              <span style="font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--text-secondary);">Sandbox (Paid Private Beta)</span>
-              <span class="badge badge--info">Limited seats</span>
+              <span style="font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--text-secondary);">Sandbox</span>
+              <span class="badge badge--success">Active Sandbox beta</span>
             </div>
 
-            <div class="pricing-price"><sup>$</sup>29</div>
+            <div class="pricing-price"><sup>US$</sup>29</div>
             <p class="pricing-period">per 30-day access cycle &middot; manual renewal only</p>
 
             <ul class="pricing-features">
-              <li><span class="check">✓</span> Access to the currently enabled Sandbox beta API surface</li>
-              <li><span class="check">✓</span> 30-day access window per payment &mdash; manual renewal only</li>
               <li><span class="check">✓</span> Per-run spend cap <code>reservation.max_cost_usd</code>: <strong>US$5.00</strong></li>
               <li><span class="check">✓</span> Workspace rate limit: <strong>60 requests per minute</strong></li>
-              <li><span class="check">✓</span> Monthly metered operations: <strong>up to 2,000 per 30-day cycle</strong> (hard cap)</li>
+              <li><span class="check">✓</span> Monthly metered operations: <strong>up to 2,000 per 30-day cycle</strong> (hard-capped)</li>
               <li><span class="check">✓</span> Per-run execution timeout: <strong>30 seconds</strong></li>
               <li><span class="check">✓</span> Per-run input / output token limits: <strong>16,000 / 4,000</strong></li>
-              <li><span class="check">✓</span> Up to <strong>3 API keys</strong> per workspace</li>
-              <li><span class="check">✓</span> Overage: <strong>HTTP 429 <code>quota-exceeded</code>, fail-closed, no overage billing</strong></li>
-              <li><span class="check">✓</span> Audit records under applicable retention tier (Sandbox Hot 30 days by default)</li>
+              <li><span class="check">✓</span> Up to <strong>3 API keys</strong> per workspace (<code>dp_live_{secret}</code>)</li>
+              <li><span class="check">✓</span> Hot online retention <strong>30 days</strong>; no automatic Cold Archive</li>
+              <li><span class="check">✓</span> Best-effort email support; target first response within 1 business day; no uptime SLA</li>
+              <li><span class="check">✓</span> <strong>No overage billing</strong> — any breach yields HTTP 429, never a charge</li>
             </ul>
 
-            <a id="pricingCta" href="/login.html?tab=signup" class="btn btn--primary btn--full btn--lg">
-              Get started
+            <a id="pricingCta" href="/login.html?tab=signup" class="btn btn--primary btn--full btn--lg" style="margin-top:auto;">
+              Join Sandbox beta
             </a>
 
             <p class="text-xs text-muted text-center mt-16">
-              Sandbox paid private beta. PayPal during Sandbox beta. No auto-renewal. No overage billing. No uptime SLA during Sandbox beta.
+              PayPal during Sandbox beta. No auto-renewal. No overage billing. No uptime SLA during Sandbox beta.
             </p>
           </div>
 
-          <div class="card mt-24" style="background:rgba(220, 38, 38, 0.06); border-left:3px solid var(--danger, #dc2626);">
-            <h3 style="font-size:15px; font-weight:700; margin:0 0 12px; color:var(--danger, #dc2626);">🛡️ Sandbox Hard Limits (enforced by the runtime)</h3>
-            <p class="text-sm text-muted mb-12">Every Sandbox request is evaluated against the limits below <strong>before</strong> any AI inference cost is incurred. Requests that would breach any limit are rejected immediately with HTTP 429 <code>quota-exceeded</code>. There is no overage billing &mdash; the plan is priced as US$29 per 30-day cycle with no additional charges in any condition.</p>
-            <ul style="list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px;">
-              <li class="text-sm"><strong>Per-run spend cap:</strong> US$5.00 (<code>reservation.max_cost_usd</code>) &mdash; maximum USD reserved for a single run. Exceeding is rejected, not truncated.</li>
-              <li class="text-sm"><strong>Workspace rate limit:</strong> 60 requests per minute (sliding window). Exceeding returns HTTP 429 with <code>RateLimit-Remaining</code> / <code>Retry-After</code> headers.</li>
-              <li class="text-sm"><strong>Monthly metered-operation cap:</strong> up to 2,000 operations per 30-day access cycle. Hard cap, fail-closed &mdash; once the cap is reached, further requests return HTTP 429 <code>quota-exceeded</code> until the next paid cycle.</li>
-              <li class="text-sm"><strong>Per-run execution timeout:</strong> 30 seconds. Runs that exceed this are terminated and reconciled by the reaper.</li>
-              <li class="text-sm"><strong>Per-run input / output token limits:</strong> 16,000 / 4,000 tokens. Oversized requests are rejected with HTTP 422.</li>
-              <li class="text-sm"><strong>API keys per workspace:</strong> up to 3 concurrent <code>dp_live_*</code> keys.</li>
-              <li class="text-sm"><strong>No overage billing:</strong> any breach yields HTTP 429, never a charge. The $29/30-day payment is the only amount Decisionproof bills for Sandbox access.</li>
+          <!-- Design Partner card (limited application) -->
+          <div class="pricing-card" style="display:flex; flex-direction:column; border:1px solid var(--border);">
+
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+              <span style="font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--text-secondary);">Design Partner</span>
+              <span class="badge badge--warning">Limited availability</span>
+            </div>
+
+            <div class="pricing-price" style="font-size:32px; line-height:1.2;">Limited paid pilot</div>
+            <p class="pricing-period">Contracted separately &middot; application required</p>
+
+            <ul class="pricing-features">
+              <li><span class="check">✓</span> <strong>Max 3 Design Partners before v1.0</strong></li>
+              <li><span class="check">✓</span> <strong>Max 2 concurrent live onboardings</strong></li>
+              <li><span class="check">✓</span> Onboarding fee and monthly platform fee defined in signed Order Form</li>
+              <li><span class="check">✓</span> Manual invoice / bank remittance / applicable tax invoice</li>
+              <li><span class="check">✓</span> Per-run spend cap, RPM, ops cap, timeout, token limits, API keys: <strong>contract-defined and hard-capped</strong></li>
+              <li><span class="check">✓</span> Hot retention included; Cold Archive only if specified in Order Form; Deep Archive not included</li>
+              <li><span class="check">✓</span> Sev1 / Sev2 / Sev3 / Sev4 response targets under signed pilot agreement</li>
+              <li><span class="check">✓</span> Additional capacity: <strong>prepaid reserve / order-form amendment / manual invoice settlement only</strong></li>
+              <li><span class="check">✓</span> No automatic postpaid overage</li>
             </ul>
-            <p class="text-xs text-muted mt-12">These numerics align with the internal runtime entitlement configuration (pricing_ssot.json) for the Sandbox paid private beta. They are contractual limits for the Sandbox tier only; B2B Design Partner contracts define their own limits in the signed pilot agreement.</p>
+
+            <a href="/contact.html" class="btn btn--outline btn--full btn--lg" style="margin-top:auto;">
+              Apply for Design Partner
+            </a>
+
+            <p class="text-xs text-muted text-center mt-16">
+              We do not list a public fee. Final pricing is contracted separately. Sandbox is not the Design Partner offer.
+            </p>
           </div>
 
-          <div class="card mt-24" style="background:var(--surface-alt);">
-            <h3 style="font-size:15px; font-weight:700; margin:0 0 12px;">Payment &amp; policy details</h3>
-            <ul style="list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px;">
-              <li class="text-sm"><strong>Accepted:</strong> Sandbox payments are processed through PayPal during the paid private beta (card payment may be available via PayPal guest checkout, depending on the flow PayPal presents to you). B2B Design Partner engagements are contracted separately and billed through manual invoice, bank remittance, and applicable tax-invoice workflows.</li>
-              <li class="text-sm"><strong>Metering:</strong> Sandbox is time-boxed and limit-enforced (see the "Sandbox Hard Limits" block above for numerics). No overage billing &mdash; requests that exceed active Sandbox limits are rejected fail-closed.</li>
-              <li class="text-sm"><strong>Per-run spend cap:</strong> US$5.00 (<code>reservation.max_cost_usd</code>) &mdash; the maximum USD amount reserved for a single run. It is not your monthly, account-level, or workspace-level budget.</li>
-              <li class="text-sm"><strong>API keys:</strong> Up to 3 per workspace during Sandbox beta</li>
-              <li class="text-sm"><strong>Retention:</strong> Hot online access for 30 days by default. Cold Archive and Deep Archive are available only where included in the customer's plan or contract. Sandbox data does not automatically move to Cold Archive; after the Hot window, Sandbox records may be queued for deletion/purge under the applicable data handling policy, unless a separate plan, contract, legal hold, or security/audit obligation requires otherwise.</li>
-              <li class="text-sm"><strong>Auto-renewal:</strong> None &mdash; renewal is always manual</li>
-              <li class="text-sm"><strong>Refunds:</strong> As a matter of commercial policy, refund requests are reviewed case-by-case within 48 hours of purchase. Outside that window, we do not offer refunds as a matter of policy &mdash; but any non-waivable consumer-protection rights in your jurisdiction (e.g. Korea 전자상거래법 7-day withdrawal) are preserved. See the <a href="/terms.html">Terms of Use</a>. B2B Design Partner refund and dispute handling is governed by the signed pilot agreement, not this Sandbox policy.</li>
-              <li class="text-sm"><strong>Invoice:</strong> Sandbox invoices are available via your PayPal receipt. B2B Design Partner invoicing is handled by manual invoice and bank remittance under the signed pilot agreement.</li>
-              <li class="text-sm"><strong>Terms:</strong> Use of Decisionproof is governed by the <a href="/terms.html">Terms of Use</a></li>
+        </div><!-- /primary grid -->
+      </div>
+    </section>
+
+    <!-- Secondary muted row: Growth + Enterprise -->
+    <section class="section" style="padding-top:0;">
+      <div class="container">
+        <p class="text-xs text-muted text-center" style="text-transform:uppercase; letter-spacing:1px; margin-bottom:16px;">Future tiers — not self-serve in MT0A-2</p>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:24px; align-items:stretch; max-width:880px; margin:0 auto; opacity:0.78;">
+
+          <!-- Growth card (Post-GA / waitlist) -->
+          <div class="card" style="background:var(--surface-alt); border:1px dashed var(--border); display:flex; flex-direction:column;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+              <span style="font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--text-secondary);">Growth</span>
+              <span class="badge badge--neutral">Post-GA / Waitlist</span>
+            </div>
+            <h3 style="font-size:22px; margin:0 0 6px;">For teams ready to graduate beyond Sandbox.</h3>
+            <p class="text-sm text-muted" style="margin:0 0 16px;">Growth is not available for self-serve activation during MT0A-2. Pricing, limits, and entitlements will be finalized post-GA. No automatic postpaid overage will be introduced in this tier; capacity increases will require explicit prepaid top-up, reserve increase, or upgrade.</p>
+            <ul class="pricing-features" style="margin-bottom:16px;">
+              <li class="text-sm"><span class="check">·</span> Public price: not published in MT0A-2</li>
+              <li class="text-sm"><span class="check">·</span> Public quotas: not published in MT0A-2</li>
+              <li class="text-sm"><span class="check">·</span> Hard-stop / fail-closed by default; no automatic postpaid overage</li>
+              <li class="text-sm"><span class="check">·</span> Support level finalized before GA</li>
             </ul>
+            <a href="/contact.html?topic=growth-waitlist" class="btn btn--ghost btn--full" style="margin-top:auto;">
+              Join Growth waitlist
+            </a>
           </div>
 
-        </div><!-- /max-w -->
+          <!-- Enterprise card (Contract-only / Contact Sales) -->
+          <div class="card" style="background:var(--surface-alt); border:1px dashed var(--border); display:flex; flex-direction:column;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+              <span style="font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--text-secondary);">Enterprise</span>
+              <span class="badge badge--neutral">Contract-only</span>
+            </div>
+            <h3 style="font-size:22px; margin:0 0 6px;">Regulated, high-volume, custom-security customers.</h3>
+            <p class="text-sm text-muted" style="margin:0 0 16px;">Enterprise is contract-only. Contact Sales for legal and security review. Limits are contract-defined; we do not list a public fee and we do not offer any unlimited tier. Capacity increases require signed amendment, committed spend update, or prepaid reserve increase.</p>
+            <ul class="pricing-features" style="margin-bottom:16px;">
+              <li class="text-sm"><span class="check">·</span> Per-run spend cap, RPM, ops cap, timeout, token limits, API keys: <strong>contract-defined</strong></li>
+              <li class="text-sm"><span class="check">·</span> Retention, Cold Archive, Deep Archive: contract-defined and subject to legal/security review</li>
+              <li class="text-sm"><span class="check">·</span> Support, SLA, named TAM, SSO, audit features: contract-reviewed and subject to runtime readiness; not implied by default</li>
+              <li class="text-sm"><span class="check">·</span> Hard-stop / fail-closed by default; no automatic postpaid overage</li>
+            </ul>
+            <a href="/contact.html?topic=enterprise" class="btn btn--ghost btn--full" style="margin-top:auto;">
+              Contact Sales
+            </a>
+          </div>
+
+        </div><!-- /secondary grid -->
+      </div>
+    </section>
+
+    <!-- Hard-stop doctrine block -->
+    <section class="section" style="padding-top:32px;">
+      <div class="container" style="max-width:880px;">
+        <div class="card" style="background:rgba(220, 38, 38, 0.06); border-left:3px solid var(--danger, #dc2626);">
+          <h2 style="font-size:18px; font-weight:700; margin:0 0 12px; color:var(--danger, #dc2626);">🛡️ Universal hard-stop rule (every tier)</h2>
+          <p class="text-sm" style="margin:0 0 12px;">Decisionproof's pricing identity is deterministic execution governance. Across <strong>every</strong> tier — Sandbox, Design Partner, Growth, Enterprise — we apply the same commercial doctrine:</p>
+          <ul style="list-style:none; margin:0 0 12px; padding:0; display:flex; flex-direction:column; gap:8px;">
+            <li class="text-sm">• <strong>No automatic postpaid overage.</strong> When the prepaid, invoiced, contract-defined, or reserved allowance is exhausted, the system <strong>hard-stops</strong>. We never silently continue and bill later.</li>
+            <li class="text-sm">• <strong>Capacity exhausted = HTTP 429</strong> for rate / quota breach (with <code>RateLimit-Remaining</code> / <code>Retry-After</code> headers); HTTP 402 only for documented entitlement-inactive / unfunded gates.</li>
+            <li class="text-sm">• <strong>Increasing capacity requires an explicit action</strong> — plan upgrade, prepaid top-up, reserve increase, signed order-form amendment, manual invoice settlement, or contract-defined Enterprise limit change. Never an automatic invoice.</li>
+            <li class="text-sm">• <strong>No tier is unlimited.</strong> If a runtime configuration field reads <code>0</code> for an Enterprise contract row, it means contract-defined / unset, not unlimited public usage.</li>
+          </ul>
+          <p class="text-xs text-muted" style="margin:0;">This rule is referenced in <a href="/terms.html">Terms of Use</a> and locked in <code>SPEC_LOCK_PUBLIC_CONTRACT.md</code> §7.5.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sandbox detail block (kept from MT0A-1 for runtime-aligned numerics) -->
+    <section class="section" style="padding-top:0;">
+      <div class="container" style="max-width:880px;">
+        <div class="card" style="background:var(--surface-alt);">
+          <h3 style="font-size:15px; font-weight:700; margin:0 0 12px;">Sandbox — payment &amp; policy details</h3>
+          <ul style="list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px;">
+            <li class="text-sm"><strong>Accepted:</strong> Sandbox payments are processed through PayPal during the paid private beta (card payment may be available via PayPal guest checkout, depending on the flow PayPal presents to you). Design Partner, Growth, and Enterprise are <em>not</em> billed through this Sandbox path.</li>
+            <li class="text-sm"><strong>Metering:</strong> Sandbox is time-boxed and limit-enforced (see the limit list on the Sandbox card). Requests that would exceed any active Sandbox limit are pre-rejected with HTTP 429 <code>quota-exceeded</code>; no overage billing.</li>
+            <li class="text-sm"><strong>Per-run spend cap:</strong> US$5.00 (<code>reservation.max_cost_usd</code>) — the maximum USD reserved for a single run. It is not your monthly, account-level, or workspace-level budget.</li>
+            <li class="text-sm"><strong>API keys:</strong> Up to 3 per workspace during Sandbox beta (<code>dp_live_{secret}</code> format).</li>
+            <li class="text-sm"><strong>Retention:</strong> Hot online access for 30 days by default. Cold Archive and Deep Archive are available only where included in the customer's plan or contract. Sandbox data does not automatically move to Cold Archive; after the Hot window, Sandbox records may be queued for deletion/purge under the applicable data handling policy, unless a separate plan, contract, legal hold, or security/audit obligation requires otherwise.</li>
+            <li class="text-sm"><strong>Auto-renewal:</strong> None — renewal is always manual.</li>
+            <li class="text-sm"><strong>Refunds (Sandbox):</strong> As a matter of commercial policy, refund requests are reviewed case-by-case within 48 hours of purchase. Outside that window, we do not offer refunds as a matter of policy — but any non-waivable consumer-protection rights in your jurisdiction (e.g. Korea 전자상거래법 7-day withdrawal) are preserved. See the <a href="/terms.html">Terms of Use</a>. Design Partner refund and dispute handling is governed by the signed pilot agreement, not this Sandbox policy.</li>
+            <li class="text-sm"><strong>Invoice:</strong> Sandbox invoices are available via your PayPal receipt. Design Partner invoicing is handled by manual invoice and bank remittance under the signed pilot agreement.</li>
+            <li class="text-sm"><strong>Terms:</strong> Use of Decisionproof is governed by the <a href="/terms.html">Terms of Use</a>.</li>
+          </ul>
+        </div>
       </div>
     </section>
 
@@ -112,33 +200,33 @@
         <div style="display:flex; flex-direction:column; gap:20px;">
 
           <div>
-            <h3 style="font-size:16px; font-weight:700; margin:0 0 6px;">What happens after 30 days?</h3>
-            <p class="text-muted text-sm mb-0">Your Sandbox access expires and runs stop being accepted. You can renew at any time from your dashboard; a reminder email is sent before expiry. For data retention: Sandbox includes Hot online access for 30 days by default. After the Hot window, Sandbox records and result artifacts are not guaranteed to remain online or retrievable and may be queued for deletion/purge under the applicable data handling policy, unless a separate plan, contract, legal hold, or security/audit obligation requires otherwise.</p>
+            <h3 style="font-size:16px; font-weight:700; margin:0 0 6px;">Can I exceed my plan automatically?</h3>
+            <p class="text-muted text-sm mb-0">No. Decisionproof does not support automatic postpaid overage in any tier. When your prepaid, invoiced, contract-defined, or reserved allowance is exhausted, the system hard-stops with HTTP 429 (rate/quota) or HTTP 402 (entitlement-inactive). Increasing capacity requires an explicit action — plan upgrade, prepaid top-up, reserve increase, signed order-form amendment, or manual invoice settlement.</p>
           </div>
 
           <div>
-            <h3 style="font-size:16px; font-weight:700; margin:0 0 6px;">Can I pay by card without a PayPal account?</h3>
-            <p class="text-muted text-sm mb-0">Card payment may be available through PayPal guest checkout for eligible buyers. Availability depends on the checkout flow PayPal presents to you — Decisionproof does not control this.</p>
+            <h3 style="font-size:16px; font-weight:700; margin:0 0 6px;">Is Enterprise unlimited?</h3>
+            <p class="text-muted text-sm mb-0">No. Enterprise is contract-defined. Limits, retention, support, and feature scope are negotiated in the signed Order Form and Master Service Agreement. Decisionproof does not offer any unlimited public tier; if our internal runtime entitlement configuration shows a <code>0</code> for an Enterprise row, it means contract-defined / unset, not unlimited usage.</p>
           </div>
 
           <div>
-            <h3 style="font-size:16px; font-weight:700; margin:0 0 6px;">Is there a free trial?</h3>
-            <p class="text-muted text-sm mb-0">Not during the Sandbox paid private beta. Access is subscription-only.</p>
+            <h3 style="font-size:16px; font-weight:700; margin:0 0 6px;">Can I buy Design Partner access instantly?</h3>
+            <p class="text-muted text-sm mb-0">No. Design Partner is a limited paid pilot, capped at <strong>3 total Design Partners before v1.0</strong> with <strong>maximum 2 concurrent live onboardings</strong>. Engagement is by application and review. Pricing, onboarding fee, monthly platform fee, runtime limits, retention, and Sev1-Sev4 support targets are defined in the signed pilot agreement and Order Form, not on this page.</p>
           </div>
 
           <div>
-            <h3 style="font-size:16px; font-weight:700; margin:0 0 6px;">How do Sandbox limits work?</h3>
-            <p class="text-muted text-sm mb-0">Sandbox is time-boxed and limit-enforced by six concrete numerics: 30-day access window, 60 req/min workspace rate limit, up to 2,000 metered operations per 30-day cycle (hard cap), per-run spend cap US$5.00 via <code>reservation.max_cost_usd</code>, 30 s per-run execution timeout, and 16,000/4,000 per-run input/output token limits. Exceeding any limit returns HTTP 429 <code>quota-exceeded</code>; there is no overage billing. The Sandbox plan is not the B2B Design Partner offer.</p>
+            <h3 style="font-size:16px; font-weight:700; margin:0 0 6px;">What happens after Sandbox limits are reached?</h3>
+            <p class="text-muted text-sm mb-0">Sandbox is hard-stopped at six concrete numerics (60 req/min workspace rate limit, up to 2,000 metered operations per 30-day cycle, US$5.00 per-run spend cap via <code>reservation.max_cost_usd</code>, 30 s per-run execution timeout, 16,000 / 4,000 per-run input / output token limits, up to 3 API keys). Exceeding any of these returns HTTP 429 <code>quota-exceeded</code> — there is no overage billing. The US$29 / 30-day fee is the only amount Decisionproof charges for Sandbox access.</p>
           </div>
 
           <div>
-            <h3 style="font-size:16px; font-weight:700; margin:0 0 6px;">How do refunds work?</h3>
-            <p class="text-muted text-sm mb-0">As a matter of commercial policy, refund requests are reviewed case-by-case within 48 hours of purchase. Outside that window, we do not offer refunds as a matter of policy. Any non-waivable consumer-protection rights you have in your jurisdiction (for example, Korean e-commerce cooling-off rights for individual consumers) continue to apply and are not limited by this policy &mdash; see the <a href="/terms.html">Terms of Use</a>. Contact <a href="/contact.html">support</a> with your PayPal order reference.</p>
+            <h3 style="font-size:16px; font-weight:700; margin:0 0 6px;">When is Growth available?</h3>
+            <p class="text-muted text-sm mb-0">Growth is a Post-GA tier. There is no self-serve activation in MT0A-2. You can join the waitlist; we'll contact you when Growth opens with finalized pricing, limits, and support entitlement. As with every tier, Growth will not introduce automatic postpaid overage.</p>
           </div>
 
           <div>
-            <h3 style="font-size:16px; font-weight:700; margin:0 0 6px;">How do I cancel?</h3>
-            <p class="text-muted text-sm mb-0">Simply do not renew. Access remains active until the 30 days expire; no action is needed to cancel. There is no auto-renewal to switch off.</p>
+            <h3 style="font-size:16px; font-weight:700; margin:0 0 6px;">How do refunds work (Sandbox)?</h3>
+            <p class="text-muted text-sm mb-0">As a matter of commercial policy, Sandbox refund requests are reviewed case-by-case within 48 hours of purchase. Outside that window, we do not offer refunds as a matter of policy. Any non-waivable consumer-protection rights you have in your jurisdiction (for example, Korean e-commerce cooling-off rights for individual consumers) continue to apply and are not limited by this policy — see the <a href="/terms.html">Terms of Use</a>. Design Partner refund handling is governed by the signed pilot agreement, not this Sandbox policy.</p>
           </div>
 
         </div>
@@ -166,7 +254,7 @@
     const btn = document.getElementById('pricingCta');
     if (btn && isLoggedIn()) {
       btn.href = '/checkout.html';
-      btn.textContent = 'Go to checkout';
+      btn.textContent = 'Go to Sandbox checkout';
     }
   </script>
 

@@ -39,6 +39,34 @@ These numerics align with the internal runtime entitlement configuration (pricin
 - Cold Archive and Deep Archive are available only where included in the customer's plan or contract.
 - Sandbox data does not automatically move to Cold Archive. After the Hot window, Sandbox records and result artifacts are not guaranteed to remain online or retrievable and may be queued for deletion/purge under the applicable data handling policy, unless a separate plan, contract, legal hold, or security/audit obligation requires otherwise.
 
+## Commercial tier skeleton (MT0A-2 lock)
+
+Decisionproof publishes a controlled four-tier commercial skeleton. Only Sandbox is currently sold self-serve.
+
+- **Sandbox** — Active paid private beta. Public price US$29 / 30-day access cycle. PayPal, manual renewal only. Hard limits as listed in the previous section. CTA: Join Sandbox beta.
+- **Design Partner** — Limited paid pilot. Capacity: max 3 signed Design Partners pre-v1.0; max 2 concurrent live onboardings. Application and review required (no instant checkout). Pricing (one-time onboarding fee, monthly platform fee), runtime limits (per-run spend cap, RPM, monthly ops cap, execution timeout, token limits, API keys), retention, and Sev1-Sev4 support are contract-defined in the signed Order Form and pilot agreement. Billing path: manual invoice + IBK bank remittance + applicable tax invoice. CTA: Apply for Design Partner / Request review / Discuss pilot fit. No public commercial values published in MT0A-2.
+- **Growth** — Post-GA / Waitlist. Not available for self-serve activation in MT0A-2. No public price. No public quotas. Hard-stop / fail-closed by default; no automatic postpaid overage. Currency choice deferred to post-GA decision. Cold Archive consideration deferred. Support level finalized before GA. CTA: Join waitlist / Get notified / Request Growth access.
+- **Enterprise** — Contract-only / Contact Sales. No self-serve activation. No public price. Limits, retention, support, SLA, named TAM, SSO, audit features are contract-defined and subject to runtime readiness; not implied as default. We do not list any unlimited tier. Capacity increases require signed amendment, committed spend update, prepaid reserve increase, or manual invoice settlement. CTA: Contact Sales / Request legal & security review / Discuss Enterprise needs.
+
+## Universal hard-stop commercial rule (every tier)
+
+Decisionproof's commercial doctrine applies uniformly across Sandbox, Design Partner, Growth, and Enterprise:
+
+1. **No automatic postpaid overage in any tier.** When the prepaid, invoiced, contract-defined, or reserved allowance is exhausted, the system hard-stops / fail-closed.
+2. **Allowed additional-capacity mechanisms**: explicit plan upgrade, prepaid top-up, reserve increase, signed order-form amendment, manual invoice settlement before capacity increase, contract-defined Enterprise limit change.
+3. **Forbidden mechanisms**: automatic postpaid pay-as-you-go overage; silent continuation followed by later true-up; unlimited use with later reconciliation; "included usage + automatic overage invoice"; "usage above included quota is billed automatically".
+4. **Runtime semantics**: HTTP 429 default for rate / quota exhaustion (with `Retry-After` / `RateLimit-Remaining` headers); HTTP 402 only for documented entitlement-inactive / unfunded gates; no request continues into provider / LLM work after a known hard cap is exhausted.
+5. **No public unlimited tier**. A runtime entitlement field rendering `0` for an Enterprise contract row means contract-defined / unset / not applicable, never customer-facing unlimited.
+
+## Support entitlement by tier (MT0A-2)
+
+- Sandbox: best-effort email; target first response within 1 business day; no 24/7; no phone; no uptime SLA.
+- Design Partner: Sev1 4h / Sev2 8h / Sev3 1 BD / Sev4 2 BD response targets under signed pilot agreement; availability target binds only if expressly included.
+- Growth: Post-GA; no public Sev commitment in MT0A-2; muted wording only ("support level finalized before GA").
+- Enterprise: contract-defined; no public TAM / Slack / 24/7 promise unless signed.
+
+Forbidden across all tiers: 24/7 support as default; phone support as default; guaranteed resolution time; model-quality / output-correctness guarantee; uptime SLA for Sandbox; Enterprise named TAM unless contract-specified.
+
 ## API basics
 
 - Base URL (production): https://api.decisionproof.io.kr

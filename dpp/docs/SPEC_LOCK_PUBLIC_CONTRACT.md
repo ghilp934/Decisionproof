@@ -1,9 +1,9 @@
-# SPEC LOCK: Public Contract v0.4.2.10 (MT0A-1 Aligned)
+# SPEC LOCK: Public Contract v0.4.2.11 (MT0A-2 Aligned)
 
-**Status**: LOCKED (Single Source of Truth) — Updated per MT0A-1 Surface Sync Patch
-**Effective Date**: 2026-04-24 (MT0A-1 patch)
+**Status**: LOCKED (Single Source of Truth) — Updated per MT0A-2 Pricing Skeleton Lock
+**Effective Date**: 2026-04-24 (MT0A-2 patch); supersedes MT0A-1 Surface Sync Patch (v0.4.2.10)
 **Project**: Decisionproof
-**Purpose**: This document defines the **public API contract** aligned with MT0A-1 DEC decisions. All documentation (public/docs, pilot docs, llms.txt) and machine-readable specs (function-calling-specs.json, OpenAPI) MUST conform to this specification. Earlier spec values (`sk_{key_id}_{secret}`, `api.decisionproof.ai`, 45-day retention) are **superseded** by the MT0A-1 DEC register (`open_ssot_decisions_v0.2_redteam.md`).
+**Purpose**: This document defines the **public API contract** aligned with MT0A-1 + MT0A-2 DEC decisions. All documentation (public/docs, pilot docs, llms.txt) and machine-readable specs (function-calling-specs.json, OpenAPI) MUST conform to this specification. Earlier spec values (`sk_{key_id}_{secret}`, `api.decisionproof.ai`, 45-day retention) are **superseded** by the MT0A-1/MT0A-2 DEC register.
 
 **MT0A-1 supersede summary**:
 - Auth token format: `sk_{key_id}_{secret}` → `dp_live_{secret}` (DEC-MT0A-01)
@@ -11,6 +11,15 @@
 - Retention: 45-day run / 30-day S3 → Hot 30 days default (Sandbox), Cold/Deep by plan/contract (DEC-MT0A-05)
 - Pricing unit: Decision Credits ban retained; Sandbox is time-boxed, limit-enforced, fail-closed (DEC-MT0A-04)
 - `max_cost_usd` is always a **per-run spend cap** under `reservation.max_cost_usd` (DEC-MT0A-02)
+
+**MT0A-2 supersede summary**:
+- Public commercial skeleton locked: Sandbox (active) / Design Partner (limited paid pilot, application required) / Growth (Post-GA waitlist) / Enterprise (contract-only / Contact Sales) (DEC-MT0A-02-TIER-SKELETON).
+- **Universal hard-stop commercial rule (every tier)**: no automatic postpaid overage; capacity exhaustion is hard-stop / fail-closed; capacity increases require explicit plan upgrade, prepaid top-up, reserve increase, signed order-form amendment, manual invoice settlement, or contract-defined Enterprise limit change (§7.6).
+- **No public unlimited tier**. A runtime entitlement field rendering `0` for an Enterprise contract row means contract-defined / unset; it is not customer-facing unlimited (§7.6, §7.7).
+- **Founder capacity doctrine**: max 3 signed Design Partners pre-v1.0; max 2 concurrent live onboardings (§7.7).
+- Sandbox MT0A-1 commitments preserved unchanged (price US$29 / 30-day, six runtime-aligned hard limits, no overage billing, Hot 30-day retention, best-effort email support).
+- Design Partner / Growth / Enterprise public numeric values: not published in MT0A-2 (CONTRACT_DEFINED / POST_GA).
+- Cold Archive / Deep Archive commercial packaging: deferred (see `_DP_v1_0/mt0a_closeout/mt0a2_archive_packaging_gate.md`).
 
 ---
 
@@ -384,7 +393,63 @@ Sandbox is a time-boxed, limit-enforced paid beta access path. The following **h
 
 **Fail-closed guarantee**: the US$29 / 30-day fee is the only amount Decisionproof charges for Sandbox access. Any request that would exceed any of the limits above is **rejected pre-cost** and does not consume LLM inference credits against the Sandbox user.
 
-**Tier scope**: the Sandbox plan is not the B2B Design Partner offer. Design Partner engagements are contracted separately with their own limits defined in the signed pilot agreement. Growth / Enterprise tiers are not currently offered; references to those tier names in pricing_ssot.json are reserved for MT0A-2 Pricing Skeleton Lock.
+**Tier scope**: the Sandbox plan is not the B2B Design Partner offer. Design Partner engagements are contracted separately with their own limits defined in the signed pilot agreement. Growth / Enterprise tier shape is locked in §7.7 (MT0A-2); customer-facing numeric values for those tiers are not published in MT0A-2.
+
+### 7.6 Universal hard-stop commercial rule (MT0A-2)
+
+This rule applies to **every** Decisionproof tier — Sandbox, Design Partner, Growth, Enterprise — and is binding for all customer-facing copy and runtime behaviour.
+
+1. **No automatic postpaid overage in any tier.** "Overage" means allowance exhaustion, not later billing. When a prepaid, invoiced, contract-defined, or reserved allowance is exhausted, the default behaviour is **hard-stop / fail-closed**.
+2. **Allowed additional-capacity mechanisms**: explicit plan upgrade, prepaid top-up, reserve increase, signed order-form amendment, manual invoice settlement before capacity increase, contract-defined Enterprise limit change.
+3. **Forbidden mechanisms** (must not appear in any active customer-facing copy or runtime promise):
+   - automatic postpaid pay-as-you-go overage,
+   - silent continuation followed by later true-up,
+   - unlimited use with later reconciliation,
+   - "included usage + automatic overage invoice",
+   - "usage above included quota is billed automatically".
+4. **Runtime semantics**:
+   - HTTP 429 is the default response for rate / quota exhaustion (with `RateLimit-Remaining` / `Retry-After` headers per §5).
+   - HTTP 402 may be used **only** for a documented Decisionproof entitlement-inactive / unfunded gate (per §7 of pricing_ssot.json `payment_required_http_status_optional`).
+   - No request may continue into provider / LLM work after a known hard cap is exhausted.
+5. **Runtime `0` semantics**: a runtime entitlement field rendering `0` for a contract row (e.g. ENTERPRISE) means **contract-defined / unset / not applicable**. It must never be rendered as customer-facing unlimited. Currently the runtime `is_zero_unlimited()` helper (`pricing/models.py:156`) treats `0` as "custom_or_unlimited" for `included_dc_per_month`, `monthly_quota_dc`, `rate_limit_rpm`, `hard_overage_dc_cap`; this internal semantic must not be exposed to customer-facing surfaces, and the runtime semantic itself is to be tightened in Phase 1 (see `_DP_v1_0/mt0a_closeout/mt0a2_runtime_alignment_plan.md`).
+6. **ENTERPRISE `overage_behavior` drift**: `pricing_ssot.json` ENTERPRISE row currently sets `overage_behavior: "notify_only"`. Founder-locked doctrine is `block_on_breach` for every tier. Customer-facing copy must reflect `block_on_breach` semantics regardless of the SSOT row; runtime alignment is tracked as `OPEN-RUNTIME-ENTERPRISE-OVERAGE-BEHAVIOR` in Phase 1.
+
+### 7.7 Tier Skeleton (MT0A-2)
+
+The four-tier public skeleton, locked by founder decision and Red Team-audited:
+
+| Tier | Public activation state | Public CTA (allowed) | Forbidden CTA |
+|---|---|---|---|
+| Sandbox | Active paid private beta | Join Sandbox beta / Start Sandbox / Get Sandbox access | Unlimited / Scale instantly / Enterprise-ready / Auto-upgrade |
+| Design Partner | Limited availability — **max 3 signed pre-v1.0; max 2 concurrent live onboardings** | Apply for Design Partner / Request review / Discuss pilot fit | Start Now / Buy Now / Activate instantly / Checkout |
+| Growth | Post-GA / Waitlist (no self-serve in MT0A-2) | Join waitlist / Get notified / Request Growth access | Start Now / Upgrade now / Checkout / Self-serve |
+| Enterprise | Contract-only / Contact Sales (no self-serve) | Contact Sales / Request legal & security review / Discuss Enterprise needs | Start Now / Buy Now / Unlimited / Self-serve |
+
+**Public numeric publication rule**:
+- Sandbox numerics are MT0A-1-locked and re-stated in §7.5.
+- Design Partner / Growth / Enterprise numerics are **not** published as customer-facing commitments in MT0A-2. Internal runtime `pricing_ssot.json` STARTER / GROWTH / ENTERPRISE rows are reference values only; their public release is gated by signed Order Form (Design Partner), DEC + GA readiness (Growth), and signed Master Service Agreement (Enterprise).
+- "CONTRACT_DEFINED" wording must be used in customer-facing copy where a tier has not yet published numerics. The literal token "Unlimited" (case-insensitive) is forbidden across every tier.
+
+**Capacity doctrine (founder)**:
+- Maximum signed Design Partners before v1.0: **3 total**.
+- Maximum concurrent live Design Partner onboardings: **2**.
+- Public copy must never imply broad or immediate Design Partner availability.
+
+**Billing path by tier**:
+- Sandbox: PayPal during paid private beta; manual renewal only; no auto-renewal.
+- Design Partner: manual invoice + IBK bank remittance + applicable tax invoice (Billing Path A per DEC-P02-BILLING MT0A-1 supplement); payment in advance unless Order Form states otherwise.
+- Growth / Enterprise: not in MT0A-2 scope.
+
+**Support entitlement by tier**:
+- Sandbox: best-effort email; target first response within 1 business day; no 24/7; no phone; no uptime SLA.
+- Design Partner: Sev1 4h / Sev2 8h / Sev3 1 BD / Sev4 2 BD under signed pilot agreement; availability target binds only if expressly included in signed agreement.
+- Growth / Enterprise: not publicly committed in MT0A-2; muted wording only.
+
+**Forbidden public commitments across all tiers** (P0):
+- Decision Credits / DC customer-facing wording (DEC-MT0A-04 — retained).
+- "No TTL" / "unlimited retention" / "unlimited runs" / "unlimited Sandbox" / "unmetered Sandbox" / any "Unlimited" tier (DEC-MT0A-04 / MT0A-2).
+- "automatic overage" / "automatically billed" / "pay as you go" / "true-up" / "later true-up" (MT0A-2 §7.6).
+- 24/7 support as default; phone support as default; named TAM unless contract-specified; SSO/audit "available" without runtime-ready evidence.
 
 ---
 
@@ -471,14 +536,18 @@ The previous "45-day run retention / 30-day S3 lifecycle" baseline is superseded
 
 ### 10.2 Forbidden Drift Detection
 - **CI/CD Gate**: Automated test scans for forbidden tokens
-- **Tokens**: `X-API-Key`, `dw_live_`, `dw_test_`, `sk_live_`, `sk_test_`, `sk_{key_id}_{secret}`, `dpp_live_`, `workspace_id`, `plan_id`, `Decision Credits`, `decision credits`, `No TTL`, `unlimited retention`, `unlimited runs`, `unlimited Sandbox`, `api.decisionproof.ai` (active public examples)
-- **Scope**: `public/docs`, `docs/pilot`, `public/llms.txt`, `public/llms-full.txt`, `apps/api/dpp_api/main.py`
+- **Tokens (auth / domain / legacy)**: `X-API-Key`, `dw_live_`, `dw_test_`, `sk_live_`, `sk_test_`, `sk_{key_id}_{secret}`, `dpp_live_`, `workspace_id`, `plan_id`, `api.decisionproof.ai`
+- **Tokens (pricing / metering — DEC-MT0A-04 / MT0A-2)**: `Decision Credits`, `decision credits`, `monthly DC`, `credit quota`, `included credits`, `No TTL`, `unlimited retention`, `unlimited runs`, `unlimited Sandbox`, `unmetered Sandbox`
+- **Tokens (overage / unlimited — MT0A-2 §7.6)**: `automatic overage`, `automatically billed`, `pay as you go`, `pay-as-you-go`, `true-up`, `later true-up`, `Unlimited` (case-insensitive in active customer copy), `Enterprise unlimited`
+- **Tokens (false-surface — MT0A-2 §7.7)**: `Start Now` / `Buy Now` / `Activate instantly` / `Checkout` / `Self-serve` on Design Partner, Growth, Enterprise contexts; `Growth available now`, `Design Partner instant activation`
+- **Scope**: `public/`, `docs/pilot/`, `public/llms.txt`, `public/llms-full.txt`, `apps/api/dpp_api/main.py`, `postman/`
 
 ### 10.3 Version History
 | Version | Date | Changes |
 |---------|------|---------|
 | v0.4.2.2 | 2026-02-17 | Initial SPEC LOCK: Bearer auth, async runs, RFC 9457, rate limits, no DC terminology |
 | v0.4.2.10 (MT0A-1) | 2026-04-24 | MT0A-1 Surface Sync Patch: auth token → `dp_live_{secret}`; API host → `api.decisionproof.io.kr`; retention → Hot 30 default + Cold/Deep by plan/contract; Sandbox limit-enforced (no unlimited, no invented quota); `reservation.max_cost_usd` per-run qualifier locked. |
+| v0.4.2.11 (MT0A-2) | 2026-04-24 | MT0A-2 Pricing Skeleton Lock: four-tier skeleton (Sandbox active / Design Partner limited application / Growth Post-GA waitlist / Enterprise contract-only); universal hard-stop commercial rule (§7.6); founder capacity doctrine max 3 DP / max 2 concurrent (§7.7); runtime `0` ≠ unlimited; ENTERPRISE `overage_behavior` runtime drift logged for Phase 1; Cold/Deep Archive packaging deferred. No customer-facing commercial values published for Design Partner / Growth / Enterprise. |
 
 ---
 
